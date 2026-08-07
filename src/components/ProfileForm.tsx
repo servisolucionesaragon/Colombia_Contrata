@@ -288,8 +288,24 @@ function EmpresaFields() {
 
       <FieldGroup title="Contacto y ubicación">
         <div className="grid sm:grid-cols-2 gap-4">
+          <Field label="Teléfono de la empresa" htmlFor="telefonoEmpresa">
+            <input
+              id="telefonoEmpresa"
+              type="tel"
+              required
+              className={inputClass}
+            />
+          </Field>
           <Field label="Nombre de contacto" htmlFor="nombreContacto">
             <input id="nombreContacto" type="text" required className={inputClass} />
+          </Field>
+          <Field label="Teléfono de contacto" htmlFor="telefonoContacto">
+            <input
+              id="telefonoContacto"
+              type="tel"
+              required
+              className={inputClass}
+            />
           </Field>
           <Field label="Dirección" htmlFor="direccionEmpresa">
             <input
