@@ -14,7 +14,7 @@ export default function AdminSettingsForm() {
   const [eslogan, setEslogan] = useState(
     "Todos tus documentos de contratación pública, en un solo lugar",
   );
-  const [colorPrimario, setColorPrimario] = useState("#0033a0");
+  const [colorPrimario, setColorPrimario] = useState("#1d4ed8");
   const [logo, setLogo] = useState<ImageField>({
     file: null,
     previewUrl: "/icono.png",
