@@ -1,5 +1,10 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
 
 const navLinks = [
   { href: "#como-funciona", label: "Cómo funciona" },
@@ -9,6 +14,27 @@ const navLinks = [
 ];
 
 export default function Header() {
+  const router = useRouter();
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      setUserEmail(data.user?.email ?? null);
+    });
+    const { data: subscription } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setUserEmail(session?.user.email ?? null);
+      }
+    );
+    return () => subscription.subscription.unsubscribe();
+  }, []);
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    router.push("/");
+    router.refresh();
+  };
+
   return (
     <header className="sticky top-0 z-50 flex flex-wrap md:justify-start md:flex-nowrap w-full bg-white border-b border-gray-200 text-sm py-3">
       <nav className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
@@ -40,18 +66,38 @@ export default function Header() {
         </div>
 
         <div className="flex items-center gap-x-2">
-          <Link
-            href="/login"
-            className="hidden sm:inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent text-gray-700 hover:text-brand-blue px-3 py-2"
-          >
-            Iniciar sesión
-          </Link>
-          <Link
-            href="/registro"
-            className="hidden sm:inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent bg-brand-blue text-white hover:bg-brand-blue-dark px-4 py-2"
-          >
-            Crear cuenta
-          </Link>
+          {userEmail ? (
+            <>
+              <Link
+                href="/perfil"
+                className="hidden sm:inline-flex items-center gap-x-2 text-sm font-medium text-gray-700 hover:text-brand-blue px-3 py-2 truncate max-w-[14rem]"
+              >
+                {userEmail}
+              </Link>
+              <button
+                type="button"
+                onClick={handleSignOut}
+                className="hidden sm:inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 px-4 py-2"
+              >
+                Cerrar sesión
+              </button>
+            </>
+          ) : (
+            <>
+              <Link
+                href="/login"
+                className="hidden sm:inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent text-gray-700 hover:text-brand-blue px-3 py-2"
+              >
+                Iniciar sesión
+              </Link>
+              <Link
+                href="/registro"
+                className="hidden sm:inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent bg-brand-blue text-white hover:bg-brand-blue-dark px-4 py-2"
+              >
+                Crear cuenta
+              </Link>
+            </>
+          )}
 
           <button
             type="button"
@@ -94,18 +140,38 @@ export default function Header() {
               {link.label}
             </a>
           ))}
-          <Link
-            href="/login"
-            className="font-medium text-gray-600 hover:text-brand-blue"
-          >
-            Iniciar sesión
-          </Link>
-          <Link
-            href="/registro"
-            className="sm:hidden inline-flex items-center justify-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent bg-brand-blue text-white hover:bg-brand-blue-dark px-4 py-2 mt-1"
-          >
-            Crear cuenta
-          </Link>
+          {userEmail ? (
+            <>
+              <Link
+                href="/perfil"
+                className="font-medium text-gray-600 hover:text-brand-blue truncate"
+              >
+                {userEmail}
+              </Link>
+              <button
+                type="button"
+                onClick={handleSignOut}
+                className="sm:hidden inline-flex items-center justify-center gap-x-2 text-sm font-semibold rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 px-4 py-2 mt-1"
+              >
+                Cerrar sesión
+              </button>
+            </>
+          ) : (
+            <>
+              <Link
+                href="/login"
+                className="font-medium text-gray-600 hover:text-brand-blue"
+              >
+                Iniciar sesión
+              </Link>
+              <Link
+                href="/registro"
+                className="sm:hidden inline-flex items-center justify-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent bg-brand-blue text-white hover:bg-brand-blue-dark px-4 py-2 mt-1"
+              >
+                Crear cuenta
+              </Link>
+            </>
+          )}
         </div>
       </div>
     </header>
