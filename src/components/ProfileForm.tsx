@@ -1,7 +1,10 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { DEPARTAMENTOS_COLOMBIA } from "@/lib/colombia";
+import {
+  CIUDADES_POR_DEPARTAMENTO,
+  DEPARTAMENTOS_COLOMBIA,
+} from "@/lib/colombia";
 
 type AccountType = "persona" | "empresa";
 
@@ -73,6 +76,7 @@ export default function ProfileForm() {
 }
 
 function PersonaFields() {
+  const [departamento, setDepartamento] = useState("");
   return (
     <div className="space-y-6">
       <FieldGroup title="Identificación">
@@ -162,7 +166,13 @@ function PersonaFields() {
             />
           </Field>
           <Field label="Departamento" htmlFor="departamento">
-            <select id="departamento" required defaultValue="" className={inputClass}>
+            <select
+              id="departamento"
+              required
+              value={departamento}
+              onChange={(e) => setDepartamento(e.target.value)}
+              className={inputClass}
+            >
               <option value="" disabled>
                 Selecciona un departamento
               </option>
@@ -174,7 +184,7 @@ function PersonaFields() {
             </select>
           </Field>
           <Field label="Ciudad" htmlFor="ciudad">
-            <input id="ciudad" type="text" required className={inputClass} />
+            <CitySelect id="ciudad" departamento={departamento} />
           </Field>
         </div>
       </FieldGroup>
@@ -183,6 +193,7 @@ function PersonaFields() {
 }
 
 function EmpresaFields() {
+  const [departamento, setDepartamento] = useState("");
   return (
     <div className="space-y-6">
       <FieldGroup title="Datos de la empresa">
@@ -293,7 +304,8 @@ function EmpresaFields() {
             <select
               id="departamentoEmpresa"
               required
-              defaultValue=""
+              value={departamento}
+              onChange={(e) => setDepartamento(e.target.value)}
               className={inputClass}
             >
               <option value="" disabled>
@@ -307,11 +319,43 @@ function EmpresaFields() {
             </select>
           </Field>
           <Field label="Ciudad" htmlFor="ciudadEmpresa">
-            <input id="ciudadEmpresa" type="text" required className={inputClass} />
+            <CitySelect id="ciudadEmpresa" departamento={departamento} />
           </Field>
         </div>
       </FieldGroup>
     </div>
+  );
+}
+
+function CitySelect({
+  id,
+  departamento,
+}: {
+  id: string;
+  departamento: string;
+}) {
+  const ciudades = CIUDADES_POR_DEPARTAMENTO[departamento] ?? [];
+  return (
+    // key fuerza el reinicio de la selección cuando cambia el departamento
+    <select
+      key={departamento}
+      id={id}
+      required
+      disabled={!departamento}
+      defaultValue=""
+      className={`${inputClass} disabled:bg-gray-50 disabled:text-gray-400`}
+    >
+      <option value="" disabled>
+        {departamento
+          ? "Selecciona una ciudad"
+          : "Selecciona primero un departamento"}
+      </option>
+      {ciudades.map((c) => (
+        <option key={c} value={c}>
+          {c}
+        </option>
+      ))}
+    </select>
   );
 }
 
