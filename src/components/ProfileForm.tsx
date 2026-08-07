@@ -1,59 +1,75 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
+import Link from "next/link";
+import { supabase } from "@/lib/supabase";
 import {
   CIUDADES_POR_DEPARTAMENTO,
   DEPARTAMENTOS_COLOMBIA,
 } from "@/lib/colombia";
 
 type AccountType = "persona" | "empresa";
+type Status = "loading" | "signed-out" | "ready";
 
 export default function ProfileForm() {
+  const [status, setStatus] = useState<Status>("loading");
   const [accountType, setAccountType] = useState<AccountType>("persona");
+  const [email, setEmail] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      const user = data.user;
+      if (!user) {
+        setStatus("signed-out");
+        return;
+      }
+      // account_type se guarda en el registro (ver RegisterForm) y define
+      // qué formulario mostrar — el usuario ya no elige esto aquí.
+      const type = user.user_metadata?.account_type as AccountType | undefined;
+      setAccountType(type === "empresa" ? "empresa" : "persona");
+      setEmail(user.email ?? null);
+      setStatus("ready");
+    });
+  }, []);
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    // TODO: conectar con el backend (pendiente de definir) una vez esté
-    // disponible. El tipo de cuenta debería venir ya fijado por el
-    // registro, no seleccionarse aquí — este toggle es solo para poder
-    // previsualizar ambos formularios sin backend todavía.
+    // TODO: guardar estos campos en una tabla "profiles" de Supabase
+    // asociada al user.id, una vez esté creada.
     setSaved(true);
   };
 
+  if (status === "loading") {
+    return <p className="text-sm text-gray-500">Cargando tu cuenta...</p>;
+  }
+
+  if (status === "signed-out") {
+    return (
+      <div className="text-center py-4">
+        <p className="text-sm text-gray-600">
+          Debes iniciar sesión para completar tu perfil.
+        </p>
+        <Link
+          href="/login"
+          className="mt-4 inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent bg-brand-blue text-white hover:bg-brand-blue-dark px-5 py-2.5"
+        >
+          Iniciar sesión
+        </Link>
+      </div>
+    );
+  }
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      <div
-        role="tablist"
-        aria-label="Tipo de cuenta"
-        className="grid grid-cols-2 gap-2 p-1 bg-gray-100 rounded-lg"
-      >
-        <button
-          type="button"
-          role="tab"
-          aria-selected={accountType === "persona"}
-          onClick={() => setAccountType("persona")}
-          className={`text-sm font-medium rounded-md py-2 transition-colors ${
-            accountType === "persona"
-              ? "bg-white text-brand-blue shadow-sm"
-              : "text-gray-600 hover:text-gray-900"
-          }`}
-        >
-          Persona natural
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={accountType === "empresa"}
-          onClick={() => setAccountType("empresa")}
-          className={`text-sm font-medium rounded-md py-2 transition-colors ${
-            accountType === "empresa"
-              ? "bg-white text-brand-blue shadow-sm"
-              : "text-gray-600 hover:text-gray-900"
-          }`}
-        >
-          Empresa
-        </button>
+      <div className="flex items-center justify-between rounded-lg bg-gray-50 border border-gray-200 px-4 py-3">
+        <div>
+          <span className="text-xs text-gray-500">Tipo de cuenta</span>
+          <p className="text-sm font-semibold text-gray-900">
+            {accountType === "persona" ? "Persona natural" : "Empresa"}
+          </p>
+        </div>
+        {email && <span className="text-sm text-gray-500">{email}</span>}
       </div>
 
       {accountType === "persona" ? <PersonaFields /> : <EmpresaFields />}
@@ -67,7 +83,8 @@ export default function ProfileForm() {
         </button>
         {saved && (
           <span className="text-sm text-gray-600">
-            Vista previa guardada — todavía no hay backend conectado.
+            Vista previa guardada — todavía falta crear la tabla de perfiles
+            en Supabase para persistir estos datos de verdad.
           </span>
         )}
       </div>
