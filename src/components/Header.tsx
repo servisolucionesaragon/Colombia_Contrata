@@ -46,7 +46,7 @@ export default function Header() {
 
           <button
             type="button"
-            className="md:hidden flex justify-center items-center size-9 rounded-lg border border-gray-200 text-gray-500"
+            className="hs-collapse-toggle md:hidden flex justify-center items-center size-9 rounded-lg border border-gray-200 text-gray-500"
             data-hs-collapse="#mobile-menu"
             aria-controls="mobile-menu"
             aria-label="Abrir menú"
