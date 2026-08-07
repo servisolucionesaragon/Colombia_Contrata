@@ -50,7 +50,7 @@ export default function Home() {
           </p>
           <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
             <a
-              href="/solicitar"
+              href="/registro"
               className="inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent bg-blue-700 text-white hover:bg-blue-800 px-6 py-3"
             >
               Solicitar mis documentos
@@ -143,7 +143,7 @@ export default function Home() {
                   contrato.
                 </p>
                 <a
-                  href="/solicitar"
+                  href="/registro"
                   className="mt-6 inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent bg-blue-700 text-white hover:bg-blue-800 px-5 py-2.5"
                 >
                   Solicitar documentos
