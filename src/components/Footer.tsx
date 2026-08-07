@@ -8,7 +8,7 @@ export default function Footer() {
         <div className="col-span-2 sm:col-span-1">
           <div className="flex items-center gap-x-2">
             <Image
-              src="/icono.png"
+              src="/isotipo.png"
               alt="Colombia Contrata"
               width={28}
               height={28}

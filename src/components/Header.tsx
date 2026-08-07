@@ -14,7 +14,7 @@ export default function Header() {
       <nav className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
         <Link href="/" className="flex-none flex items-center gap-x-2">
           <Image
-            src="/icono.png"
+            src="/isotipo.png"
             alt="Colombia Contrata"
             width={32}
             height={32}
