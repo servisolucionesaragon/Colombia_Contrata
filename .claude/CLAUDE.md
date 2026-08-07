@@ -1,5 +1,7 @@
 # Colombia Contrata — Contexto del proyecto
 
+> Este archivo es la memoria portátil del proyecto: vive dentro del repo (a diferencia de la memoria propia del asistente, que queda atada a esta máquina), así que viaja con `git clone` a cualquier otra computadora o sesión. Mantenlo actualizado en vez de depender solo de memoria externa.
+
 ## Qué es
 Portal web para obtener documentos requeridos en contratación pública en Colombia (contraloría, policía, procuraduría, antecedentes penales, registros de conductas sexuales, entre otros).
 
@@ -14,7 +16,7 @@ Sitio en producción: https://colombia-contrata.vercel.app — cada push a `main
 
 Páginas construidas: `/` (landing), `/registro` (alta con consentimiento Habeas Data), `/terminos`, `/privacidad` (borradores legales), `/admin` (back office de marca, vista previa sin auth). Ninguna está conectada a un backend real todavía — todo es frontend con validación local y mensajes de "vista previa".
 
-Identidad de marca ya aplicada: logo/ícono reales (`public/isotipo.png`, `public/icono.png`), paleta de colores (`brand-navy #0d1b3d`, `brand-blue #1d4ed8`, `brand-yellow #fcd116`, `brand-red #ce1126` como tokens Tailwind en `globals.css`), tipografía Montserrat.
+Identidad de marca ya aplicada: logo/ícono reales (`public/isotipo.png`, `public/icono.png`), paleta de colores (`brand-navy #0d1b3d`, `brand-blue #1d4ed8`, `brand-yellow #fcd116`, `brand-red #ce1126` como tokens Tailwind en `globals.css`), tipografía Montserrat. El azul es una decisión explícita del usuario: el Manual de Identidad Visual original proponía `#0033a0` (azul bandera de Colombia), pero el usuario pidió cambiarlo a `#1d4ed8` — no revertir sin confirmar con él primero.
 
 ## Cumplimiento legal (Habeas Data — Ley 1581 de 2012)
 - Antecedentes penales/policiales/disciplinarios son **dato sensible** → requieren checkbox de autorización explícito y separado del checkbox de Términos y Condiciones. Nunca premarcado. Ya implementado en `/registro` (3 checkboxes independientes).
