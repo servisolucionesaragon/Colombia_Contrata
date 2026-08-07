@@ -2,31 +2,65 @@
 
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
+import { supabase } from "@/lib/supabase";
 
 type AccountType = "persona" | "empresa";
 
+// Versión de los documentos legales aceptados — actualizar cuando cambien
+// /terminos o /privacidad, para que la trazabilidad del consentimiento
+// registre exactamente qué versión aceptó el usuario.
+const POLICY_VERSION = "2026-08-07-draft";
+
 export default function RegisterForm() {
   const [accountType, setAccountType] = useState<AccountType>("persona");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [acceptDataPolicy, setAcceptDataPolicy] = useState(false);
   const [acceptSensitiveData, setAcceptSensitiveData] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const passwordsMatch =
     password.length > 0 && password === confirmPassword;
   const canSubmit =
-    acceptTerms && acceptDataPolicy && acceptSensitiveData && passwordsMatch;
+    acceptTerms &&
+    acceptDataPolicy &&
+    acceptSensitiveData &&
+    passwordsMatch &&
+    !submitting;
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!canSubmit) return;
-    // TODO: conectar con el backend de autenticación (pendiente de definir,
-    // ej. Supabase) una vez esté disponible, enviando accountType junto con
-    // el correo. Nombre, teléfono, tipo/número de documento y datos de
-    // empresa (razón social, NIT) se completan después desde el perfil,
-    // una vez la cuenta esté confirmada.
+    setSubmitting(true);
+    setErrorMessage(null);
+
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: `${window.location.origin}/perfil`,
+        data: {
+          account_type: accountType,
+          consent: {
+            terms: true,
+            data_policy: true,
+            sensitive_data: true,
+            policy_version: POLICY_VERSION,
+            accepted_at: new Date().toISOString(),
+          },
+        },
+      },
+    });
+
+    setSubmitting(false);
+    if (error) {
+      setErrorMessage(traducirError(error.message));
+      return;
+    }
     setSubmitted(true);
   };
 
@@ -44,16 +78,20 @@ export default function RegisterForm() {
             strokeLinecap="round"
             strokeLinejoin="round"
           >
-            <path d="M20 6 9 17l-5-5" />
+            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2Z" />
+            <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
           </svg>
         </div>
         <h2 className="mt-4 text-lg font-semibold text-gray-900">
-          Datos recibidos
+          Revisa tu correo
         </h2>
         <p className="mt-2 text-sm text-gray-600">
-          El registro todavía no está conectado a un sistema de cuentas —
-          esta es una vista previa del formulario. Pronto podrás crear tu
-          cuenta desde aquí y completar tus datos desde el perfil.
+          Te enviamos un enlace de confirmación a{" "}
+          <span className="font-medium text-gray-900">{email}</span>. Haz
+          clic en el enlace para activar tu cuenta y completar tu perfil.
+        </p>
+        <p className="mt-3 text-xs text-gray-500">
+          ¿No llega? Revisa la carpeta de spam o correo no deseado.
         </p>
       </div>
     );
@@ -106,6 +144,8 @@ export default function RegisterForm() {
           type="email"
           required
           autoComplete="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
           className={inputClass}
         />
       </Field>
@@ -184,12 +224,18 @@ export default function RegisterForm() {
         </Checkbox>
       </div>
 
+      {errorMessage && (
+        <p className="text-sm text-red-600 rounded-lg bg-red-50 border border-red-200 px-3 py-2">
+          {errorMessage}
+        </p>
+      )}
+
       <button
         type="submit"
         disabled={!canSubmit}
         className="w-full inline-flex items-center justify-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent bg-brand-blue text-white hover:bg-brand-blue-dark disabled:bg-gray-300 disabled:cursor-not-allowed px-4 py-2.5"
       >
-        Crear cuenta
+        {submitting ? "Creando cuenta..." : "Crear cuenta"}
       </button>
 
       <p className="text-center text-sm text-gray-600">
@@ -199,6 +245,23 @@ export default function RegisterForm() {
         </Link>
       </p>
     </form>
+  );
+}
+
+function traducirError(message: string): string {
+  const errores: Record<string, string> = {
+    "User already registered": "Este correo ya tiene una cuenta registrada.",
+    "Password should be at least 6 characters":
+      "La contraseña debe tener al menos 6 caracteres.",
+    "Signup requires a valid password": "La contraseña no es válida.",
+    "Unable to validate email address: invalid format":
+      "El formato del correo no es válido.",
+    "Email rate limit exceeded":
+      "Se han enviado demasiados correos. Intenta de nuevo en unos minutos.",
+  };
+  return (
+    errores[message] ??
+    `No pudimos crear la cuenta. Intenta de nuevo. (${message})`
   );
 }
 
