@@ -12,7 +12,7 @@ Dos perfiles de usuario:
 Ver `README.md` en la raíz del proyecto para el detalle técnico completo (stack, estructura, páginas implementadas, roadmap). Este archivo se enfoca en contexto de colaboración y decisiones que no están en el README.
 
 ## Estado actual (resumen)
-Sitio en producción: https://colombia-contrata.vercel.app — cada push a `main` despliega automático en Vercel.
+Sitio en producción: https://colombiacontrata.com (dominio propio ya conectado; también responde en https://colombia-contrata.vercel.app) — cada push a `main` despliega automático en Vercel.
 
 Páginas construidas: `/` (landing), `/registro` (**conectado a Supabase Auth real** — crea cuenta y envía correo de verificación), `/perfil` (lee el tipo de cuenta persona/empresa real desde la sesión de Supabase; el guardado de los datos ampliados aún es solo vista previa, falta tabla `profiles`), `/terminos`, `/privacidad` (borradores legales), `/admin` (back office de marca, vista previa sin auth). `/login` todavía no existe — es un hueco activo porque `/perfil` ya redirige ahí sin sesión.
 
@@ -20,7 +20,7 @@ Backend: **Supabase confirmado y parcialmente conectado** (solo Auth por ahora, 
 
 Email: **Resend conectado como SMTP de Supabase Auth** — correos salen de `noreply@colombiacontrata.com`. Las 6 plantillas de "Authentication" están traducidas al español; las 7 de "Security" (MFA, cambios de password/email/phone) siguen desactivadas y sin traducir porque no se usan.
 
-Dominio: `colombiacontrata.com` **en proceso de conexión a Vercel** (no terminado). Ya agregado en Vercel → Domains (`colombiacontrata.com` + `www.colombiacontrata.com`, con redirect apex→www). Falta agregar en Cloudflare DNS dos registros CNAME (`@` y `www`) apuntando a `1b7885c77d62091c.vercel-dns-017.com.`, con el proxy de Cloudflare **desactivado** (DNS only / nube gris) en ambos — si se necesitan reconsultar los valores exactos, están en Vercel → Settings → Domains → "View DNS configuration" de cada dominio.
+Dominio: `colombiacontrata.com` **ya conectado a Vercel** (2026-08-07). En Vercel → Domains están `colombiacontrata.com` + `www.colombiacontrata.com` (redirect apex→www, 308), ambos "Valid Configuration". En Cloudflare DNS existen los dos registros CNAME (`@` y `www`) apuntando a `1b7885c77d62091c.vercel-dns-017.com.`, con el proxy de Cloudflare desactivado (DNS only / nube gris) en ambos.
 
 Identidad de marca ya aplicada: logo/ícono reales (`public/isotipo.png`, `public/icono.png`), paleta de colores (`brand-navy #0d1b3d`, `brand-blue #1d4ed8`, `brand-yellow #fcd116`, `brand-red #ce1126` como tokens Tailwind en `globals.css`), tipografía Montserrat. El azul es una decisión explícita del usuario: el Manual de Identidad Visual original proponía `#0033a0` (azul bandera de Colombia), pero el usuario pidió cambiarlo a `#1d4ed8` — no revertir sin confirmar con él primero.
 
@@ -39,7 +39,7 @@ Identidad de marca ya aplicada: logo/ícono reales (`public/isotipo.png`, `publi
 - **API de consultas a fuentes**: aún no la tiene el usuario — se está construyendo el sitio en paralelo mientras la consigue
 
 ## Infraestructura y despliegue
-- Dominio comprado: `colombiacontrata.com`, DNS/CDN ya conectado a Cloudflare. **En proceso de conexión** a Vercel (ver detalle en README → Despliegue): ya agregado en Vercel, faltan los registros DNS en Cloudflare.
+- Dominio comprado: `colombiacontrata.com`, DNS/CDN en Cloudflare, **ya conectado a Vercel** (ver detalle en README → Despliegue).
 - Repo remoto: https://github.com/servisolucionesaragon/Colombia_Contrata (público, main branch). Credenciales de git ya configuradas en esta máquina (Git Credential Manager, usuario `servisolucionesaragon`) — el push funciona sin pedir login.
 - Hosting: Vercel (proyecto `servisoluciones-aragon/colombia-contrata`), tier gratuito, autodeploy en cada push a `main`.
 - ⚠️ **Nunca marcar las env vars `NEXT_PUBLIC_*` como "Sensitive" en Vercel** — esa opción las oculta durante el build, y como necesitan insertarse en el bundle del navegador en build-time, el build falla con `supabaseKey is required`. Ya pasó una vez (commits alrededor de `4658785`). La anon key de Supabase está diseñada para ser pública.

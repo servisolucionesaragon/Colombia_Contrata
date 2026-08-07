@@ -7,7 +7,7 @@ Tiene dos perfiles de usuario:
 - **Independientes / personas naturales**: se registran, seleccionan del checklist los documentos que necesitan, pagan, y reciben un comprimido con los PDFs por correo. La descarga queda disponible por **10 días**.
 - **Empresas**: compran paquetes/planes de consultas (créditos) para validar antecedentes de candidatos antes de contratarlos. El candidato debe autorizar él mismo la consulta (ver sección de Habeas Data) — la empresa lo invita, pero no puede consultarlo sin su autorización directa.
 
-**Sitio en producción:** https://colombia-contrata.vercel.app (dominio propio `colombiacontrata.com` en proceso de conexión — ver [Despliegue](#despliegue)).
+**Sitio en producción:** https://colombiacontrata.com (dominio propio ya conectado; también disponible en https://colombia-contrata.vercel.app — ver [Despliegue](#despliegue)).
 
 ## Stack
 
@@ -132,19 +132,17 @@ El registro ya guarda trazabilidad básica del consentimiento en `user_metadata`
 - **Repo**: [servisolucionesaragon/Colombia_Contrata](https://github.com/servisolucionesaragon/Colombia_Contrata).
 - **Backend**: [Supabase](https://supabase.com) (proyecto `colombia-contrata`, ref `zjbijmieiyumpqwyqhfm`, región São Paulo) — por ahora solo Auth.
 - **Email**: Supabase Auth usa SMTP personalizado vía [Resend](https://resend.com) (`smtp.resend.com`, remitente `noreply@colombiacontrata.com`). Configurado en Supabase → Authentication → Emails → SMTP Settings. Las 6 plantillas de "Authentication" (Confirm signup, Invite, Magic Link, Change email, Reset password, Reauthentication) están traducidas al español; las 7 de "Security" (password/email/phone changed, MFA, etc.) siguen desactivadas por defecto y sin traducir porque no se usan todavía.
-- **Dominio propio** `colombiacontrata.com`: comprado, DNS/CDN en Cloudflare.
-  - **Estado: en proceso de conexión.** Ya se agregaron `colombiacontrata.com` y `www.colombiacontrata.com` en Vercel → Domains (Production), con "Redirect apex domains to www" activado. Vercel pidió estos registros DNS (visibles de nuevo en Vercel → Settings → Domains → "View DNS configuration" si hace falta reconsultarlos):
+- **Dominio propio** `colombiacontrata.com`: comprado, DNS/CDN en Cloudflare, **ya conectado a Vercel** (2026-08-07). `colombiacontrata.com` y `www.colombiacontrata.com` están agregados en Vercel → Domains (Production), con "Redirect apex domains to www" activado (colombiacontrata.com hace 308 a www). En Cloudflare → DNS → Registros existen los dos CNAME requeridos, ambos "DNS only" (proxy desactivado, nube gris):
 
     | Type | Name | Value | Proxy |
     |---|---|---|---|
-    | CNAME | `@` | `1b7885c77d62091c.vercel-dns-017.com.` | **Disabled** (DNS only, nube gris — no naranja) |
-    | CNAME | `www` | `1b7885c77d62091c.vercel-dns-017.com.` | **Disabled** (DNS only, nube gris) |
+    | CNAME | `@` | `1b7885c77d62091c.vercel-dns-017.com.` | Disabled (DNS only) |
+    | CNAME | `www` | `1b7885c77d62091c.vercel-dns-017.com.` | Disabled (DNS only) |
 
-  - **Falta**: entrar a Cloudflare (dash.cloudflare.com) → DNS → agregar esos dos registros. Importante desactivar el proxy naranja de Cloudflare en ambos (ponerlos "DNS only"), porque Vercel necesita resolver el dominio directamente para emitir su propio certificado SSL.
+  Vercel muestra "Valid Configuration" en los tres dominios (apex, www y el `.vercel.app`) y el sitio carga con certificado SSL válido en https://colombiacontrata.com.
 
 ## Roadmap / pendientes
 
-- [ ] **Terminar de conectar `colombiacontrata.com`** — agregar los registros DNS en Cloudflare (ver tabla arriba en Despliegue).
 - [ ] Construir `/login` (urgente — `/perfil` ya redirige ahí sin sesión) y `/solicitar` (checklist de documentos) y `/empresas`.
 - [ ] Crear tabla `profiles` en Supabase (Postgres) y conectar `ProfileForm.tsx` para que persista de verdad.
 - [ ] Registrar la IP en la trazabilidad de consentimiento de Habeas Data (requiere un endpoint de servidor/Route Handler, ya que `supabase.auth.signUp` corre en el cliente).
