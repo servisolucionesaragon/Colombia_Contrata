@@ -8,7 +8,9 @@ export default function PrelineScript() {
 
   useEffect(() => {
     const loadPreline = async () => {
-      await import("preline/dist/index.js");
+      // Only the components actually used in the UI are imported, to keep
+      // dev-compile times reasonable (importing the full library is heavy).
+      await import("preline/dist/collapse.js");
       window.HSStaticMethods.autoInit();
     };
     loadPreline();
