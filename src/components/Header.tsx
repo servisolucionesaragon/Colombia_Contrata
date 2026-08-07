@@ -39,7 +39,7 @@ export default function Header() {
           </Link>
           <Link
             href="/solicitar"
-            className="inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent bg-blue-700 text-white hover:bg-blue-800 px-4 py-2"
+            className="hidden sm:inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent bg-blue-700 text-white hover:bg-blue-800 px-4 py-2"
           >
             Solicitar documentos
           </Link>
@@ -75,7 +75,7 @@ export default function Header() {
         id="mobile-menu"
         className="hs-collapse hidden w-full md:hidden overflow-hidden transition-all duration-300 basis-full grow"
       >
-        <div className="flex flex-col gap-3 px-4 pt-3 pb-2">
+        <div className="flex flex-col gap-3 px-4 pt-3 pb-4">
           {navLinks.map((link) => (
             <a
               key={link.href}
@@ -90,6 +90,12 @@ export default function Header() {
             className="font-medium text-gray-600 hover:text-blue-700"
           >
             Iniciar sesión
+          </Link>
+          <Link
+            href="/solicitar"
+            className="sm:hidden inline-flex items-center justify-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent bg-blue-700 text-white hover:bg-blue-800 px-4 py-2 mt-1"
+          >
+            Solicitar documentos
           </Link>
         </div>
       </div>
