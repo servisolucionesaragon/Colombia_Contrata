@@ -258,50 +258,9 @@ function EmpresaFields() {
               className={inputClass}
             />
           </Field>
-        </div>
-      </FieldGroup>
-
-      <FieldGroup title="Representante legal">
-        <div className="grid sm:grid-cols-2 gap-4">
-          <Field label="Representante legal" htmlFor="representanteLegal">
-            <input
-              id="representanteLegal"
-              type="text"
-              required
-              className={inputClass}
-            />
-          </Field>
-          <Field
-            label="Documento del representante"
-            htmlFor="documentoRepresentante"
-          >
-            <input
-              id="documentoRepresentante"
-              type="text"
-              inputMode="numeric"
-              required
-              className={inputClass}
-            />
-          </Field>
-        </div>
-      </FieldGroup>
-
-      <FieldGroup title="Contacto y ubicación">
-        <div className="grid sm:grid-cols-2 gap-4">
           <Field label="Teléfono de la empresa" htmlFor="telefonoEmpresa">
             <input
               id="telefonoEmpresa"
-              type="tel"
-              required
-              className={inputClass}
-            />
-          </Field>
-          <Field label="Nombre de contacto" htmlFor="nombreContacto">
-            <input id="nombreContacto" type="text" required className={inputClass} />
-          </Field>
-          <Field label="Teléfono de contacto" htmlFor="telefonoContacto">
-            <input
-              id="telefonoContacto"
               type="tel"
               required
               className={inputClass}
@@ -336,6 +295,47 @@ function EmpresaFields() {
           </Field>
           <Field label="Ciudad" htmlFor="ciudadEmpresa">
             <CitySelect id="ciudadEmpresa" departamento={departamento} />
+          </Field>
+        </div>
+      </FieldGroup>
+
+      <FieldGroup title="Representante legal">
+        <div className="grid sm:grid-cols-2 gap-4">
+          <Field label="Representante legal" htmlFor="representanteLegal">
+            <input
+              id="representanteLegal"
+              type="text"
+              required
+              className={inputClass}
+            />
+          </Field>
+          <Field
+            label="Documento del representante"
+            htmlFor="documentoRepresentante"
+          >
+            <input
+              id="documentoRepresentante"
+              type="text"
+              inputMode="numeric"
+              required
+              className={inputClass}
+            />
+          </Field>
+        </div>
+      </FieldGroup>
+
+      <FieldGroup title="Persona de contacto">
+        <div className="grid sm:grid-cols-2 gap-4">
+          <Field label="Nombre de contacto" htmlFor="nombreContacto">
+            <input id="nombreContacto" type="text" required className={inputClass} />
+          </Field>
+          <Field label="Teléfono de contacto" htmlFor="telefonoContacto">
+            <input
+              id="telefonoContacto"
+              type="tel"
+              required
+              className={inputClass}
+            />
           </Field>
         </div>
       </FieldGroup>
