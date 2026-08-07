@@ -41,7 +41,7 @@ export default function Header() {
             href="/registro"
             className="hidden sm:inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent bg-blue-700 text-white hover:bg-blue-800 px-4 py-2"
           >
-            Solicitar documentos
+            Crear cuenta
           </Link>
 
           <button
@@ -95,7 +95,7 @@ export default function Header() {
             href="/registro"
             className="sm:hidden inline-flex items-center justify-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent bg-blue-700 text-white hover:bg-blue-800 px-4 py-2 mt-1"
           >
-            Solicitar documentos
+            Crear cuenta
           </Link>
         </div>
       </div>
