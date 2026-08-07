@@ -14,9 +14,15 @@ export default function AdminSettingsForm() {
   const [eslogan, setEslogan] = useState(
     "Todos tus documentos de contratación pública, en un solo lugar",
   );
-  const [colorPrimario, setColorPrimario] = useState("#1d4ed8");
-  const [logo, setLogo] = useState<ImageField>(emptyImage);
-  const [favicon, setFavicon] = useState<ImageField>(emptyImage);
+  const [colorPrimario, setColorPrimario] = useState("#0033a0");
+  const [logo, setLogo] = useState<ImageField>({
+    file: null,
+    previewUrl: "/icono.png",
+  });
+  const [favicon, setFavicon] = useState<ImageField>({
+    file: null,
+    previewUrl: "/icono.png",
+  });
   const [saved, setSaved] = useState(false);
 
   const handleImageChange =
@@ -144,7 +150,7 @@ export default function AdminSettingsForm() {
       <div className="flex items-center gap-x-3">
         <button
           type="submit"
-          className="inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent bg-blue-700 text-white hover:bg-blue-800 px-5 py-2.5"
+          className="inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent bg-brand-blue text-white hover:bg-brand-blue-dark px-5 py-2.5"
         >
           Guardar cambios
         </button>
@@ -160,7 +166,7 @@ export default function AdminSettingsForm() {
 }
 
 const inputClass =
-  "block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-700 focus:ring-1 focus:ring-blue-700 focus:outline-none";
+  "block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-brand-blue focus:ring-1 focus:ring-brand-blue focus:outline-none";
 
 function Field({
   label,
@@ -227,7 +233,7 @@ function ImageUpload({
           )}
         </div>
         <div>
-          <label className="inline-flex text-sm font-medium text-blue-700 hover:text-blue-800 cursor-pointer">
+          <label className="inline-flex text-sm font-medium text-brand-blue hover:text-brand-blue-dark cursor-pointer">
             Subir archivo
             <input
               type="file"

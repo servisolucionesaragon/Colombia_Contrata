@@ -71,7 +71,7 @@ export default function RegisterForm() {
           onClick={() => setAccountType("persona")}
           className={`text-sm font-medium rounded-md py-2 transition-colors ${
             accountType === "persona"
-              ? "bg-white text-blue-700 shadow-sm"
+              ? "bg-white text-brand-blue shadow-sm"
               : "text-gray-600 hover:text-gray-900"
           }`}
         >
@@ -84,7 +84,7 @@ export default function RegisterForm() {
           onClick={() => setAccountType("empresa")}
           className={`text-sm font-medium rounded-md py-2 transition-colors ${
             accountType === "empresa"
-              ? "bg-white text-blue-700 shadow-sm"
+              ? "bg-white text-brand-blue shadow-sm"
               : "text-gray-600 hover:text-gray-900"
           }`}
         >
@@ -240,7 +240,7 @@ export default function RegisterForm() {
           onChange={setAcceptTerms}
         >
           Acepto los{" "}
-          <Link href="/terminos" className="text-blue-700 hover:underline">
+          <Link href="/terminos" className="text-brand-blue hover:underline">
             Términos y Condiciones
           </Link>
           .
@@ -252,7 +252,7 @@ export default function RegisterForm() {
           onChange={setAcceptDataPolicy}
         >
           Autorizo el tratamiento de mis datos personales conforme a la{" "}
-          <Link href="/privacidad" className="text-blue-700 hover:underline">
+          <Link href="/privacidad" className="text-brand-blue hover:underline">
             Política de Tratamiento de Datos Personales
           </Link>
           .
@@ -276,14 +276,14 @@ export default function RegisterForm() {
       <button
         type="submit"
         disabled={!canSubmit}
-        className="w-full inline-flex items-center justify-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent bg-blue-700 text-white hover:bg-blue-800 disabled:bg-gray-300 disabled:cursor-not-allowed px-4 py-2.5"
+        className="w-full inline-flex items-center justify-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent bg-brand-blue text-white hover:bg-brand-blue-dark disabled:bg-gray-300 disabled:cursor-not-allowed px-4 py-2.5"
       >
         Crear cuenta
       </button>
 
       <p className="text-center text-sm text-gray-600">
         ¿Ya tienes cuenta?{" "}
-        <Link href="/login" className="text-blue-700 hover:underline">
+        <Link href="/login" className="text-brand-blue hover:underline">
           Inicia sesión
         </Link>
       </p>
@@ -292,7 +292,7 @@ export default function RegisterForm() {
 }
 
 const inputClass =
-  "block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-700 focus:ring-1 focus:ring-blue-700 focus:outline-none";
+  "block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-brand-blue focus:ring-1 focus:ring-brand-blue focus:outline-none";
 
 function Field({
   label,
@@ -337,7 +337,7 @@ function Checkbox({
         required
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
-        className="mt-0.5 size-4 shrink-0 rounded border-gray-300 text-blue-700 focus:ring-blue-700"
+        className="mt-0.5 size-4 shrink-0 rounded border-gray-300 text-brand-blue focus:ring-brand-blue"
       />
       <label htmlFor={id} className="text-sm text-gray-600">
         {children}

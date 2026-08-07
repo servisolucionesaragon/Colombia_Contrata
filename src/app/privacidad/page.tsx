@@ -34,7 +34,7 @@ export default function PrivacidadPage() {
                 (colombiacontrata.com). Contacto:{" "}
                 <a
                   href="mailto:contacto@colombiacontrata.com"
-                  className="text-blue-700 hover:underline"
+                  className="text-brand-blue hover:underline"
                 >
                   contacto@colombiacontrata.com
                 </a>
@@ -206,7 +206,7 @@ export default function PrivacidadPage() {
                 Puedes ejercer tus derechos escribiendo a{" "}
                 <a
                   href="mailto:contacto@colombiacontrata.com"
-                  className="text-blue-700 hover:underline"
+                  className="text-brand-blue hover:underline"
                 >
                   contacto@colombiacontrata.com
                 </a>{" "}

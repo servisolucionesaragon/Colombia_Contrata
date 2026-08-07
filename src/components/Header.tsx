@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 
 const navLinks = [
@@ -11,11 +12,19 @@ export default function Header() {
   return (
     <header className="sticky top-0 z-50 flex flex-wrap md:justify-start md:flex-nowrap w-full bg-white border-b border-gray-200 text-sm py-3">
       <nav className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
-        <Link
-          href="/"
-          className="flex-none text-xl font-semibold text-blue-700"
-        >
-          Colombia Contrata
+        <Link href="/" className="flex-none flex items-center gap-x-2">
+          <Image
+            src="/icono.png"
+            alt="Colombia Contrata"
+            width={32}
+            height={32}
+            className="size-8"
+            priority
+          />
+          <span className="text-xl font-bold">
+            <span className="text-brand-navy">Colombia</span>{" "}
+            <span className="text-brand-blue">Contrata</span>
+          </span>
         </Link>
 
         <div className="hidden md:flex md:items-center md:gap-8">
@@ -23,7 +32,7 @@ export default function Header() {
             <a
               key={link.href}
               href={link.href}
-              className="font-medium text-gray-600 hover:text-blue-700"
+              className="font-medium text-gray-600 hover:text-brand-blue"
             >
               {link.label}
             </a>
@@ -33,13 +42,13 @@ export default function Header() {
         <div className="flex items-center gap-x-2">
           <Link
             href="/login"
-            className="hidden sm:inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent text-gray-700 hover:text-blue-700 px-3 py-2"
+            className="hidden sm:inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent text-gray-700 hover:text-brand-blue px-3 py-2"
           >
             Iniciar sesión
           </Link>
           <Link
             href="/registro"
-            className="hidden sm:inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent bg-blue-700 text-white hover:bg-blue-800 px-4 py-2"
+            className="hidden sm:inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent bg-brand-blue text-white hover:bg-brand-blue-dark px-4 py-2"
           >
             Crear cuenta
           </Link>
@@ -80,20 +89,20 @@ export default function Header() {
             <a
               key={link.href}
               href={link.href}
-              className="font-medium text-gray-600 hover:text-blue-700"
+              className="font-medium text-gray-600 hover:text-brand-blue"
             >
               {link.label}
             </a>
           ))}
           <Link
             href="/login"
-            className="font-medium text-gray-600 hover:text-blue-700"
+            className="font-medium text-gray-600 hover:text-brand-blue"
           >
             Iniciar sesión
           </Link>
           <Link
             href="/registro"
-            className="sm:hidden inline-flex items-center justify-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent bg-blue-700 text-white hover:bg-blue-800 px-4 py-2 mt-1"
+            className="sm:hidden inline-flex items-center justify-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent bg-brand-blue text-white hover:bg-brand-blue-dark px-4 py-2 mt-1"
           >
             Crear cuenta
           </Link>

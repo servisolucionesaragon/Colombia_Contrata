@@ -147,7 +147,7 @@ export default function TerminosPage() {
                 El tratamiento de tus datos personales, incluidos los datos
                 sensibles necesarios para generar los documentos
                 solicitados, se rige por nuestra{" "}
-                <a href="/privacidad" className="text-blue-700 hover:underline">
+                <a href="/privacidad" className="text-brand-blue hover:underline">
                   Política de Tratamiento de Datos Personales
                 </a>
                 , la cual forma parte integral de estos Términos.
@@ -177,7 +177,7 @@ export default function TerminosPage() {
                 Para dudas sobre estos Términos, escríbenos a{" "}
                 <a
                   href="mailto:contacto@colombiacontrata.com"
-                  className="text-blue-700 hover:underline"
+                  className="text-brand-blue hover:underline"
                 >
                   contacto@colombiacontrata.com
                 </a>

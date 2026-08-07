@@ -41,7 +41,7 @@ export default function Home() {
         <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-20 text-center">
           <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 tracking-tight">
             Todos tus documentos de contratación pública,{" "}
-            <span className="text-blue-700">en un solo lugar</span>
+            <span className="text-brand-blue">en un solo lugar</span>
           </h1>
           <p className="mt-5 max-w-2xl mx-auto text-lg text-gray-600">
             Olvídate de visitar una a una las entidades. Selecciona los
@@ -51,7 +51,7 @@ export default function Home() {
           <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
             <a
               href="/registro"
-              className="inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent bg-blue-700 text-white hover:bg-blue-800 px-6 py-3"
+              className="inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent bg-brand-blue text-white hover:bg-brand-blue-dark px-6 py-3"
             >
               Solicitar mis documentos
             </a>
@@ -73,7 +73,7 @@ export default function Home() {
             <div className="mt-12 grid sm:grid-cols-3 gap-8">
               {pasos.map((paso) => (
                 <div key={paso.numero} className="text-center">
-                  <div className="mx-auto flex items-center justify-center size-12 rounded-full bg-blue-700 text-white font-bold">
+                  <div className="mx-auto flex items-center justify-center size-12 rounded-full bg-brand-blue text-white font-bold">
                     {paso.numero}
                   </div>
                   <h3 className="mt-4 text-lg font-semibold text-gray-900">
@@ -104,7 +104,7 @@ export default function Home() {
                   key={doc}
                   className="flex items-center gap-x-3 p-4 rounded-lg border border-gray-200"
                 >
-                  <span className="flex-none flex items-center justify-center size-8 rounded-full bg-blue-50 text-blue-700">
+                  <span className="flex-none flex items-center justify-center size-8 rounded-full bg-brand-blue/10 text-brand-blue">
                     <svg
                       className="size-4"
                       xmlns="http://www.w3.org/2000/svg"
@@ -144,7 +144,7 @@ export default function Home() {
                 </p>
                 <a
                   href="/registro"
-                  className="mt-6 inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent bg-blue-700 text-white hover:bg-blue-800 px-5 py-2.5"
+                  className="mt-6 inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent bg-brand-blue text-white hover:bg-brand-blue-dark px-5 py-2.5"
                 >
                   Solicitar documentos
                 </a>
@@ -152,7 +152,7 @@ export default function Home() {
 
               <div
                 id="empresas"
-                className="p-8 rounded-2xl border border-blue-200 bg-white"
+                className="p-8 rounded-2xl border border-brand-blue/30 bg-white"
               >
                 <h3 className="text-xl font-semibold text-gray-900">
                   Empresas
@@ -163,7 +163,7 @@ export default function Home() {
                 </p>
                 <a
                   href="/empresas"
-                  className="mt-6 inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-blue-700 text-blue-700 hover:bg-blue-50 px-5 py-2.5"
+                  className="mt-6 inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-brand-blue text-brand-blue hover:bg-brand-blue/10 px-5 py-2.5"
                 >
                   Conocer planes empresariales
                 </a>
