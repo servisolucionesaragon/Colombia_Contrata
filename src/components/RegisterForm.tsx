@@ -23,8 +23,10 @@ export default function RegisterForm() {
     event.preventDefault();
     if (!canSubmit) return;
     // TODO: conectar con el backend de autenticación (pendiente de definir,
-    // ej. Supabase) una vez esté disponible. Por ahora solo confirmamos que
-    // el formulario y el consentimiento de datos quedaron correctos.
+    // ej. Supabase) una vez esté disponible, enviando accountType junto con
+    // el correo. Nombre, teléfono, tipo/número de documento y datos de
+    // empresa (razón social, NIT) se completan después desde el perfil,
+    // una vez la cuenta esté confirmada.
     setSubmitted(true);
   };
 
@@ -51,7 +53,7 @@ export default function RegisterForm() {
         <p className="mt-2 text-sm text-gray-600">
           El registro todavía no está conectado a un sistema de cuentas —
           esta es una vista previa del formulario. Pronto podrás crear tu
-          cuenta desde aquí.
+          cuenta desde aquí y completar tus datos desde el perfil.
         </p>
       </div>
     );
@@ -92,112 +94,21 @@ export default function RegisterForm() {
         </button>
       </div>
 
-      {accountType === "persona" ? (
-        <div className="space-y-4">
-          <Field label="Nombres y apellidos" htmlFor="nombre">
-            <input
-              id="nombre"
-              name="nombre"
-              type="text"
-              required
-              autoComplete="name"
-              className={inputClass}
-            />
-          </Field>
-
-          <div className="grid grid-cols-3 gap-3">
-            <Field label="Tipo de documento" htmlFor="tipoDocumento" className="col-span-1">
-              <select
-                id="tipoDocumento"
-                name="tipoDocumento"
-                required
-                defaultValue="CC"
-                className={inputClass}
-              >
-                <option value="CC">CC</option>
-                <option value="CE">CE</option>
-              </select>
-            </Field>
-            <Field
-              label="Número de documento"
-              htmlFor="numeroDocumento"
-              className="col-span-2"
-            >
-              <input
-                id="numeroDocumento"
-                name="numeroDocumento"
-                type="text"
-                inputMode="numeric"
-                required
-                className={inputClass}
-              />
-            </Field>
-          </div>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          <Field label="Razón social" htmlFor="razonSocial">
-            <input
-              id="razonSocial"
-              name="razonSocial"
-              type="text"
-              required
-              className={inputClass}
-            />
-          </Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="NIT" htmlFor="nit">
-              <input
-                id="nit"
-                name="nit"
-                type="text"
-                inputMode="numeric"
-                required
-                className={inputClass}
-              />
-            </Field>
-            <Field label="Nombre de contacto" htmlFor="contacto">
-              <input
-                id="contacto"
-                name="contacto"
-                type="text"
-                required
-                className={inputClass}
-              />
-            </Field>
-          </div>
-        </div>
-      )}
-
-      <div className="grid sm:grid-cols-2 gap-4">
-        <Field
-          label={
-            accountType === "persona"
-              ? "Correo electrónico"
-              : "Correo corporativo"
-          }
-          htmlFor="email"
-        >
-          <input
-            id="email"
-            name="email"
-            type="email"
-            required
-            autoComplete="email"
-            className={inputClass}
-          />
-        </Field>
-        <Field label="Teléfono" htmlFor="telefono">
-          <input
-            id="telefono"
-            name="telefono"
-            type="tel"
-            required
-            autoComplete="tel"
-            className={inputClass}
-          />
-        </Field>
-      </div>
+      <Field
+        label={
+          accountType === "persona" ? "Correo electrónico" : "Correo corporativo"
+        }
+        htmlFor="email"
+      >
+        <input
+          id="email"
+          name="email"
+          type="email"
+          required
+          autoComplete="email"
+          className={inputClass}
+        />
+      </Field>
 
       <div className="grid sm:grid-cols-2 gap-4">
         <Field label="Contraseña" htmlFor="password">
@@ -298,15 +209,13 @@ function Field({
   label,
   htmlFor,
   children,
-  className,
 }: {
   label: string;
   htmlFor: string;
   children: React.ReactNode;
-  className?: string;
 }) {
   return (
-    <div className={className}>
+    <div>
       <label
         htmlFor={htmlFor}
         className="block text-sm font-medium text-gray-700 mb-1"
