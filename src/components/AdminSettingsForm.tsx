@@ -23,6 +23,7 @@ export default function AdminSettingsForm() {
   const [loading, setLoading] = useState(true);
   const [nombrePortal, setNombrePortal] = useState("Colombia Contrata");
   const [eslogan, setEslogan] = useState("");
+  const [correoContacto, setCorreoContacto] = useState("contacto@colombiacontrata.com");
   const [colorPrimario, setColorPrimario] = useState("#1d4ed8");
   const [logo, setLogo] = useState<ImageField>({ file: null, previewUrl: null });
   const [favicon, setFavicon] = useState<ImageField>({
@@ -53,6 +54,9 @@ export default function AdminSettingsForm() {
         if (data) {
           setNombrePortal(data.nombre_portal);
           setEslogan(data.eslogan);
+          setCorreoContacto(
+            data.correo_contacto || "contacto@colombiacontrata.com"
+          );
           setColorPrimario(data.color_primario);
           setLogo({ file: null, previewUrl: data.logo_url });
           setFavicon({ file: null, previewUrl: data.favicon_url });
@@ -100,6 +104,7 @@ export default function AdminSettingsForm() {
         .update({
           nombre_portal: nombrePortal,
           eslogan,
+          correo_contacto: correoContacto,
           color_primario: colorPrimario,
           logo_url: newLogoUrl,
           favicon_url: newFaviconUrl,
@@ -154,6 +159,18 @@ export default function AdminSettingsForm() {
               onChange={(e) => setEslogan(e.target.value)}
               className={inputClass}
             />
+          </Field>
+          <Field label="Correo de contacto" htmlFor="correoContacto">
+            <input
+              id="correoContacto"
+              type="email"
+              value={correoContacto}
+              onChange={(e) => setCorreoContacto(e.target.value)}
+              className={inputClass}
+            />
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              Se muestra en el pie de página del sitio.
+            </p>
           </Field>
         </div>
       </section>

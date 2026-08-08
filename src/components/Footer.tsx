@@ -20,7 +20,9 @@ const socialLinks = [
 export default async function Footer() {
   const { data } = await supabase
     .from("configuracion_portal")
-    .select("facebook_url, instagram_url, twitter_url, linkedin_url, tiktok_url")
+    .select(
+      "facebook_url, instagram_url, twitter_url, linkedin_url, tiktok_url, correo_contacto"
+    )
     .eq("id", 1)
     .single();
 
@@ -88,7 +90,7 @@ export default async function Footer() {
         <div>
           <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Contacto</h3>
           <ul className="mt-3 space-y-2 text-sm text-gray-500 dark:text-gray-400">
-            <li>contacto@colombiacontrata.com</li>
+            <li>{data?.correo_contacto || "contacto@colombiacontrata.com"}</li>
           </ul>
 
           {activeSocialLinks.length > 0 && (
