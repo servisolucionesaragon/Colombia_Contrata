@@ -1,5 +1,6 @@
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import PlanesEmpresaPricing from "@/components/PlanesEmpresaPricing";
 
 const documentos = [
   "Antecedentes judiciales (Policía Nacional)",
@@ -133,40 +134,33 @@ export default function Home() {
             <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-100 text-center">
               Planes
             </h2>
-            <div className="mt-12 grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-              <div className="p-8 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-                <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
-                  Persona independiente
-                </h3>
-                <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                  Paga solo por los documentos que necesitas para tu próximo
-                  contrato.
-                </p>
-                <a
-                  href="/registro"
-                  className="mt-6 inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent bg-brand-blue text-white hover:bg-brand-blue-dark px-5 py-2.5"
-                >
-                  Solicitar documentos
-                </a>
-              </div>
 
-              <div
-                id="empresas"
-                className="p-8 rounded-2xl border border-brand-blue/30 bg-white dark:bg-gray-800"
+            <div className="mt-12 max-w-2xl mx-auto p-8 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+                Persona independiente
+              </h3>
+              <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                Paga solo por los documentos que necesitas para tu próximo
+                contrato.
+              </p>
+              <a
+                href="/registro"
+                className="mt-6 inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent bg-brand-blue text-white hover:bg-brand-blue-dark px-5 py-2.5"
               >
-                <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
-                  Empresas
-                </h3>
-                <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                  Paquetes de consultas para validar antecedentes de tus
-                  candidatos antes de contratar, con su autorización.
-                </p>
-                <a
-                  href="/empresas"
-                  className="mt-6 inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-brand-blue text-brand-blue hover:bg-brand-blue/10 px-5 py-2.5"
-                >
-                  Conocer planes empresariales
-                </a>
+                Solicitar documentos
+              </a>
+            </div>
+
+            <div id="empresas" className="mt-20 scroll-mt-20">
+              <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100 text-center">
+                Planes para empresas
+              </h3>
+              <p className="mt-2 text-center text-gray-600 dark:text-gray-400">
+                Paquetes de consultas para validar antecedentes de tus
+                candidatos antes de contratar, con su autorización.
+              </p>
+              <div className="mt-8">
+                <PlanesEmpresaPricing />
               </div>
             </div>
           </div>

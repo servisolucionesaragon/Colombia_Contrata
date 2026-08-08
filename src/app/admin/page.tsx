@@ -3,6 +3,8 @@ import Link from "next/link";
 import AdminGate from "@/components/AdminGate";
 import AdminWarningBanner from "@/components/AdminWarningBanner";
 import AdminSettingsForm from "@/components/AdminSettingsForm";
+import PlanesEmpresaManager from "@/components/PlanesEmpresaManager";
+import PreciosDocumentosManager from "@/components/PreciosDocumentosManager";
 
 export const metadata: Metadata = {
   title: "Configuración del portal — Admin",
@@ -34,6 +36,14 @@ export default function AdminPage() {
 
             <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 sm:p-8">
               <AdminSettingsForm />
+            </div>
+
+            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 sm:p-8">
+              <PlanesEmpresaManager />
+            </div>
+
+            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 sm:p-8">
+              <PreciosDocumentosManager />
             </div>
           </AdminGate>
         </div>
