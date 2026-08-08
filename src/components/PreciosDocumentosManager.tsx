@@ -3,22 +3,14 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { supabase } from "@/lib/supabase";
 
-type Precio = {
+type Documento = {
   id: string;
   documento: string;
-  precio: number;
   activo: boolean;
 };
 
-const formatCOP = (value: number) =>
-  new Intl.NumberFormat("es-CO", {
-    style: "currency",
-    currency: "COP",
-    maximumFractionDigits: 0,
-  }).format(value);
-
 export default function PreciosDocumentosManager() {
-  const [precios, setPrecios] = useState<Precio[]>([]);
+  const [documentos, setDocumentos] = useState<Documento[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | "new" | null>(null);
   const [saving, setSaving] = useState(false);
@@ -28,9 +20,9 @@ export default function PreciosDocumentosManager() {
     setLoading(true);
     const { data } = await supabase
       .from("precios_documentos")
-      .select("*")
+      .select("id, documento, activo")
       .order("documento", { ascending: true });
-    setPrecios((data as Precio[]) ?? []);
+    setDocumentos((data as Documento[]) ?? []);
     setLoading(false);
   };
 
@@ -49,7 +41,6 @@ export default function PreciosDocumentosManager() {
     const formData = new FormData(event.currentTarget);
     const payload = {
       documento: formData.get("documento") as string,
-      precio: Number(formData.get("precio")),
       activo: formData.get("activo") === "on",
     };
 
@@ -60,7 +51,7 @@ export default function PreciosDocumentosManager() {
 
     setSaving(false);
     if (error) {
-      setError("No pudimos guardar el precio. Intenta de nuevo.");
+      setError("No pudimos guardar el documento. Intenta de nuevo.");
       return;
     }
     setEditingId(null);
@@ -79,7 +70,7 @@ export default function PreciosDocumentosManager() {
     <section>
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-          Precios de documentos (personas)
+          Documentos disponibles
         </h2>
         {editingId === null && (
           <button
@@ -97,7 +88,7 @@ export default function PreciosDocumentosManager() {
       ) : (
         <div className="space-y-3">
           {editingId === "new" && (
-            <PrecioForm
+            <DocumentoForm
               onSubmit={(e) => handleSave(e, "new")}
               onCancel={() => setEditingId(null)}
               saving={saving}
@@ -105,51 +96,48 @@ export default function PreciosDocumentosManager() {
             />
           )}
 
-          {precios.length === 0 && editingId !== "new" && (
+          {documentos.length === 0 && editingId !== "new" && (
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              Todavía no hay documentos con precio configurado.
+              Todavía no hay documentos configurados.
             </p>
           )}
 
-          {precios.map((precio) =>
-            editingId === precio.id ? (
-              <PrecioForm
-                key={precio.id}
-                precio={precio}
-                onSubmit={(e) => handleSave(e, precio.id)}
+          {documentos.map((doc) =>
+            editingId === doc.id ? (
+              <DocumentoForm
+                key={doc.id}
+                documento={doc}
+                onSubmit={(e) => handleSave(e, doc.id)}
                 onCancel={() => setEditingId(null)}
                 saving={saving}
                 error={error}
               />
             ) : (
               <div
-                key={precio.id}
+                key={doc.id}
                 className="flex items-center justify-between rounded-lg border border-gray-200 dark:border-gray-700 px-4 py-3"
               >
                 <div className="flex items-center gap-x-2">
                   <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                    {precio.documento}
+                    {doc.documento}
                   </p>
-                  {!precio.activo && (
+                  {!doc.activo && (
                     <span className="text-xs rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 px-2 py-0.5">
                       Inactivo
                     </span>
                   )}
                 </div>
                 <div className="flex items-center gap-x-4 shrink-0">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">
-                    {formatCOP(precio.precio)}
-                  </span>
                   <button
                     type="button"
-                    onClick={() => setEditingId(precio.id)}
+                    onClick={() => setEditingId(doc.id)}
                     className="text-sm font-medium text-brand-blue hover:text-brand-blue-dark"
                   >
                     Editar
                   </button>
                   <button
                     type="button"
-                    onClick={() => handleDelete(precio.id)}
+                    onClick={() => handleDelete(doc.id)}
                     className="text-sm font-medium text-red-600 dark:text-red-400 hover:text-red-700"
                   >
                     Eliminar
@@ -164,14 +152,14 @@ export default function PreciosDocumentosManager() {
   );
 }
 
-function PrecioForm({
-  precio,
+function DocumentoForm({
+  documento,
   onSubmit,
   onCancel,
   saving,
   error,
 }: {
-  precio?: Precio;
+  documento?: Documento;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   onCancel: () => void;
   saving: boolean;
@@ -182,34 +170,21 @@ function PrecioForm({
       onSubmit={onSubmit}
       className="rounded-lg border border-gray-200 dark:border-gray-700 p-4 space-y-3 bg-gray-50 dark:bg-gray-800"
     >
-      <div className="grid sm:grid-cols-2 gap-3">
-        <Field label="Nombre del documento" htmlFor="documento">
-          <input
-            id="documento"
-            name="documento"
-            type="text"
-            required
-            defaultValue={precio?.documento ?? ""}
-            className={inputClass}
-          />
-        </Field>
-        <Field label="Precio (COP)" htmlFor="precio">
-          <input
-            id="precio"
-            name="precio"
-            type="number"
-            min={0}
-            required
-            defaultValue={precio?.precio ?? ""}
-            className={inputClass}
-          />
-        </Field>
-      </div>
+      <Field label="Nombre del documento" htmlFor="documento">
+        <input
+          id="documento"
+          name="documento"
+          type="text"
+          required
+          defaultValue={documento?.documento ?? ""}
+          className={inputClass}
+        />
+      </Field>
       <label className="inline-flex items-center gap-x-2 text-sm text-gray-700 dark:text-gray-300">
         <input
           type="checkbox"
           name="activo"
-          defaultChecked={precio?.activo ?? true}
+          defaultChecked={documento?.activo ?? true}
           className="size-4 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700 text-brand-blue focus:ring-brand-blue"
         />
         Documento activo (visible para personas)

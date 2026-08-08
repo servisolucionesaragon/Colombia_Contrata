@@ -2,6 +2,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import PlanesEmpresaPricing from "@/components/PlanesEmpresaPricing";
 import PreciosDocumentosPricing from "@/components/PreciosDocumentosPricing";
+import PlanPersonaCard from "@/components/PlanPersonaCard";
 
 const pasos = [
   {
@@ -89,7 +90,7 @@ export default function Home() {
             </h2>
             <p className="mt-3 text-center text-gray-600 dark:text-gray-400">
               Los certificados más solicitados para procesos de contratación
-              pública, con su precio.
+              pública.
             </p>
             <div className="mt-10">
               <PreciosDocumentosPricing />
@@ -104,21 +105,7 @@ export default function Home() {
               Planes
             </h2>
 
-            <div className="mt-12 max-w-2xl mx-auto p-8 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
-                Persona independiente
-              </h3>
-              <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                Paga solo por los documentos que necesitas para tu próximo
-                contrato.
-              </p>
-              <a
-                href="/registro"
-                className="mt-6 inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent bg-brand-blue text-white hover:bg-brand-blue-dark px-5 py-2.5"
-              >
-                Solicitar documentos
-              </a>
-            </div>
+            <PlanPersonaCard />
 
             <div id="empresas" className="mt-20 scroll-mt-20">
               <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100 text-center">

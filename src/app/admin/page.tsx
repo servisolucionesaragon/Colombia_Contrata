@@ -2,8 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import AdminGate from "@/components/AdminGate";
 import AdminSettingsForm from "@/components/AdminSettingsForm";
+import ConfiguracionPersonaManager from "@/components/ConfiguracionPersonaManager";
 import PlanesEmpresaManager from "@/components/PlanesEmpresaManager";
 import PreciosDocumentosManager from "@/components/PreciosDocumentosManager";
+import AdminRolesManager from "@/components/AdminRolesManager";
 import AdminTabs from "@/components/AdminTabs";
 
 export const metadata: Metadata = {
@@ -38,14 +40,24 @@ export default function AdminPage() {
                   <AdminSettingsForm />
                 </div>
               }
+              personas={
+                <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 sm:p-8">
+                  <ConfiguracionPersonaManager />
+                </div>
+              }
               planes={
                 <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 sm:p-8">
                   <PlanesEmpresaManager />
                 </div>
               }
-              precios={
+              documentos={
                 <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 sm:p-8">
                   <PreciosDocumentosManager />
+                </div>
+              }
+              admins={
+                <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 sm:p-8">
+                  <AdminRolesManager />
                 </div>
               }
             />
