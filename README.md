@@ -15,7 +15,7 @@ Tiene dos perfiles de usuario:
 - [Tailwind CSS](https://tailwindcss.com) v4
 - [Preline UI](https://preline.co) — librería de componentes
 - Tipografía: **Montserrat** (`next/font/google`)
-- **Supabase** — autenticación (`@supabase/supabase-js`, cliente en `src/lib/supabase.ts`) + tabla `profiles` en Postgres (con RLS) para los datos ampliados de `/perfil`. Storage aún no se usa.
+- **Supabase** — autenticación (`@supabase/supabase-js`, cliente en `src/lib/supabase.ts`) + Postgres (`profiles`, `planes_empresa`, `precios_documentos`, `configuracion_portal`, todas con RLS) + Storage (bucket `portal-assets` para logo/favicon).
 - **Resend** — proveedor SMTP conectado a Supabase Auth, para que los correos salgan desde `noreply@colombiacontrata.com` en vez del dominio compartido de Supabase.
 - Pendiente de definir: proveedor de pagos (Wompi / PayU), y la API del proveedor externo que genera los documentos.
 
@@ -48,13 +48,13 @@ Basada en `Manual_Identidad_Visual_Colombia_Contrata` (carpeta `Colombia Contrat
 
 | Ruta | Qué es | Estado |
 |---|---|---|
-| `/` | Landing page (hero, cómo funciona, documentos, planes) | Completa (frontend) |
+| `/` | Landing page (hero, cómo funciona, documentos, planes) | Completa; la sección "Planes para empresas" (`PlanesEmpresaPricing.tsx`) lee los planes públicos reales desde `planes_empresa`, con toggle mensual/anual |
 | `/registro` | Alta de cuenta (correo + contraseña + toggle Persona natural / Empresa + consentimiento Habeas Data) | **Conectado a Supabase Auth real** — crea la cuenta y envía correo de verificación |
 | `/login` | Inicio de sesión (correo + contraseña) | **Conectado a Supabase Auth real** vía `supabase.auth.signInWithPassword` |
 | `/perfil` | Datos ampliados post-confirmación (persona: nombre/documento/fechas/género/ubicación; empresa: razón social/NIT/representante/sector/ubicación) + sección "Seguridad de la cuenta" (cambiar contraseña y correo) | **Conectado de verdad** — lee y guarda (`upsert`) en la tabla `profiles` de Supabase, precarga los datos si ya existían; cambio de contraseña/correo vía `supabase.auth.updateUser` |
 | `/terminos` | Términos y Condiciones | Borrador, falta revisión legal |
 | `/privacidad` | Política de Tratamiento de Datos Personales (Ley 1581) | Borrador, falta revisión legal |
-| `/admin` | Back office: nombre, eslogan, logo, favicon, color primario | **Protegido con autenticación real** (solo cuentas con `app_metadata.role = "admin"`, ver [Panel de administración](#panel-de-administración)); el guardado de los cambios sigue siendo solo vista previa |
+| `/admin` | Back office con pestañas: Identidad del portal, Planes de empresa, Precios de documentos | **Protegido con autenticación real** (solo cuentas con `app_metadata.role = "admin"`, ver [Panel de administración](#panel-de-administración)) — **todo se guarda de verdad**, incluyendo subida de logo/favicon a Storage |
 | `/historial` | Historial de solicitudes/verificaciones del usuario | Placeholder protegido por sesión ("Aún no tienes solicitudes") — falta el flujo real de solicitud de documentos para tener datos que mostrar |
 
 `/solicitar` y `/empresas` están enlazadas desde la UI pero **todavía no existen** (darán 404 si se navega directo).
@@ -108,9 +108,12 @@ src/
     AccountSecurityForm.tsx # cambio de contraseña/correo vía supabase.auth.updateUser, en /perfil
     HistorialContent.tsx    # contenido de /historial (gate de sesión + estado vacío)
     AdminGate.tsx           # bloquea /admin a menos que la sesión tenga app_metadata.role === "admin"
-    AdminSettingsForm.tsx  # formulario de configuración del portal (guardado aún es vista previa)
+    AdminTabs.tsx            # pestañas del panel admin (Identidad / Planes de empresa / Precios)
+    AdminSettingsForm.tsx  # identidad del portal — lee/guarda en configuracion_portal, sube logo/favicon a Storage
+    PlanesEmpresaManager.tsx    # CRUD admin de planes_empresa (incluye planes privados por empresa)
+    PreciosDocumentosManager.tsx # CRUD admin de precios_documentos
+    PlanesEmpresaPricing.tsx    # tarjetas de precios públicas en "/" (toggle mensual/anual)
     LegalDisclaimer.tsx    # aviso de "falta revisión legal" en /terminos y /privacidad
-    AdminWarningBanner.tsx # aviso de "guardado aún es vista previa" en /admin
     PrelineScript.tsx      # inicializa los componentes JS de Preline en cada navegación
   lib/
     supabase.ts            # cliente de Supabase (createClient con las env vars NEXT_PUBLIC_*)
@@ -200,11 +203,146 @@ create policy "Users can update own profile"
 
 </details>
 
-`ProfileForm.tsx` mapea cada campo del formulario 1:1 a una columna (vía el atributo `name` de cada input) y hace `supabase.from("profiles").upsert(...)` al guardar. Cuando empresas necesiten planes/paquetes/créditos para consultar candidatos, eso se modelará como tablas nuevas aparte de `profiles` — no como columnas adicionales aquí.
+`ProfileForm.tsx` mapea cada campo del formulario 1:1 a una columna (vía el atributo `name` de cada input) y hace `supabase.from("profiles").upsert(...)` al guardar.
+
+### `planes_empresa`, `precios_documentos` y `configuracion_portal`
+
+Tres tablas más, todas con **lectura pública** (`using (true)`) y **escritura solo para administradores** (`(auth.jwt() -> 'app_metadata' ->> 'role') = 'admin'`):
+
+- **`planes_empresa`**: planes de créditos/consultas para empresas. Columnas: `nombre`, `descripcion`, `creditos`, `precio_mensual`, `precio_anual` (opcional), `destacado` (insignia "Recomendado"), `features` (`text[]`, una línea por característica en el formulario admin), `cta_label` (texto del botón, opcional), `mostrar_precio_desde` (para planes tipo cotización, ej. "Enterprise"), y **`empresa_id`** (opcional, referencia a `profiles.id`) — si tiene valor, es un **plan privado** visible solo para esa empresa y para admins, no aparece en la grilla pública de `/`. La política de `select` filtra por `empresa_id is null or empresa_id = auth.uid() or ...admin`.
+- **`precios_documentos`**: precio por documento individual para personas naturales (`documento`, `precio`, `activo`).
+- **`configuracion_portal`**: fila única (`id` fijo en `1`, con `check (id = 1)`) para nombre del portal, eslogan, color primario y URLs de logo/favicon. Las imágenes se suben al bucket de Storage **`portal-assets`** (público para lectura, admin-only para escribir) vía `supabase.storage.from("portal-assets").upload(...)`.
+
+Todas se administran desde `/admin` (ver [Panel de administración](#panel-de-administración)). **Importante**: guardar esta configuración no hace que el sitio en vivo la use todavía — el Header, los colores de marca y el favicon siguen fijos en el código; falta una segunda fase para leer `configuracion_portal` en tiempo real (queda en el roadmap).
+
+<details>
+<summary>Ver el SQL completo</summary>
+
+```sql
+create table public.planes_empresa (
+  id uuid primary key default gen_random_uuid(),
+  nombre text not null,
+  descripcion text,
+  creditos integer not null,
+  precio_mensual numeric not null,
+  precio_anual numeric,
+  destacado boolean not null default false,
+  features text[] not null default '{}',
+  cta_label text,
+  mostrar_precio_desde boolean not null default false,
+  empresa_id uuid references public.profiles(id) on delete cascade,
+  activo boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.planes_empresa enable row level security;
+
+create policy "View public or own custom plans"
+  on public.planes_empresa for select
+  using (
+    empresa_id is null
+    or empresa_id = auth.uid()
+    or (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin'
+  );
+
+create policy "Admins can insert planes_empresa"
+  on public.planes_empresa for insert
+  with check ((auth.jwt() -> 'app_metadata' ->> 'role') = 'admin');
+
+create policy "Admins can update planes_empresa"
+  on public.planes_empresa for update
+  using ((auth.jwt() -> 'app_metadata' ->> 'role') = 'admin');
+
+create policy "Admins can delete planes_empresa"
+  on public.planes_empresa for delete
+  using ((auth.jwt() -> 'app_metadata' ->> 'role') = 'admin');
+
+
+create table public.precios_documentos (
+  id uuid primary key default gen_random_uuid(),
+  documento text not null,
+  precio numeric not null,
+  activo boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.precios_documentos enable row level security;
+
+create policy "Anyone can view precios_documentos"
+  on public.precios_documentos for select
+  using (true);
+
+create policy "Admins can insert precios_documentos"
+  on public.precios_documentos for insert
+  with check ((auth.jwt() -> 'app_metadata' ->> 'role') = 'admin');
+
+create policy "Admins can update precios_documentos"
+  on public.precios_documentos for update
+  using ((auth.jwt() -> 'app_metadata' ->> 'role') = 'admin');
+
+create policy "Admins can delete precios_documentos"
+  on public.precios_documentos for delete
+  using ((auth.jwt() -> 'app_metadata' ->> 'role') = 'admin');
+
+
+create table public.configuracion_portal (
+  id int primary key default 1,
+  nombre_portal text not null default 'Colombia Contrata',
+  eslogan text not null default 'Todos tus documentos de contratación pública, en un solo lugar',
+  color_primario text not null default '#1d4ed8',
+  logo_url text,
+  favicon_url text,
+  updated_at timestamptz not null default now(),
+  constraint configuracion_portal_singleton check (id = 1)
+);
+
+insert into public.configuracion_portal (id) values (1);
+
+alter table public.configuracion_portal enable row level security;
+
+create policy "Anyone can view configuracion_portal"
+  on public.configuracion_portal for select
+  using (true);
+
+create policy "Admins can update configuracion_portal"
+  on public.configuracion_portal for update
+  using ((auth.jwt() -> 'app_metadata' ->> 'role') = 'admin');
+
+
+insert into storage.buckets (id, name, public)
+values ('portal-assets', 'portal-assets', true)
+on conflict (id) do nothing;
+
+create policy "Public read portal-assets"
+  on storage.objects for select
+  using (bucket_id = 'portal-assets');
+
+create policy "Admins can upload portal-assets"
+  on storage.objects for insert
+  with check (bucket_id = 'portal-assets' and (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin');
+
+create policy "Admins can update portal-assets"
+  on storage.objects for update
+  using (bucket_id = 'portal-assets' and (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin');
+
+create policy "Admins can delete portal-assets"
+  on storage.objects for delete
+  using (bucket_id = 'portal-assets' and (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin');
+```
+
+</details>
 
 ## Panel de administración
 
 `/admin` está protegido por `AdminGate.tsx` (client component): revisa que la sesión tenga `user.app_metadata.role === "admin"`. Se usa `app_metadata` y no `user_metadata` a propósito — `user_metadata` lo puede editar el propio usuario desde el cliente (`supabase.auth.updateUser`), así que no sirve para permisos; `app_metadata` solo se puede modificar desde el backend de Supabase.
+
+`AdminTabs.tsx` organiza el panel en tres pestañas, todas con guardado real:
+
+- **Identidad del portal** (`AdminSettingsForm.tsx`) — nombre, eslogan, color primario, logo y favicon (`configuracion_portal` + Storage).
+- **Planes de empresa** (`PlanesEmpresaManager.tsx`) — crear/editar/eliminar planes; incluye la opción de asignar un plan a una sola empresa (privado).
+- **Precios de documentos** (`PreciosDocumentosManager.tsx`) — precio por documento para personas naturales.
 
 Para dar acceso de administrador a una cuenta (ya registrada) desde el SQL Editor de Supabase:
 
@@ -233,7 +371,7 @@ El sitio soporta tema claro/oscuro con un toggle (ícono sol/luna) en el Header,
 
 - **Hosting**: [Vercel](https://vercel.com), proyecto `servisoluciones-aragon/colombia-contrata`, conectado al repo de GitHub — cada push a `main` despliega automáticamente a producción.
 - **Repo**: [servisolucionesaragon/Colombia_Contrata](https://github.com/servisolucionesaragon/Colombia_Contrata).
-- **Backend**: [Supabase](https://supabase.com) (proyecto `colombia-contrata`, ref `zjbijmieiyumpqwyqhfm`, región São Paulo) — Auth + tabla `profiles` en Postgres (ver [Base de datos](#base-de-datos-postgres)). Storage aún no se usa.
+- **Backend**: [Supabase](https://supabase.com) (proyecto `colombia-contrata`, ref `zjbijmieiyumpqwyqhfm`, región São Paulo) — Auth + Postgres (`profiles`, `planes_empresa`, `precios_documentos`, `configuracion_portal`, ver [Base de datos](#base-de-datos-postgres)) + Storage (bucket `portal-assets`).
 - **Email**: Supabase Auth usa SMTP personalizado vía [Resend](https://resend.com) (`smtp.resend.com`, remitente `noreply@colombiacontrata.com`). Configurado en Supabase → Authentication → Emails → SMTP Settings. Las 6 plantillas de "Authentication" (Confirm signup, Invite, Magic Link, Change email, Reset password, Reauthentication) están traducidas al español. De las 7 de "Security", **"Change Email Address" ya está activada y traducida** (necesaria para poder cambiar el correo desde `/perfil`); el resto (password/phone changed, MFA, etc.) siguen desactivadas por defecto y sin traducir porque no se usan todavía.
 - **Auth → URL Configuration**: el **Site URL** y los **Redirect URLs** están configurados en `https://colombiacontrata.com` / `https://www.colombiacontrata.com` (se mantiene también `https://colombia-contrata.vercel.app/**` por si se sigue usando para pruebas). El enlace de los correos de confirmación (`{{ .ConfirmationURL }}`) usa el `redirect_to` que manda el cliente (`emailRedirectTo: window.location.origin + "/perfil"` en `RegisterForm.tsx`) **solo si ese dominio está en la lista de Redirect URLs** — si no, Supabase cae de vuelta al Site URL. Si se agrega otro dominio/subdominio desde el que la gente se registre, hay que agregarlo ahí también.
 - **Dominio propio** `colombiacontrata.com`: comprado, DNS/CDN en Cloudflare, **ya conectado a Vercel** (2026-08-07). `colombiacontrata.com` y `www.colombiacontrata.com` están agregados en Vercel → Domains (Production), con "Redirect apex domains to www" activado (colombiacontrata.com hace 308 a www). En Cloudflare → DNS → Registros existen los dos CNAME requeridos, ambos "DNS only" (proxy desactivado, nube gris):
@@ -248,10 +386,11 @@ El sitio soporta tema claro/oscuro con un toggle (ícono sol/luna) en el Header,
 ## Roadmap / pendientes
 
 - [ ] Construir `/solicitar` (checklist de documentos) y `/empresas`.
+- [ ] Hacer que el sitio en vivo consuma `configuracion_portal` de verdad (Header, colores, favicon) — hoy el panel ya lo guarda, pero el front sigue con la marca fija en el código.
 - [ ] Registrar la IP en la trazabilidad de consentimiento de Habeas Data (requiere un endpoint de servidor/Route Handler, ya que `supabase.auth.signUp` corre en el cliente).
-- [ ] Conectar el guardado de `AdminSettingsForm.tsx` a un backend real (hoy `/admin` ya está protegido por autenticación, pero los cambios que se guardan ahí siguen siendo solo vista previa).
-- [ ] Postgres + storage con URLs firmadas para la expiración de 10 días de los documentos.
-- [ ] Tablas de planes/paquetes/créditos para el flujo de empresas (compra de créditos, invitación de candidatos, historial) — separadas de `profiles`.
+- [ ] Flujo de compra/consumo de créditos de `planes_empresa` (checkout, descuento de créditos al consultar, invitación de candidatos, historial real en `/historial`) — hoy los planes solo se muestran y administran, no se pueden comprar ni consumir todavía.
+- [ ] Crear cuentas de persona/empresa y asignar administradores desde `/admin` (pendiente: requiere un endpoint de servidor con la Service Role Key de Supabase, que nunca puede vivir en el navegador).
+- [ ] Storage con URLs firmadas para la expiración de 10 días de los documentos de personas.
 - [ ] Integración con la API del proveedor de fuentes (contraloría, policía, procuraduría, etc.) — aún no contratada.
 - [ ] Pasarela de pagos (Wompi / PayU).
 - [ ] Generación y empaquetado de PDFs + expiración de 10 días.
