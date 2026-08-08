@@ -15,18 +15,64 @@ const navLinks = [
 
 export default function Header() {
   const router = useRouter();
-  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [isSignedIn, setIsSignedIn] = useState(false);
+  const [displayName, setDisplayName] = useState<string | null>(null);
 
   useEffect(() => {
+    let active = true;
+
+    const loadDisplayName = async (
+      userId: string | undefined,
+      email: string | undefined,
+      accountType: string | undefined
+    ) => {
+      if (!userId) {
+        if (active) {
+          setIsSignedIn(false);
+          setDisplayName(null);
+        }
+        return;
+      }
+      if (active) setIsSignedIn(true);
+
+      // El nombre para mostrar vive en la tabla "profiles" (no en la
+      // sesión de Auth), y puede no existir todavía si el usuario aún no
+      // completó /perfil — en ese caso mostramos el correo como respaldo.
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("primer_nombre, razon_social")
+        .eq("id", userId)
+        .maybeSingle();
+      if (!active) return;
+
+      const name =
+        accountType === "empresa" ? profile?.razon_social : profile?.primer_nombre;
+      setDisplayName(name || email || null);
+    };
+
     supabase.auth.getUser().then(({ data }) => {
-      setUserEmail(data.user?.email ?? null);
+      const user = data.user;
+      loadDisplayName(
+        user?.id,
+        user?.email,
+        user?.user_metadata?.account_type as string | undefined
+      );
     });
+
     const { data: subscription } = supabase.auth.onAuthStateChange(
       (_event, session) => {
-        setUserEmail(session?.user.email ?? null);
+        loadDisplayName(
+          session?.user.id,
+          session?.user.email,
+          session?.user.user_metadata?.account_type as string | undefined
+        );
       }
     );
-    return () => subscription.subscription.unsubscribe();
+
+    return () => {
+      active = false;
+      subscription.subscription.unsubscribe();
+    };
   }, []);
 
   const handleSignOut = async () => {
@@ -66,13 +112,13 @@ export default function Header() {
         </div>
 
         <div className="flex items-center gap-x-2">
-          {userEmail ? (
+          {isSignedIn ? (
             <>
               <Link
                 href="/perfil"
                 className="hidden sm:inline-flex items-center gap-x-2 text-sm font-medium text-gray-700 hover:text-brand-blue px-3 py-2 truncate max-w-[14rem]"
               >
-                {userEmail}
+                {displayName}
               </Link>
               <button
                 type="button"
@@ -140,13 +186,13 @@ export default function Header() {
               {link.label}
             </a>
           ))}
-          {userEmail ? (
+          {isSignedIn ? (
             <>
               <Link
                 href="/perfil"
                 className="font-medium text-gray-600 hover:text-brand-blue truncate"
               >
-                {userEmail}
+                {displayName}
               </Link>
               <button
                 type="button"

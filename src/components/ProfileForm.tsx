@@ -398,34 +398,34 @@ function EmpresaFields({ initial }: { initial: ProfileRow | null }) {
               <option value="agricultura">
                 Agricultura, ganadería y pesca
               </option>
-              <option value="mineria_energia">Minería y energía</option>
-              <option value="manufactura">Manufactura / industria</option>
-              <option value="textil">Textil y confección</option>
-              <option value="construccion">Construcción</option>
-              <option value="comercio">Comercio (retail / mayorista)</option>
-              <option value="ecommerce">E-commerce / marketplace</option>
               <option value="alimentos">Alimentos y bebidas</option>
-              <option value="transporte">Transporte y logística</option>
-              <option value="turismo">Turismo y hotelería</option>
-              <option value="tecnologia">Tecnología / software</option>
-              <option value="telecomunicaciones">Telecomunicaciones</option>
-              <option value="fintech">Fintech / servicios financieros</option>
-              <option value="seguros">Seguros</option>
               <option value="inmobiliario">Arrendamiento / inmobiliario</option>
-              <option value="rrhh">Recursos humanos / outsourcing</option>
               <option value="bpo">BPO / contact center</option>
+              <option value="comercio">Comercio (retail / mayorista)</option>
+              <option value="construccion">Construcción</option>
+              <option value="ecommerce">E-commerce / marketplace</option>
+              <option value="educacion">Educación</option>
+              <option value="fintech">Fintech / servicios financieros</option>
+              <option value="manufactura">Manufactura / industria</option>
+              <option value="mineria_energia">Minería y energía</option>
+              <option value="ong">ONG / sector social</option>
+              <option value="rrhh">Recursos humanos / outsourcing</option>
+              <option value="salud">Salud</option>
+              <option value="gobierno">Sector público / gobierno</option>
+              <option value="seguridad">Seguridad privada</option>
+              <option value="seguros">Seguros</option>
+              <option value="legal">Servicios legales</option>
               <option value="servicios_profesionales">
                 Servicios profesionales / consultoría
               </option>
-              <option value="legal">Servicios legales</option>
-              <option value="salud">Salud</option>
-              <option value="educacion">Educación</option>
-              <option value="seguridad">Seguridad privada</option>
               <option value="servicios_publicos">
                 Servicios públicos (agua, luz, gas)
               </option>
-              <option value="gobierno">Sector público / gobierno</option>
-              <option value="ong">ONG / sector social</option>
+              <option value="tecnologia">Tecnología / software</option>
+              <option value="telecomunicaciones">Telecomunicaciones</option>
+              <option value="textil">Textil y confección</option>
+              <option value="transporte">Transporte y logística</option>
+              <option value="turismo">Turismo y hotelería</option>
               <option value="otro">Otro</option>
             </select>
           </Field>
