@@ -4,6 +4,7 @@ import { useState, type ReactNode } from "react";
 
 const tabs = [
   { id: "identidad", label: "Identidad del portal" },
+  { id: "landing", label: "Página principal" },
   { id: "personas", label: "Planes de personas" },
   { id: "planes", label: "Planes de empresa" },
   { id: "documentos", label: "Documentos disponibles" },
@@ -14,19 +15,21 @@ type TabId = (typeof tabs)[number]["id"];
 
 export default function AdminTabs({
   identidad,
+  landing,
   personas,
   planes,
   documentos,
   admins,
 }: {
   identidad: ReactNode;
+  landing: ReactNode;
   personas: ReactNode;
   planes: ReactNode;
   documentos: ReactNode;
   admins: ReactNode;
 }) {
   const [active, setActive] = useState<TabId>("identidad");
-  const content = { identidad, personas, planes, documentos, admins }[active];
+  const content = { identidad, landing, personas, planes, documentos, admins }[active];
 
   return (
     <div>
