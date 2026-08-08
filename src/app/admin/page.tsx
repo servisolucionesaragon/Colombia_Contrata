@@ -17,7 +17,7 @@ export default function AdminPage() {
   return (
     <div className="min-h-full flex flex-col bg-gray-50 dark:bg-gray-950">
       <header className="bg-gray-900 text-white">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
           <div className="flex items-center gap-x-2">
             <span className="text-sm font-semibold uppercase tracking-wide text-gray-400">
               Admin
@@ -32,7 +32,7 @@ export default function AdminPage() {
       </header>
 
       <main className="flex-1 py-10">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
           <AdminGate>
             <AdminTabs
               identidad={
