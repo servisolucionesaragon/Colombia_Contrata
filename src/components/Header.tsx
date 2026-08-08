@@ -103,6 +103,26 @@ function getInitials(name: string): string {
   return (words[0][0] + words[1][0]).toUpperCase();
 }
 
+// Oscurece un color hex un porcentaje fijo, para el estado ":hover" del
+// color primario (equivalente a como se eligió brand-blue-dark a mano).
+function darkenHex(hex: string, amount = 0.15): string {
+  const match = /^#?([a-f\d]{6})$/i.exec(hex);
+  if (!match) return hex;
+  const num = parseInt(match[1], 16);
+  const channel = (shift: number) =>
+    Math.max(0, Math.round(((num >> shift) & 0xff) * (1 - amount)));
+  const r = channel(16);
+  const g = channel(8);
+  const b = channel(0);
+  return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
+}
+
+function applyBrandColor(hex: string) {
+  const root = document.documentElement.style;
+  root.setProperty("--color-brand-blue", hex);
+  root.setProperty("--color-brand-blue-dark", darkenHex(hex));
+}
+
 export default function Header() {
   const router = useRouter();
   const [isSignedIn, setIsSignedIn] = useState(false);
@@ -116,11 +136,12 @@ export default function Header() {
   useEffect(() => {
     supabase
       .from("configuracion_portal")
-      .select("logo_url")
+      .select("logo_url, color_primario")
       .eq("id", 1)
       .single()
       .then(({ data }) => {
         if (data?.logo_url) setLogoUrl(data.logo_url);
+        if (data?.color_primario) applyBrandColor(data.color_primario);
       });
   }, []);
 

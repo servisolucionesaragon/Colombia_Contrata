@@ -16,7 +16,16 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-montserrat);
+}
 
+/* Paleta de marca declarada FUERA de "@theme inline" a propósito: en modo
+   "inline" Tailwind v4 hornea el valor literal en cada utilidad generada
+   (ej. ".bg-brand-blue{background-color:#1d4ed8}"), lo que impide
+   sobreescribirla en tiempo real. Aquí en cambio Tailwind genera
+   "var(--color-brand-blue)", así que BrandColorLoader (ver Header.tsx)
+   puede cambiar el color primario en vivo llamando
+   document.documentElement.style.setProperty. */
+@theme {
   /* Colombia Contrata brand palette (Manual_Identidad_Visual v1) */
   --color-brand-navy: #0d1b3d;
   --color-brand-blue: #1d4ed8;
