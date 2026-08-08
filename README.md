@@ -55,6 +55,7 @@ Basada en `Manual_Identidad_Visual_Colombia_Contrata` (carpeta `Colombia Contrat
 | `/terminos` | Términos y Condiciones | Borrador, falta revisión legal |
 | `/privacidad` | Política de Tratamiento de Datos Personales (Ley 1581) | Borrador, falta revisión legal |
 | `/admin` | Back office: nombre, eslogan, logo, favicon, color primario | **Protegido con autenticación real** (solo cuentas con `app_metadata.role = "admin"`, ver [Panel de administración](#panel-de-administración)); el guardado de los cambios sigue siendo solo vista previa |
+| `/historial` | Historial de solicitudes/verificaciones del usuario | Placeholder protegido por sesión ("Aún no tienes solicitudes") — falta el flujo real de solicitud de documentos para tener datos que mostrar |
 
 `/solicitar` y `/empresas` están enlazadas desde la UI pero **todavía no existen** (darán 404 si se navega directo).
 
@@ -87,22 +88,25 @@ Dado lo lento que es esto, **el flujo de trabajo real de esta sesión fue: edita
 ```
 src/
   app/
-    layout.tsx          # layout raíz, fuente Montserrat, inicializa Preline
+    layout.tsx          # layout raíz, fuente Montserrat, inicializa Preline, script de tema sin parpadeo
     page.tsx             # landing page
-    globals.css          # Tailwind v4 (@theme con colores de marca) + @source hacia preline/dist
+    globals.css          # Tailwind v4 (@theme con colores de marca, @custom-variant dark) + @source hacia preline/dist
     icon.png              # favicon (Next.js lo detecta automáticamente)
     registro/page.tsx     # alta de cuenta
     login/page.tsx         # inicio de sesión
     perfil/page.tsx        # completar datos post-registro
+    historial/page.tsx     # placeholder de historial de solicitudes (protegido por sesión)
     terminos/page.tsx     # términos y condiciones
     privacidad/page.tsx   # política de datos personales
     admin/page.tsx        # back office (protegido por AdminGate)
   components/
-    Header.tsx / Footer.tsx # Header es client component: lee sesión + tabla profiles para mostrar nombre/razón social y botón de cerrar sesión
+    Header.tsx / Footer.tsx # Header es client component: lee sesión + tabla profiles, muestra menú de usuario (avatar, Inicio/Historial/Perfil/Cerrar sesión) y el ThemeToggle
+    ThemeToggle.tsx         # botón sol/luna, toggle de clase "dark" en <html>, persiste en localStorage
     RegisterForm.tsx       # registro real vía Supabase Auth (signUp + metadata de consentimiento)
     LoginForm.tsx           # login real vía Supabase Auth (signInWithPassword)
     ProfileForm.tsx        # lee y guarda (upsert) en la tabla profiles según persona/empresa
     AccountSecurityForm.tsx # cambio de contraseña/correo vía supabase.auth.updateUser, en /perfil
+    HistorialContent.tsx    # contenido de /historial (gate de sesión + estado vacío)
     AdminGate.tsx           # bloquea /admin a menos que la sesión tenga app_metadata.role === "admin"
     AdminSettingsForm.tsx  # formulario de configuración del portal (guardado aún es vista previa)
     LegalDisclaimer.tsx    # aviso de "falta revisión legal" en /terminos y /privacidad
@@ -211,6 +215,19 @@ where email = 'correo@ejemplo.com';
 ```
 
 Cuenta con acceso de administrador actualmente: `yorbis10@gmail.com`.
+
+## Menú de usuario
+
+Cuando hay sesión activa, `Header.tsx` reemplaza los botones "Iniciar sesión"/"Crear cuenta" por un menú desplegable: círculo con iniciales (calculadas del nombre/razón social) en azul, nombre en azul negrilla, y al abrirlo muestra nombre + correo arriba y cuatro opciones con ícono — **Inicio**, **Historial**, **Perfil** y **Cerrar sesión**. El nombre viene de la tabla `profiles` (`primer_nombre` para persona, `razon_social` para empresa), con el correo como respaldo si el usuario aún no la completó.
+
+## Modo oscuro
+
+El sitio soporta tema claro/oscuro con un toggle (ícono sol/luna) en el Header, visible con o sin sesión:
+
+- **Mecanismo**: Tailwind v4 no trae modo oscuro por clase por defecto (solo por `prefers-color-scheme`), así que `globals.css` declara `@custom-variant dark (&:where(.dark, .dark *));` para que las utilidades `dark:` respondan a una clase `.dark` en `<html>` en vez del sistema operativo.
+- **Sin parpadeo (FOUC)**: `layout.tsx` inyecta un `<Script strategy="beforeInteractive">` que lee `localStorage.getItem("theme")` (o `prefers-color-scheme` si no hay preferencia guardada) y aplica la clase `dark` **antes** de que React hidrate — por eso `<html>` lleva `suppressHydrationWarning`.
+- **Toggle**: `ThemeToggle.tsx` alterna la clase `dark` en `document.documentElement` y guarda la elección en `localStorage` (`theme: "light" | "dark"`).
+- **Cobertura**: se agregaron variantes `dark:` en todas las páginas y componentes existentes (landing, registro, login, perfil, seguridad de cuenta, términos, privacidad, admin, historial).
 
 ## Despliegue
 
