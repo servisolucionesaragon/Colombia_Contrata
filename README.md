@@ -222,7 +222,9 @@ Estas tablas tienen **lectura pública** (`using (true)`, salvo `planes_empresa`
 - **`configuracion_persona`**: fila única (`id` fijo en `1`) para la tarjeta "Persona independiente" que se muestra en `/` — `titulo`, `descripcion`, `cta_label`, `precio_desde` (opcional) y `activo` (si está en `false`, la tarjeta no se muestra).
 - **`configuracion_portal`**: fila única (`id` fijo en `1`, con `check (id = 1)`) para nombre del portal, eslogan, color primario y URLs de logo/favicon. Las imágenes se suben al bucket de Storage **`portal-assets`** (público para lectura, admin-only para escribir) vía `supabase.storage.from("portal-assets").upload(...)`.
 
-Todas se administran desde `/admin` (ver [Panel de administración](#panel-de-administración)). **Importante**: guardar `configuracion_portal` no hace que el sitio en vivo la use todavía — el Header, los colores de marca y el favicon siguen fijos en el código; falta una segunda fase para leer `configuracion_portal` en tiempo real (queda en el roadmap). `configuracion_persona` y los planes/documentos sí se reflejan en vivo en `/` de inmediato.
+Todas se administran desde `/admin` (ver [Panel de administración](#panel-de-administración)) y se reflejan en vivo en el sitio: `configuracion_persona` y los planes/documentos de inmediato (lectura client-side); `configuracion_portal` (logo y favicon) con hasta 60s de retraso (`Header.tsx` lee `logo_url` client-side; `layout.tsx` usa `generateMetadata` con `export const revalidate = 60` para `favicon_url`, así no hace falta un redeploy para ver el cambio). El nombre del portal, eslogan y color primario siguen sin conectarse al front — solo se guardan en la tabla, pendiente en el roadmap.
+
+⚠️ **Gotcha del favicon**: Next.js detecta automáticamente `src/app/icon.png` (convención de archivo) y ese archivo estático **siempre gana** sobre cualquier `metadata.icons` dinámico — por eso el favicon de `/admin` no se veía reflejado. Se eliminó ese archivo; el favicon ahora sale exclusivamente de `configuracion_portal.favicon_url` (con `/icono.png` como respaldo si no hay ninguno configurado). No volver a agregar un `src/app/icon.*` mientras el favicon deba ser configurable.
 
 <details>
 <summary>Ver el SQL completo</summary>
@@ -431,7 +433,7 @@ El sitio soporta tema claro/oscuro con un toggle (ícono sol/luna) en el Header,
 ## Roadmap / pendientes
 
 - [ ] Construir `/solicitar` (checklist de documentos) y `/empresas`.
-- [ ] Hacer que el sitio en vivo consuma `configuracion_portal` de verdad (Header, colores, favicon) — hoy el panel ya lo guarda, pero el front sigue con la marca fija en el código.
+- [ ] Conectar `nombre_portal`, `eslogan` y `color_primario` de `configuracion_portal` al front (logo y favicon ya están conectados — ver sección de tablas).
 - [ ] Registrar la IP en la trazabilidad de consentimiento de Habeas Data (requiere un endpoint de servidor/Route Handler, ya que `supabase.auth.signUp` corre en el cliente).
 - [ ] Flujo de compra/consumo de créditos de `planes_empresa` (checkout, descuento de créditos al consultar, invitación de candidatos, historial real en `/historial`) — hoy los planes solo se muestran y administran, no se pueden comprar ni consumir todavía.
 - [ ] Crear cuentas de persona/empresa desde `/admin` (el usuario decidió dejar esto fuera de alcance por ahora — solo se construyó "asignar administradores", que ya está listo).
