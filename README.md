@@ -403,7 +403,9 @@ Cuenta con acceso de administrador actualmente: `yorbis10@gmail.com`.
 
 ## Menú de usuario
 
-Cuando hay sesión activa, `Header.tsx` reemplaza los botones "Iniciar sesión"/"Crear cuenta" por un menú desplegable: círculo con iniciales (calculadas del nombre/razón social) en azul, nombre en azul negrilla, y al abrirlo muestra nombre + correo arriba y cuatro opciones con ícono — **Inicio**, **Historial**, **Perfil** y **Cerrar sesión**. El nombre viene de la tabla `profiles` (`primer_nombre` para persona, `razon_social` para empresa), con el correo como respaldo si el usuario aún no la completó.
+Cuando hay sesión activa, `Header.tsx` reemplaza los botones "Iniciar sesión"/"Crear cuenta" por un menú desplegable: círculo con iniciales (calculadas del nombre/razón social) en azul, nombre en azul negrilla, y al abrirlo muestra nombre + correo arriba y cuatro opciones con ícono — **Inicio**, **Historial**, **Perfil** y **Cerrar sesión**. El nombre viene de la tabla `profiles` — para persona es `primer_nombre` + `primer_apellido` (no solo el primer nombre), para empresa es `razon_social` — con el correo como respaldo si el usuario aún no la completó. Las iniciales del círculo: persona → primera letra de `primer_nombre` + primera letra de `primer_apellido`; empresa → iniciales de las dos primeras palabras de `razon_social`.
+
+**Tamaños de logo/avatar** (ajustados 2026-08-08 a pedido del usuario): el isotipo del Header mide 44px (`size-11`/`h-11`, antes 32px). El círculo de iniciales del menú desplegable de escritorio mide 28px (`size-7`); el del panel de menú móvil (el que se abre con el ícono de hamburguesa) mide 40px (`size-10`, antes 32px) para que se vea proporcional al logo agrandado.
 
 ## Modo oscuro
 
