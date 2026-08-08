@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import AdminGate from "@/components/AdminGate";
 import AdminWarningBanner from "@/components/AdminWarningBanner";
 import AdminSettingsForm from "@/components/AdminSettingsForm";
 
@@ -28,11 +29,13 @@ export default function AdminPage() {
 
       <main className="flex-1 py-10">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
-          <AdminWarningBanner />
+          <AdminGate>
+            <AdminWarningBanner />
 
-          <div className="bg-white border border-gray-200 rounded-2xl p-6 sm:p-8">
-            <AdminSettingsForm />
-          </div>
+            <div className="bg-white border border-gray-200 rounded-2xl p-6 sm:p-8">
+              <AdminSettingsForm />
+            </div>
+          </AdminGate>
         </div>
       </main>
     </div>
