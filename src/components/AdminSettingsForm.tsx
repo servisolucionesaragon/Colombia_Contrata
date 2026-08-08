@@ -24,6 +24,7 @@ export default function AdminSettingsForm() {
   const [nombrePortal, setNombrePortal] = useState("Colombia Contrata");
   const [eslogan, setEslogan] = useState("");
   const [correoContacto, setCorreoContacto] = useState("contacto@colombiacontrata.com");
+  const [footerTexto, setFooterTexto] = useState("Todos los derechos reservados.");
   const [colorPrimario, setColorPrimario] = useState("#1d4ed8");
   const [logo, setLogo] = useState<ImageField>({ file: null, previewUrl: null });
   const [favicon, setFavicon] = useState<ImageField>({
@@ -56,6 +57,9 @@ export default function AdminSettingsForm() {
           setEslogan(data.eslogan);
           setCorreoContacto(
             data.correo_contacto || "contacto@colombiacontrata.com"
+          );
+          setFooterTexto(
+            data.footer_texto || "Todos los derechos reservados."
           );
           setColorPrimario(data.color_primario);
           setLogo({ file: null, previewUrl: data.logo_url });
@@ -105,6 +109,7 @@ export default function AdminSettingsForm() {
           nombre_portal: nombrePortal,
           eslogan,
           correo_contacto: correoContacto,
+          footer_texto: footerTexto,
           color_primario: colorPrimario,
           logo_url: newLogoUrl,
           favicon_url: newFaviconUrl,
@@ -170,6 +175,18 @@ export default function AdminSettingsForm() {
             />
             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
               Se muestra en el pie de página del sitio.
+            </p>
+          </Field>
+          <Field label="Texto legal del pie de página" htmlFor="footerTexto">
+            <input
+              id="footerTexto"
+              type="text"
+              value={footerTexto}
+              onChange={(e) => setFooterTexto(e.target.value)}
+              className={inputClass}
+            />
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              Aparece como: © {new Date().getFullYear()} {nombrePortal || "Colombia Contrata"}. {footerTexto}
             </p>
           </Field>
         </div>

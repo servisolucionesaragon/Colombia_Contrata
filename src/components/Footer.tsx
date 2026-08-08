@@ -21,7 +21,7 @@ export default async function Footer() {
   const { data } = await supabase
     .from("configuracion_portal")
     .select(
-      "facebook_url, instagram_url, twitter_url, linkedin_url, tiktok_url, correo_contacto"
+      "facebook_url, instagram_url, twitter_url, linkedin_url, tiktok_url, correo_contacto, nombre_portal, footer_texto"
     )
     .eq("id", 1)
     .single();
@@ -114,8 +114,8 @@ export default async function Footer() {
 
       <div className="border-t border-gray-200 dark:border-gray-800 py-4">
         <p className="text-center text-xs text-gray-400 dark:text-gray-500">
-          © {new Date().getFullYear()} Colombia Contrata. Todos los derechos
-          reservados.
+          © {new Date().getFullYear()} {data?.nombre_portal || "Colombia Contrata"}.{" "}
+          {data?.footer_texto || "Todos los derechos reservados."}
         </p>
       </div>
     </footer>
