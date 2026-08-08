@@ -227,14 +227,14 @@ export default function Header() {
         <Link href="/" className="flex-none flex items-center gap-x-2">
           {logoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={logoUrl} alt="Colombia Contrata" className="h-8 w-auto" />
+            <img src={logoUrl} alt="Colombia Contrata" className="h-11 w-auto" />
           ) : (
             <Image
               src="/isotipo.png"
               alt="Colombia Contrata"
-              width={32}
-              height={32}
-              className="size-8"
+              width={44}
+              height={44}
+              className="size-11"
               priority
             />
           )}
