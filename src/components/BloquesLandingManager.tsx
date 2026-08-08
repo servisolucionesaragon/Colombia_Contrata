@@ -11,6 +11,7 @@ type Bloque = {
   descripcion: string | null;
   imagen_url: string | null;
   imagen_posicion: "izquierda" | "derecha";
+  imagen_ancho: number | null;
   boton_label: string | null;
   boton_href: string | null;
 };
@@ -64,11 +65,14 @@ export default function BloquesLandingManager() {
           ? bloque.imagen_url
           : null;
 
+      const anchoRaw = formData.get("imagen_ancho") as string;
+
       const payload = {
         titulo: (formData.get("titulo") as string) || null,
         descripcion: (formData.get("descripcion") as string) || null,
         imagen_url: imagenUrl,
         imagen_posicion: formData.get("imagen_posicion") as string,
+        imagen_ancho: anchoRaw ? Number(anchoRaw) : null,
         boton_label: (formData.get("boton_label") as string) || null,
         boton_href: (formData.get("boton_href") as string) || null,
         activo: formData.get("activo") === "on",
@@ -319,6 +323,21 @@ function BloqueForm({
             <option value="derecha">Imagen a la derecha</option>
             <option value="izquierda">Imagen a la izquierda</option>
           </select>
+        </Field>
+        <Field label="Ancho de la imagen en px (opcional)" htmlFor="imagen_ancho">
+          <input
+            id="imagen_ancho"
+            name="imagen_ancho"
+            type="number"
+            min={50}
+            placeholder="400"
+            defaultValue={bloque?.imagen_ancho ?? ""}
+            className={inputClass}
+          />
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            Déjalo en blanco para un tamaño automático (400px). La imagen
+            nunca se estira más allá de su tamaño real.
+          </p>
         </Field>
       </div>
 

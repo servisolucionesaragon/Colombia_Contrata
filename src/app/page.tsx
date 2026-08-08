@@ -44,6 +44,7 @@ type Bloque = {
   descripcion: string | null;
   imagen_url: string | null;
   imagen_posicion: "izquierda" | "derecha";
+  imagen_ancho: number | null;
   boton_label: string | null;
   boton_href: string | null;
 };
@@ -181,12 +182,21 @@ export default async function Home() {
               } items-center gap-8`}
             >
               {bloque.imagen_url && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={bloque.imagen_url}
-                  alt={bloque.titulo ?? ""}
-                  className="w-full sm:w-1/2 rounded-2xl object-cover"
-                />
+                <div
+                  className={`w-full sm:w-1/2 flex justify-center ${
+                    bloque.imagen_posicion === "izquierda"
+                      ? "sm:justify-start"
+                      : "sm:justify-end"
+                  }`}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={bloque.imagen_url}
+                    alt={bloque.titulo ?? ""}
+                    className="rounded-2xl object-contain max-w-full h-auto"
+                    style={{ maxWidth: `min(${bloque.imagen_ancho ?? 400}px, 100%)` }}
+                  />
+                </div>
               )}
               <div
                 className={`w-full ${bloque.imagen_url ? "sm:w-1/2" : "max-w-2xl mx-auto text-center"}`}
