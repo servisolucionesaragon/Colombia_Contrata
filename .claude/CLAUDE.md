@@ -22,6 +22,8 @@ Email: **Resend conectado como SMTP de Supabase Auth** — correos salen de `nor
 
 Dominio: `colombiacontrata.com` **ya conectado a Vercel** (2026-08-07). En Vercel → Domains están `colombiacontrata.com` + `www.colombiacontrata.com` (redirect apex→www, 308), ambos "Valid Configuration". En Cloudflare DNS existen los dos registros CNAME (`@` y `www`) apuntando a `1b7885c77d62091c.vercel-dns-017.com.`, con el proxy de Cloudflare desactivado (DNS only / nube gris) en ambos.
 
+`/login` ya existe (`LoginForm.tsx`, email/password vía `supabase.auth.signInWithPassword`), y `Header.tsx` es client component que muestra el correo del usuario + botón "Cerrar sesión" cuando hay sesión activa. En Supabase → Authentication → URL Configuration, el **Site URL** y los **Redirect URLs** ya se actualizaron a `colombiacontrata.com`/`www.colombiacontrata.com` (además de mantener `colombia-contrata.vercel.app/**`) — antes solo tenían el dominio de Vercel, por lo que los correos de confirmación (`{{ .ConfirmationURL }}`, que usa el `redirect_to` de `emailRedirectTo` en `RegisterForm.tsx`) terminaban rebotando al Site URL de respaldo (vercel.app) en vez de al dominio propio.
+
 Identidad de marca ya aplicada: logo/ícono reales (`public/isotipo.png`, `public/icono.png`), paleta de colores (`brand-navy #0d1b3d`, `brand-blue #1d4ed8`, `brand-yellow #fcd116`, `brand-red #ce1126` como tokens Tailwind en `globals.css`), tipografía Montserrat. El azul es una decisión explícita del usuario: el Manual de Identidad Visual original proponía `#0033a0` (azul bandera de Colombia), pero el usuario pidió cambiarlo a `#1d4ed8` — no revertir sin confirmar con él primero.
 
 ## Cumplimiento legal (Habeas Data — Ley 1581 de 2012)

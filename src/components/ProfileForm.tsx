@@ -10,15 +10,20 @@ import {
 
 type AccountType = "persona" | "empresa";
 type Status = "loading" | "signed-out" | "ready";
+type ProfileRow = Record<string, string | null>;
 
 export default function ProfileForm() {
   const [status, setStatus] = useState<Status>("loading");
   const [accountType, setAccountType] = useState<AccountType>("persona");
   const [email, setEmail] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [initial, setInitial] = useState<ProfileRow | null>(null);
+  const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
+    supabase.auth.getUser().then(async ({ data }) => {
       const user = data.user;
       if (!user) {
         setStatus("signed-out");
@@ -29,14 +34,42 @@ export default function ProfileForm() {
       const type = user.user_metadata?.account_type as AccountType | undefined;
       setAccountType(type === "empresa" ? "empresa" : "persona");
       setEmail(user.email ?? null);
+      setUserId(user.id);
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", user.id)
+        .maybeSingle();
+      setInitial(profile ?? null);
       setStatus("ready");
     });
   }, []);
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    // TODO: guardar estos campos en una tabla "profiles" de Supabase
-    // asociada al user.id, una vez esté creada.
+    if (!userId) return;
+    setSaving(true);
+    setErrorMessage(null);
+    setSaved(false);
+
+    const formData = new FormData(event.currentTarget);
+    const payload: ProfileRow & { id: string; account_type: AccountType } = {
+      id: userId,
+      account_type: accountType,
+    };
+    for (const [key, value] of formData.entries()) {
+      if (typeof value === "string") {
+        payload[key] = value.length > 0 ? value : null;
+      }
+    }
+
+    const { error } = await supabase.from("profiles").upsert(payload);
+    setSaving(false);
+    if (error) {
+      setErrorMessage("No pudimos guardar tus datos. Intenta de nuevo.");
+      return;
+    }
     setSaved(true);
   };
 
@@ -72,19 +105,29 @@ export default function ProfileForm() {
         {email && <span className="text-sm text-gray-500">{email}</span>}
       </div>
 
-      {accountType === "persona" ? <PersonaFields /> : <EmpresaFields />}
+      {accountType === "persona" ? (
+        <PersonaFields initial={initial} />
+      ) : (
+        <EmpresaFields initial={initial} />
+      )}
+
+      {errorMessage && (
+        <p className="text-sm text-red-600 rounded-lg bg-red-50 border border-red-200 px-3 py-2">
+          {errorMessage}
+        </p>
+      )}
 
       <div className="flex items-center gap-x-3 pt-2 border-t border-gray-200">
         <button
           type="submit"
-          className="inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent bg-brand-blue text-white hover:bg-brand-blue-dark px-5 py-2.5"
+          disabled={saving}
+          className="inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent bg-brand-blue text-white hover:bg-brand-blue-dark disabled:bg-gray-300 disabled:cursor-not-allowed px-5 py-2.5"
         >
-          Guardar datos
+          {saving ? "Guardando..." : "Guardar datos"}
         </button>
         {saved && (
-          <span className="text-sm text-gray-600">
-            Vista previa guardada — todavía falta crear la tabla de perfiles
-            en Supabase para persistir estos datos de verdad.
+          <span className="text-sm text-green-600">
+            Tus datos se guardaron correctamente.
           </span>
         )}
       </div>
@@ -92,23 +135,51 @@ export default function ProfileForm() {
   );
 }
 
-function PersonaFields() {
-  const [departamento, setDepartamento] = useState("");
+function PersonaFields({ initial }: { initial: ProfileRow | null }) {
+  const [departamento, setDepartamento] = useState(
+    initial?.departamento ?? ""
+  );
   return (
     <div className="space-y-6">
       <FieldGroup title="Identificación">
         <div className="grid sm:grid-cols-2 gap-4">
           <Field label="Primer nombre" htmlFor="primerNombre">
-            <input id="primerNombre" type="text" required className={inputClass} />
+            <input
+              id="primerNombre"
+              name="primer_nombre"
+              type="text"
+              required
+              defaultValue={initial?.primer_nombre ?? ""}
+              className={inputClass}
+            />
           </Field>
           <Field label="Segundo nombre" htmlFor="segundoNombre">
-            <input id="segundoNombre" type="text" className={inputClass} />
+            <input
+              id="segundoNombre"
+              name="segundo_nombre"
+              type="text"
+              defaultValue={initial?.segundo_nombre ?? ""}
+              className={inputClass}
+            />
           </Field>
           <Field label="Primer apellido" htmlFor="primerApellido">
-            <input id="primerApellido" type="text" required className={inputClass} />
+            <input
+              id="primerApellido"
+              name="primer_apellido"
+              type="text"
+              required
+              defaultValue={initial?.primer_apellido ?? ""}
+              className={inputClass}
+            />
           </Field>
           <Field label="Segundo apellido" htmlFor="segundoApellido">
-            <input id="segundoApellido" type="text" className={inputClass} />
+            <input
+              id="segundoApellido"
+              name="segundo_apellido"
+              type="text"
+              defaultValue={initial?.segundo_apellido ?? ""}
+              className={inputClass}
+            />
           </Field>
         </div>
       </FieldGroup>
@@ -116,7 +187,13 @@ function PersonaFields() {
       <FieldGroup title="Documento">
         <div className="grid sm:grid-cols-2 gap-4">
           <Field label="Tipo de documento" htmlFor="tipoDocumento">
-            <select id="tipoDocumento" required defaultValue="CC" className={inputClass}>
+            <select
+              id="tipoDocumento"
+              name="tipo_documento"
+              required
+              defaultValue={initial?.tipo_documento ?? "CC"}
+              className={inputClass}
+            >
               <option value="CC">Cédula de ciudadanía</option>
               <option value="CE">Cédula de extranjería</option>
               <option value="PA">Pasaporte</option>
@@ -125,20 +202,36 @@ function PersonaFields() {
           <Field label="Documento" htmlFor="documento">
             <input
               id="documento"
+              name="documento"
               type="text"
               inputMode="numeric"
               required
+              defaultValue={initial?.documento ?? ""}
               className={inputClass}
             />
           </Field>
           <Field label="Fecha de nacimiento" htmlFor="fechaNacimiento">
-            <input id="fechaNacimiento" type="date" required className={inputClass} />
+            <input
+              id="fechaNacimiento"
+              name="fecha_nacimiento"
+              type="date"
+              required
+              defaultValue={initial?.fecha_nacimiento ?? ""}
+              className={inputClass}
+            />
           </Field>
           <Field
             label="Fecha de expedición del documento"
             htmlFor="fechaExpedicion"
           >
-            <input id="fechaExpedicion" type="date" required className={inputClass} />
+            <input
+              id="fechaExpedicion"
+              name="fecha_expedicion"
+              type="date"
+              required
+              defaultValue={initial?.fecha_expedicion ?? ""}
+              className={inputClass}
+            />
           </Field>
         </div>
       </FieldGroup>
@@ -146,7 +239,13 @@ function PersonaFields() {
       <FieldGroup title="Datos adicionales">
         <div className="grid sm:grid-cols-2 gap-4">
           <Field label="Género" htmlFor="genero">
-            <select id="genero" required defaultValue="" className={inputClass}>
+            <select
+              id="genero"
+              name="genero"
+              required
+              defaultValue={initial?.genero ?? ""}
+              className={inputClass}
+            >
               <option value="" disabled>
                 Selecciona una opción
               </option>
@@ -157,14 +256,23 @@ function PersonaFields() {
             </select>
           </Field>
           <Field label="Profesión u oficio" htmlFor="profesion">
-            <input id="profesion" type="text" required className={inputClass} />
+            <input
+              id="profesion"
+              name="profesion"
+              type="text"
+              required
+              defaultValue={initial?.profesion ?? ""}
+              className={inputClass}
+            />
           </Field>
           <Field label="Teléfono" htmlFor="telefono">
             <input
               id="telefono"
+              name="telefono"
               type="tel"
               required
               autoComplete="tel"
+              defaultValue={initial?.telefono ?? ""}
               className={inputClass}
             />
           </Field>
@@ -176,15 +284,18 @@ function PersonaFields() {
           <Field label="Dirección" htmlFor="direccion" className="sm:col-span-2">
             <input
               id="direccion"
+              name="direccion"
               type="text"
               required
               autoComplete="street-address"
+              defaultValue={initial?.direccion ?? ""}
               className={inputClass}
             />
           </Field>
           <Field label="Departamento" htmlFor="departamento">
             <select
               id="departamento"
+              name="departamento"
               required
               value={departamento}
               onChange={(e) => setDepartamento(e.target.value)}
@@ -201,7 +312,12 @@ function PersonaFields() {
             </select>
           </Field>
           <Field label="Ciudad" htmlFor="ciudad">
-            <CitySelect id="ciudad" departamento={departamento} />
+            <CitySelect
+              id="ciudad"
+              name="ciudad"
+              departamento={departamento}
+              initialValue={initial?.ciudad ?? ""}
+            />
           </Field>
         </div>
       </FieldGroup>
@@ -209,26 +325,43 @@ function PersonaFields() {
   );
 }
 
-function EmpresaFields() {
-  const [departamento, setDepartamento] = useState("");
+function EmpresaFields({ initial }: { initial: ProfileRow | null }) {
+  const [departamento, setDepartamento] = useState(
+    initial?.departamento_empresa ?? ""
+  );
   return (
     <div className="space-y-6">
       <FieldGroup title="Datos de la empresa">
         <div className="grid sm:grid-cols-2 gap-4">
           <Field label="Razón social" htmlFor="razonSocial" className="sm:col-span-2">
-            <input id="razonSocial" type="text" required className={inputClass} />
+            <input
+              id="razonSocial"
+              name="razon_social"
+              type="text"
+              required
+              defaultValue={initial?.razon_social ?? ""}
+              className={inputClass}
+            />
           </Field>
           <Field label="NIT" htmlFor="nit">
             <input
               id="nit"
+              name="nit"
               type="text"
               inputMode="numeric"
               required
+              defaultValue={initial?.nit ?? ""}
               className={inputClass}
             />
           </Field>
           <Field label="Tipo de sociedad" htmlFor="tipoSociedad">
-            <select id="tipoSociedad" required defaultValue="" className={inputClass}>
+            <select
+              id="tipoSociedad"
+              name="tipo_sociedad"
+              required
+              defaultValue={initial?.tipo_sociedad ?? ""}
+              className={inputClass}
+            >
               <option value="" disabled>
                 Selecciona una opción
               </option>
@@ -244,13 +377,21 @@ function EmpresaFields() {
           <Field label="Fecha de constitución" htmlFor="fechaConstitucion">
             <input
               id="fechaConstitucion"
+              name="fecha_constitucion"
               type="date"
               required
+              defaultValue={initial?.fecha_constitucion ?? ""}
               className={inputClass}
             />
           </Field>
           <Field label="Sector económico" htmlFor="sectorEconomico">
-            <select id="sectorEconomico" required defaultValue="" className={inputClass}>
+            <select
+              id="sectorEconomico"
+              name="sector_economico"
+              required
+              defaultValue={initial?.sector_economico ?? ""}
+              className={inputClass}
+            >
               <option value="" disabled>
                 Selecciona una opción
               </option>
@@ -270,31 +411,38 @@ function EmpresaFields() {
           <Field label="Sitio web" htmlFor="sitioWeb">
             <input
               id="sitioWeb"
+              name="sitio_web"
               type="url"
               placeholder="https://"
+              defaultValue={initial?.sitio_web ?? ""}
               className={inputClass}
             />
           </Field>
           <Field label="Teléfono de la empresa" htmlFor="telefonoEmpresa">
             <input
               id="telefonoEmpresa"
+              name="telefono_empresa"
               type="tel"
               required
+              defaultValue={initial?.telefono_empresa ?? ""}
               className={inputClass}
             />
           </Field>
           <Field label="Dirección" htmlFor="direccionEmpresa">
             <input
               id="direccionEmpresa"
+              name="direccion_empresa"
               type="text"
               required
               autoComplete="street-address"
+              defaultValue={initial?.direccion_empresa ?? ""}
               className={inputClass}
             />
           </Field>
           <Field label="Departamento" htmlFor="departamentoEmpresa">
             <select
               id="departamentoEmpresa"
+              name="departamento_empresa"
               required
               value={departamento}
               onChange={(e) => setDepartamento(e.target.value)}
@@ -311,7 +459,12 @@ function EmpresaFields() {
             </select>
           </Field>
           <Field label="Ciudad" htmlFor="ciudadEmpresa">
-            <CitySelect id="ciudadEmpresa" departamento={departamento} />
+            <CitySelect
+              id="ciudadEmpresa"
+              name="ciudad_empresa"
+              departamento={departamento}
+              initialValue={initial?.ciudad_empresa ?? ""}
+            />
           </Field>
         </div>
       </FieldGroup>
@@ -321,8 +474,10 @@ function EmpresaFields() {
           <Field label="Representante legal" htmlFor="representanteLegal">
             <input
               id="representanteLegal"
+              name="representante_legal"
               type="text"
               required
+              defaultValue={initial?.representante_legal ?? ""}
               className={inputClass}
             />
           </Field>
@@ -332,9 +487,11 @@ function EmpresaFields() {
           >
             <input
               id="documentoRepresentante"
+              name="documento_representante"
               type="text"
               inputMode="numeric"
               required
+              defaultValue={initial?.documento_representante ?? ""}
               className={inputClass}
             />
           </Field>
@@ -344,13 +501,22 @@ function EmpresaFields() {
       <FieldGroup title="Persona de contacto">
         <div className="grid sm:grid-cols-2 gap-4">
           <Field label="Nombre de contacto" htmlFor="nombreContacto">
-            <input id="nombreContacto" type="text" required className={inputClass} />
+            <input
+              id="nombreContacto"
+              name="nombre_contacto"
+              type="text"
+              required
+              defaultValue={initial?.nombre_contacto ?? ""}
+              className={inputClass}
+            />
           </Field>
           <Field label="Teléfono de contacto" htmlFor="telefonoContacto">
             <input
               id="telefonoContacto"
+              name="telefono_contacto"
               type="tel"
               required
+              defaultValue={initial?.telefono_contacto ?? ""}
               className={inputClass}
             />
           </Field>
@@ -362,10 +528,14 @@ function EmpresaFields() {
 
 function CitySelect({
   id,
+  name,
   departamento,
+  initialValue,
 }: {
   id: string;
+  name: string;
   departamento: string;
+  initialValue: string;
 }) {
   const ciudades = CIUDADES_POR_DEPARTAMENTO[departamento] ?? [];
   return (
@@ -373,9 +543,10 @@ function CitySelect({
     <select
       key={departamento}
       id={id}
+      name={name}
       required
       disabled={!departamento}
-      defaultValue=""
+      defaultValue={initialValue}
       className={`${inputClass} disabled:bg-gray-50 disabled:text-gray-400`}
     >
       <option value="" disabled>
