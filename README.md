@@ -26,11 +26,14 @@ Copiar a `.env.local` (no se sube a git):
 ```
 NEXT_PUBLIC_SUPABASE_URL=https://zjbijmieiyumpqwyqhfm.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon key del proyecto en Supabase>
+SUPABASE_SERVICE_ROLE_KEY=<service_role key del proyecto en Supabase>
 ```
 
-En Vercel están configuradas en **Project Settings → Environment Variables**.
+En Vercel están configuradas en **Project Settings → Environment Variables**. `SUPABASE_SERVICE_ROLE_KEY` **no** lleva `NEXT_PUBLIC_` a propósito — solo la usan los Route Handlers en el servidor (ej. `src/app/api/admin/roles/route.ts`), nunca debe llegar al navegador.
 
-⚠️ **No marcarlas como "Sensitive"** en Vercel: esa opción oculta el valor incluso durante el build, y como son variables `NEXT_PUBLIC_*` necesitan estar disponibles justo en el build para insertarse en el bundle del navegador. Marcarlas como sensibles rompe el build con `Error: supabaseKey is required.` (ya nos pasó una vez — ver commit `4658785` y el que le sigue). La anon key está diseñada para ser pública, así que no hay problema de seguridad en dejarla como variable normal.
+⚠️ **No marcar las `NEXT_PUBLIC_*` como "Sensitive"** en Vercel: esa opción oculta el valor incluso durante el build, y como necesitan estar disponibles justo en el build para insertarse en el bundle del navegador, marcarlas como sensibles rompe el build con `Error: supabaseKey is required.` (ya pasó una vez — ver commit `4658785` y el que le sigue). La anon key está diseñada para ser pública, así que no hay problema de seguridad en dejarla como variable normal.
+
+⚠️ **`SUPABASE_SERVICE_ROLE_KEY` tampoco se marcó como "Sensitive"**, pero por una razón distinta: en esta máquina el copiar/pegar entre pestañas del navegador automatizado no funciona de forma confiable (el portapapeles del SO queda bloqueado para el navegador embebido), así que hay que **escribir el valor directamente** (no pegarlo) al crear la variable. Una vez guardada como "Sensitive", Vercel no permite volver a copiar/ver el valor para reintentar si algo salió mal — por eso se dejó como variable normal (sigue siendo server-only, nunca se expone al cliente; "Sensitive" es una capa extra de ocultamiento en el dashboard, no la única protección). Si se necesita rotar la clave, hay que borrar la variable y crearla de nuevo con el valor tecleado directamente.
 
 ## Identidad de marca
 
@@ -54,7 +57,7 @@ Basada en `Manual_Identidad_Visual_Colombia_Contrata` (carpeta `Colombia Contrat
 | `/perfil` | Datos ampliados post-confirmación (persona: nombre/documento/fechas/género/ubicación; empresa: razón social/NIT/representante/sector/ubicación) + sección "Seguridad de la cuenta" (cambiar contraseña y correo) | **Conectado de verdad** — lee y guarda (`upsert`) en la tabla `profiles` de Supabase, precarga los datos si ya existían; cambio de contraseña/correo vía `supabase.auth.updateUser` |
 | `/terminos` | Términos y Condiciones | Borrador, falta revisión legal |
 | `/privacidad` | Política de Tratamiento de Datos Personales (Ley 1581) | Borrador, falta revisión legal |
-| `/admin` | Back office con pestañas: Identidad del portal, Planes de empresa, Precios de documentos | **Protegido con autenticación real** (solo cuentas con `app_metadata.role = "admin"`, ver [Panel de administración](#panel-de-administración)) — **todo se guarda de verdad**, incluyendo subida de logo/favicon a Storage |
+| `/admin` | Back office con pestañas: Identidad del portal, Planes de personas, Planes de empresa, Documentos disponibles, Administradores | **Protegido con autenticación real** (solo cuentas con `app_metadata.role = "admin"`, ver [Panel de administración](#panel-de-administración)) — **todo se guarda de verdad**, incluyendo subida de logo/favicon a Storage y dar/quitar acceso admin por correo |
 | `/historial` | Historial de solicitudes/verificaciones del usuario | Placeholder protegido por sesión ("Aún no tienes solicitudes") — falta el flujo real de solicitud de documentos para tener datos que mostrar |
 
 `/solicitar` y `/empresas` están enlazadas desde la UI pero **todavía no existen** (darán 404 si se navega directo).
@@ -99,6 +102,7 @@ src/
     terminos/page.tsx     # términos y condiciones
     privacidad/page.tsx   # política de datos personales
     admin/page.tsx        # back office (protegido por AdminGate)
+    api/admin/roles/route.ts # Route Handler: dar/quitar admin por correo, usa la Service Role Key (solo servidor)
   components/
     Header.tsx / Footer.tsx # Header es client component: lee sesión + tabla profiles, muestra menú de usuario (avatar, Inicio/Historial/Perfil/Cerrar sesión) y el ThemeToggle
     ThemeToggle.tsx         # botón sol/luna, toggle de clase "dark" en <html>, persiste en localStorage
@@ -108,11 +112,15 @@ src/
     AccountSecurityForm.tsx # cambio de contraseña/correo vía supabase.auth.updateUser, en /perfil
     HistorialContent.tsx    # contenido de /historial (gate de sesión + estado vacío)
     AdminGate.tsx           # bloquea /admin a menos que la sesión tenga app_metadata.role === "admin"
-    AdminTabs.tsx            # pestañas del panel admin (Identidad / Planes de empresa / Precios)
+    AdminTabs.tsx            # pestañas del panel admin (Identidad / Planes de personas / Planes de empresa / Documentos / Administradores)
     AdminSettingsForm.tsx  # identidad del portal — lee/guarda en configuracion_portal, sube logo/favicon a Storage
+    ConfiguracionPersonaManager.tsx # admin: edita la tarjeta "Persona independiente" (configuracion_persona)
     PlanesEmpresaManager.tsx    # CRUD admin de planes_empresa (incluye planes privados por empresa)
-    PreciosDocumentosManager.tsx # CRUD admin de precios_documentos
+    PreciosDocumentosManager.tsx # CRUD admin de documentos disponibles (precios_documentos, sin precio)
+    AdminRolesManager.tsx        # admin: dar/quitar acceso de administrador por correo (llama /api/admin/roles)
+    PlanPersonaCard.tsx          # tarjeta pública "Persona independiente" en "/", lee configuracion_persona
     PlanesEmpresaPricing.tsx    # tarjetas de precios públicas en "/" (toggle mensual/anual)
+    PreciosDocumentosPricing.tsx # lista pública de documentos disponibles en "/" (sin precio)
     LegalDisclaimer.tsx    # aviso de "falta revisión legal" en /terminos y /privacidad
     PrelineScript.tsx      # inicializa los componentes JS de Preline en cada navegación
   lib/
@@ -205,15 +213,16 @@ create policy "Users can update own profile"
 
 `ProfileForm.tsx` mapea cada campo del formulario 1:1 a una columna (vía el atributo `name` de cada input) y hace `supabase.from("profiles").upsert(...)` al guardar.
 
-### `planes_empresa`, `precios_documentos` y `configuracion_portal`
+### `planes_empresa`, `precios_documentos`, `configuracion_portal` y `configuracion_persona`
 
-Tres tablas más, todas con **lectura pública** (`using (true)`) y **escritura solo para administradores** (`(auth.jwt() -> 'app_metadata' ->> 'role') = 'admin'`):
+Estas tablas tienen **lectura pública** (`using (true)`, salvo `planes_empresa` que además filtra planes privados — ver abajo) y **escritura solo para administradores** (`(auth.jwt() -> 'app_metadata' ->> 'role') = 'admin'`):
 
-- **`planes_empresa`**: planes de créditos/consultas para empresas. Columnas: `nombre`, `descripcion`, `creditos`, `precio_mensual`, `precio_anual` (opcional), `destacado` (insignia "Recomendado"), `features` (`text[]`, una línea por característica en el formulario admin), `cta_label` (texto del botón, opcional), `mostrar_precio_desde` (para planes tipo cotización, ej. "Enterprise"), y **`empresa_id`** (opcional, referencia a `profiles.id`) — si tiene valor, es un **plan privado** visible solo para esa empresa y para admins, no aparece en la grilla pública de `/`. La política de `select` filtra por `empresa_id is null or empresa_id = auth.uid() or ...admin`.
-- **`precios_documentos`**: precio por documento individual para personas naturales (`documento`, `precio`, `activo`).
+- **`planes_empresa`**: planes de créditos/consultas para empresas. Columnas: `nombre`, `descripcion`, `creditos`, `precio_mensual`, `precio_anual` (opcional), `destacado` (insignia "Recomendado"), `features` (`text[]`, una línea por característica en el formulario admin), `cta_label` (texto del botón, opcional), `mostrar_precio_desde` (para planes tipo cotización, ej. "Enterprise"), y **`empresa_id`** (opcional, referencia a `profiles.id`) — si tiene valor, es un **plan privado** visible solo para esa empresa y para admins, no aparece en la grilla pública de `/`. La política de `select` filtra por `empresa_id is null or empresa_id = auth.uid() or ...admin`. Planes actuales: **Lite, Standard, Advanced, Professional, Business, Enterprise** — precios/créditos son valores de ejemplo puestos por el asistente, no confirmados por el usuario, editables desde `/admin` → Planes de empresa.
+- **`precios_documentos`** (pestaña "Documentos disponibles" en el admin, a pesar del nombre de la tabla): estos documentos **no tienen precio individual** — la columna `precio` sigue existiendo mismo pero es nullable y no se usa en la UI (se dejó por si se retoma más adelante). Solo `documento` y `activo`.
+- **`configuracion_persona`**: fila única (`id` fijo en `1`) para la tarjeta "Persona independiente" que se muestra en `/` — `titulo`, `descripcion`, `cta_label`, `precio_desde` (opcional) y `activo` (si está en `false`, la tarjeta no se muestra).
 - **`configuracion_portal`**: fila única (`id` fijo en `1`, con `check (id = 1)`) para nombre del portal, eslogan, color primario y URLs de logo/favicon. Las imágenes se suben al bucket de Storage **`portal-assets`** (público para lectura, admin-only para escribir) vía `supabase.storage.from("portal-assets").upload(...)`.
 
-Todas se administran desde `/admin` (ver [Panel de administración](#panel-de-administración)). **Importante**: guardar esta configuración no hace que el sitio en vivo la use todavía — el Header, los colores de marca y el favicon siguen fijos en el código; falta una segunda fase para leer `configuracion_portal` en tiempo real (queda en el roadmap).
+Todas se administran desde `/admin` (ver [Panel de administración](#panel-de-administración)). **Importante**: guardar `configuracion_portal` no hace que el sitio en vivo la use todavía — el Header, los colores de marca y el favicon siguen fijos en el código; falta una segunda fase para leer `configuracion_portal` en tiempo real (queda en el roadmap). `configuracion_persona` y los planes/documentos sí se reflejan en vivo en `/` de inmediato.
 
 <details>
 <summary>Ver el SQL completo</summary>
@@ -262,7 +271,7 @@ create policy "Admins can delete planes_empresa"
 create table public.precios_documentos (
   id uuid primary key default gen_random_uuid(),
   documento text not null,
-  precio numeric not null,
+  precio numeric, -- nullable, no se usa en la UI (estos documentos no tienen precio individual)
   activo boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -284,6 +293,30 @@ create policy "Admins can update precios_documentos"
 
 create policy "Admins can delete precios_documentos"
   on public.precios_documentos for delete
+  using ((auth.jwt() -> 'app_metadata' ->> 'role') = 'admin');
+
+
+create table public.configuracion_persona (
+  id int primary key default 1,
+  titulo text not null default 'Persona independiente',
+  descripcion text not null default 'Paga solo por los documentos que necesitas para tu próximo contrato.',
+  cta_label text not null default 'Solicitar documentos',
+  precio_desde numeric,
+  activo boolean not null default true,
+  updated_at timestamptz not null default now(),
+  constraint configuracion_persona_singleton check (id = 1)
+);
+
+insert into public.configuracion_persona (id) values (1);
+
+alter table public.configuracion_persona enable row level security;
+
+create policy "Anyone can view configuracion_persona"
+  on public.configuracion_persona for select
+  using (true);
+
+create policy "Admins can update configuracion_persona"
+  on public.configuracion_persona for update
   using ((auth.jwt() -> 'app_metadata' ->> 'role') = 'admin');
 
 
@@ -338,13 +371,25 @@ create policy "Admins can delete portal-assets"
 
 `/admin` está protegido por `AdminGate.tsx` (client component): revisa que la sesión tenga `user.app_metadata.role === "admin"`. Se usa `app_metadata` y no `user_metadata` a propósito — `user_metadata` lo puede editar el propio usuario desde el cliente (`supabase.auth.updateUser`), así que no sirve para permisos; `app_metadata` solo se puede modificar desde el backend de Supabase.
 
-`AdminTabs.tsx` organiza el panel en tres pestañas, todas con guardado real:
+`AdminTabs.tsx` organiza el panel en cinco pestañas, todas con guardado real:
 
 - **Identidad del portal** (`AdminSettingsForm.tsx`) — nombre, eslogan, color primario, logo y favicon (`configuracion_portal` + Storage).
+- **Planes de personas** (`ConfiguracionPersonaManager.tsx`) — título/descripción/precio-desde/CTA de la tarjeta "Persona independiente" en `/`.
 - **Planes de empresa** (`PlanesEmpresaManager.tsx`) — crear/editar/eliminar planes; incluye la opción de asignar un plan a una sola empresa (privado).
-- **Precios de documentos** (`PreciosDocumentosManager.tsx`) — precio por documento para personas naturales.
+- **Documentos disponibles** (`PreciosDocumentosManager.tsx`) — lista de documentos para personas naturales (sin precio).
+- **Administradores** (`AdminRolesManager.tsx`) — dar/quitar acceso de administrador escribiendo el correo de una cuenta ya registrada.
 
-Para dar acceso de administrador a una cuenta (ya registrada) desde el SQL Editor de Supabase:
+### Dar/quitar acceso de administrador
+
+Desde la pestaña **Administradores** en `/admin` (recomendado): escribe el correo de una cuenta ya registrada y pulsa "Dar acceso de administrador"; cada admin listado tiene un botón "Quitar acceso" (un admin no puede quitarse su propio acceso, por seguridad).
+
+Por dentro, esto llama a `POST /api/admin/roles` (`src/app/api/admin/roles/route.ts`), un Route Handler que:
+1. Verifica que quien llama esté autenticado **y** ya sea admin, validando su access token contra Supabase (`supabase.auth.getUser(token)`) — nunca confía en nada que mande el cliente sin verificar.
+2. Usa la **Service Role Key** (`SUPABASE_SERVICE_ROLE_KEY`, ver [Variables de entorno](#variables-de-entorno)) para buscar al usuario objetivo por correo (`auth.admin.listUsers`) y llamar `auth.admin.updateUserById(id, { app_metadata: { role: "admin" | null } })`.
+
+⚠️ **Gotcha importante**: `updateUserById` hace *merge* del `app_metadata` que ya existía, no lo reemplaza. Omitir la clave `role` del objeto enviado (ej. con `delete obj.role`) **no la borra** — el merge conserva el valor anterior. Para quitar el rol hay que mandar `role: null` explícitamente, que sí sobreescribe.
+
+También se puede hacer a mano desde el SQL Editor de Supabase si hace falta:
 
 ```sql
 update auth.users
@@ -389,7 +434,7 @@ El sitio soporta tema claro/oscuro con un toggle (ícono sol/luna) en el Header,
 - [ ] Hacer que el sitio en vivo consuma `configuracion_portal` de verdad (Header, colores, favicon) — hoy el panel ya lo guarda, pero el front sigue con la marca fija en el código.
 - [ ] Registrar la IP en la trazabilidad de consentimiento de Habeas Data (requiere un endpoint de servidor/Route Handler, ya que `supabase.auth.signUp` corre en el cliente).
 - [ ] Flujo de compra/consumo de créditos de `planes_empresa` (checkout, descuento de créditos al consultar, invitación de candidatos, historial real en `/historial`) — hoy los planes solo se muestran y administran, no se pueden comprar ni consumir todavía.
-- [ ] Crear cuentas de persona/empresa y asignar administradores desde `/admin` (pendiente: requiere un endpoint de servidor con la Service Role Key de Supabase, que nunca puede vivir en el navegador).
+- [ ] Crear cuentas de persona/empresa desde `/admin` (el usuario decidió dejar esto fuera de alcance por ahora — solo se construyó "asignar administradores", que ya está listo).
 - [ ] Storage con URLs firmadas para la expiración de 10 días de los documentos de personas.
 - [ ] Integración con la API del proveedor de fuentes (contraloría, policía, procuraduría, etc.) — aún no contratada.
 - [ ] Pasarela de pagos (Wompi / PayU).
