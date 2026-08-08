@@ -130,6 +130,9 @@ export default function Header() {
   const [initials, setInitials] = useState<string | null>(null);
   const [email, setEmail] = useState<string | null>(null);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [paginasMenu, setPaginasMenu] = useState<
+    { slug: string; titulo: string }[]
+  >([]);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -142,6 +145,16 @@ export default function Header() {
       .then(({ data }) => {
         if (data?.logo_url) setLogoUrl(data.logo_url);
         if (data?.color_primario) applyBrandColor(data.color_primario);
+      });
+
+    supabase
+      .from("paginas")
+      .select("slug, titulo")
+      .eq("activo", true)
+      .eq("mostrar_en_menu", true)
+      .order("orden", { ascending: true })
+      .then(({ data }) => {
+        if (data) setPaginasMenu(data);
       });
   }, []);
 
@@ -275,6 +288,15 @@ export default function Header() {
               {link.label}
             </a>
           ))}
+          {paginasMenu.map((pagina) => (
+            <Link
+              key={pagina.slug}
+              href={`/paginas/${pagina.slug}`}
+              className="font-medium text-gray-600 dark:text-gray-400 hover:text-brand-blue dark:hover:text-brand-blue"
+            >
+              {pagina.titulo}
+            </Link>
+          ))}
         </div>
 
         <div className="flex items-center gap-x-2">
@@ -405,6 +427,15 @@ export default function Header() {
             >
               {link.label}
             </a>
+          ))}
+          {paginasMenu.map((pagina) => (
+            <Link
+              key={pagina.slug}
+              href={`/paginas/${pagina.slug}`}
+              className="font-medium text-gray-600 dark:text-gray-400 hover:text-brand-blue"
+            >
+              {pagina.titulo}
+            </Link>
           ))}
 
           <div className="flex items-center justify-between pt-2 border-t border-gray-200 dark:border-gray-800">
