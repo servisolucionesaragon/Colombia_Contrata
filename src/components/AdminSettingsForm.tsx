@@ -29,6 +29,16 @@ export default function AdminSettingsForm() {
     file: null,
     previewUrl: null,
   });
+  const [facebookUrl, setFacebookUrl] = useState("");
+  const [instagramUrl, setInstagramUrl] = useState("");
+  const [twitterUrl, setTwitterUrl] = useState("");
+  const [linkedinUrl, setLinkedinUrl] = useState("");
+  const [tiktokUrl, setTiktokUrl] = useState("");
+  const [whatsappNumero, setWhatsappNumero] = useState("");
+  const [whatsappMensaje, setWhatsappMensaje] = useState(
+    "Hola, quiero más información."
+  );
+  const [whatsappActivo, setWhatsappActivo] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,6 +56,16 @@ export default function AdminSettingsForm() {
           setColorPrimario(data.color_primario);
           setLogo({ file: null, previewUrl: data.logo_url });
           setFavicon({ file: null, previewUrl: data.favicon_url });
+          setFacebookUrl(data.facebook_url ?? "");
+          setInstagramUrl(data.instagram_url ?? "");
+          setTwitterUrl(data.twitter_url ?? "");
+          setLinkedinUrl(data.linkedin_url ?? "");
+          setTiktokUrl(data.tiktok_url ?? "");
+          setWhatsappNumero(data.whatsapp_numero ?? "");
+          setWhatsappMensaje(
+            data.whatsapp_mensaje ?? "Hola, quiero más información."
+          );
+          setWhatsappActivo(data.whatsapp_activo ?? false);
         }
         setLoading(false);
       });
@@ -83,6 +103,14 @@ export default function AdminSettingsForm() {
           color_primario: colorPrimario,
           logo_url: newLogoUrl,
           favicon_url: newFaviconUrl,
+          facebook_url: facebookUrl || null,
+          instagram_url: instagramUrl || null,
+          twitter_url: twitterUrl || null,
+          linkedin_url: linkedinUrl || null,
+          tiktok_url: tiktokUrl || null,
+          whatsapp_numero: whatsappNumero || null,
+          whatsapp_mensaje: whatsappMensaje || null,
+          whatsapp_activo: whatsappActivo,
           updated_at: new Date().toISOString(),
         })
         .eq("id", 1);
@@ -171,6 +199,113 @@ export default function AdminSettingsForm() {
               </span>
             </div>
           </Field>
+        </div>
+      </section>
+
+      <section>
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+          Redes sociales
+        </h2>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+          Deja en blanco las que no uses — solo se muestran en el pie de
+          página los íconos de las redes que tengan un enlace.
+        </p>
+        <div className="grid sm:grid-cols-2 gap-4">
+          <Field label="Facebook" htmlFor="facebookUrl">
+            <input
+              id="facebookUrl"
+              type="url"
+              placeholder="https://facebook.com/..."
+              value={facebookUrl}
+              onChange={(e) => setFacebookUrl(e.target.value)}
+              className={inputClass}
+            />
+          </Field>
+          <Field label="Instagram" htmlFor="instagramUrl">
+            <input
+              id="instagramUrl"
+              type="url"
+              placeholder="https://instagram.com/..."
+              value={instagramUrl}
+              onChange={(e) => setInstagramUrl(e.target.value)}
+              className={inputClass}
+            />
+          </Field>
+          <Field label="X (Twitter)" htmlFor="twitterUrl">
+            <input
+              id="twitterUrl"
+              type="url"
+              placeholder="https://x.com/..."
+              value={twitterUrl}
+              onChange={(e) => setTwitterUrl(e.target.value)}
+              className={inputClass}
+            />
+          </Field>
+          <Field label="LinkedIn" htmlFor="linkedinUrl">
+            <input
+              id="linkedinUrl"
+              type="url"
+              placeholder="https://linkedin.com/company/..."
+              value={linkedinUrl}
+              onChange={(e) => setLinkedinUrl(e.target.value)}
+              className={inputClass}
+            />
+          </Field>
+          <Field label="TikTok" htmlFor="tiktokUrl">
+            <input
+              id="tiktokUrl"
+              type="url"
+              placeholder="https://tiktok.com/@..."
+              value={tiktokUrl}
+              onChange={(e) => setTiktokUrl(e.target.value)}
+              className={inputClass}
+            />
+          </Field>
+        </div>
+      </section>
+
+      <section>
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+          Botón flotante de WhatsApp
+        </h2>
+        <div className="space-y-4">
+          <div className="grid sm:grid-cols-2 gap-4">
+            <Field label="Número de WhatsApp" htmlFor="whatsappNumero">
+              <input
+                id="whatsappNumero"
+                type="text"
+                placeholder="573001234567"
+                value={whatsappNumero}
+                onChange={(e) => setWhatsappNumero(e.target.value)}
+                className={inputClass}
+              />
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                Código de país + número, solo dígitos (sin +, espacios ni
+                guiones). Ej: 57 (Colombia) + 3001234567.
+              </p>
+            </Field>
+            <Field label="Mensaje inicial" htmlFor="whatsappMensaje">
+              <input
+                id="whatsappMensaje"
+                type="text"
+                value={whatsappMensaje}
+                onChange={(e) => setWhatsappMensaje(e.target.value)}
+                className={inputClass}
+              />
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                Aparece ya escrito cuando alguien abre el chat.
+              </p>
+            </Field>
+          </div>
+          <label className="inline-flex items-center gap-x-2 text-sm text-gray-700 dark:text-gray-300">
+            <input
+              type="checkbox"
+              checked={whatsappActivo}
+              onChange={(e) => setWhatsappActivo(e.target.checked)}
+              className="size-4 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700 text-brand-blue focus:ring-brand-blue"
+            />
+            Mostrar el botón flotante de WhatsApp en el sitio
+          </label>
         </div>
       </section>
 

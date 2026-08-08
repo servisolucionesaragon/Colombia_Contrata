@@ -3,6 +3,7 @@ import { Montserrat } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
 import PrelineScript from "@/components/PrelineScript";
+import WhatsAppButton from "@/components/WhatsAppButton";
 import { supabase } from "@/lib/supabase";
 
 // Refresca cada minuto para que un cambio de favicon/logo en /admin se
@@ -56,6 +57,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           {THEME_INIT_SCRIPT}
         </Script>
         {children}
+        <WhatsAppButton />
         <PrelineScript />
       </body>
     </html>
