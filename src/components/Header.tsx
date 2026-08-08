@@ -157,7 +157,11 @@ export default function Header() {
       if (!active) return;
 
       const name =
-        accountType === "empresa" ? profile?.razon_social : profile?.primer_nombre;
+        accountType === "empresa"
+          ? profile?.razon_social
+          : [profile?.primer_nombre, profile?.primer_apellido]
+              .filter(Boolean)
+              .join(" ");
       setDisplayName(name || userEmail || null);
 
       if (accountType === "empresa") {
