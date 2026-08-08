@@ -7,11 +7,15 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import ThemeToggle from "@/components/ThemeToggle";
 
+// Con "/" delante a propósito: son secciones de la página principal por
+// ancla, y estos enlaces se muestran en TODAS las páginas del sitio (no
+// solo en "/"). Sin el "/" adelante, hacer clic en "/paginas/algo" solo
+// cambiaría el fragmento de esa misma URL en vez de volver a la home.
 const navLinks = [
-  { href: "#como-funciona", label: "Cómo funciona" },
-  { href: "#documentos", label: "Documentos" },
-  { href: "#planes", label: "Planes" },
-  { href: "#empresas", label: "Empresas" },
+  { href: "/#como-funciona", label: "Cómo funciona" },
+  { href: "/#documentos", label: "Documentos" },
+  { href: "/#planes", label: "Planes" },
+  { href: "/#empresas", label: "Empresas" },
 ];
 
 function IconHome(props: SVGProps<SVGSVGElement>) {

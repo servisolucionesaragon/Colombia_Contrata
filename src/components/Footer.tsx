@@ -54,17 +54,17 @@ export default async function Footer() {
           <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Plataforma</h3>
           <ul className="mt-3 space-y-2 text-sm text-gray-500 dark:text-gray-400">
             <li>
-              <a href="#como-funciona" className="hover:text-brand-blue">
+              <a href="/#como-funciona" className="hover:text-brand-blue">
                 Cómo funciona
               </a>
             </li>
             <li>
-              <a href="#documentos" className="hover:text-brand-blue">
+              <a href="/#documentos" className="hover:text-brand-blue">
                 Documentos
               </a>
             </li>
             <li>
-              <a href="#planes" className="hover:text-brand-blue">
+              <a href="/#planes" className="hover:text-brand-blue">
                 Planes
               </a>
             </li>
