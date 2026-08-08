@@ -243,7 +243,7 @@ export default function LandingConfigManager() {
           />
         </Field>
         <div className="grid sm:grid-cols-2 gap-4">
-          <Field label="Título \"Planes para empresas\"" htmlFor="planes_empresa_titulo">
+          <Field label="Título “Planes para empresas”" htmlFor="planes_empresa_titulo">
             <input
               id="planes_empresa_titulo"
               value={config.planes_empresa_titulo}
@@ -251,7 +251,7 @@ export default function LandingConfigManager() {
               className={inputClass}
             />
           </Field>
-          <Field label="Subtítulo \"Planes para empresas\"" htmlFor="planes_empresa_subtitulo">
+          <Field label="Subtítulo “Planes para empresas”" htmlFor="planes_empresa_subtitulo">
             <input
               id="planes_empresa_subtitulo"
               value={config.planes_empresa_subtitulo}
