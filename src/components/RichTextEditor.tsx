@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, type SVGProps } from "react";
+import { useRef, useState, type SVGProps } from "react";
 
 // Editor de texto enriquecido minimalista basado en contentEditable +
 // document.execCommand. Se optó por esto (en vez de una librería como
@@ -18,17 +18,24 @@ export default function RichTextEditor({
 }) {
   const editorRef = useRef<HTMLDivElement>(null);
   const hiddenInputRef = useRef<HTMLInputElement>(null);
+  const [mode, setMode] = useState<"visual" | "html">("visual");
+  // Fuente de verdad cuando se (re)monta la vista visual o la de código. En
+  // modo visual, mientras se escribe, el HTML vive solo en el DOM (no en
+  // este estado) para no perder la posición del cursor en cada tecla.
+  const [htmlValue, setHtmlValue] = useState(defaultValue ?? "");
 
-  const syncHiddenInput = () => {
-    if (editorRef.current && hiddenInputRef.current) {
-      hiddenInputRef.current.value = editorRef.current.innerHTML;
-    }
+  const syncHiddenInput = (value: string) => {
+    if (hiddenInputRef.current) hiddenInputRef.current.value = value;
+  };
+
+  const syncFromEditor = () => {
+    if (editorRef.current) syncHiddenInput(editorRef.current.innerHTML);
   };
 
   const exec = (command: string, value?: string) => {
     editorRef.current?.focus();
     document.execCommand(command, false, value);
-    syncHiddenInput();
+    syncFromEditor();
   };
 
   const handleLink = () => {
@@ -36,70 +43,106 @@ export default function RichTextEditor({
     if (url) exec("createLink", url);
   };
 
+  const switchToHtml = () => {
+    setHtmlValue(editorRef.current?.innerHTML ?? htmlValue);
+    setMode("html");
+  };
+
+  const switchToVisual = () => {
+    syncHiddenInput(htmlValue);
+    setMode("visual");
+  };
+
+  const handleHtmlChange = (value: string) => {
+    setHtmlValue(value);
+    syncHiddenInput(value);
+  };
+
   return (
     <div>
       <div className="flex flex-wrap items-center gap-x-1 gap-y-1 rounded-t-lg border border-b-0 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 p-1.5">
-        <ToolbarButton label="Negrita" onClick={() => exec("bold")}>
-          <IconBold className="size-4" />
-        </ToolbarButton>
-        <ToolbarButton label="Cursiva" onClick={() => exec("italic")}>
-          <IconItalic className="size-4" />
-        </ToolbarButton>
-        <ToolbarButton label="Subrayado" onClick={() => exec("underline")}>
-          <IconUnderline className="size-4" />
-        </ToolbarButton>
-        <Divider />
-        <ToolbarButton
-          label="Título grande"
-          onClick={() => exec("formatBlock", "h2")}
-        >
-          H2
-        </ToolbarButton>
-        <ToolbarButton
-          label="Título pequeño"
-          onClick={() => exec("formatBlock", "h3")}
-        >
-          H3
-        </ToolbarButton>
-        <ToolbarButton
-          label="Párrafo normal"
-          onClick={() => exec("formatBlock", "p")}
-        >
-          P
-        </ToolbarButton>
-        <Divider />
-        <ToolbarButton
-          label="Lista con viñetas"
-          onClick={() => exec("insertUnorderedList")}
-        >
-          <IconBulletList className="size-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          label="Lista numerada"
-          onClick={() => exec("insertOrderedList")}
-        >
-          <IconNumberedList className="size-4" />
-        </ToolbarButton>
-        <Divider />
-        <ToolbarButton label="Insertar enlace" onClick={handleLink}>
-          <IconLink className="size-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          label="Quitar formato"
-          onClick={() => exec("removeFormat")}
-        >
-          <IconClear className="size-4" />
-        </ToolbarButton>
+        {mode === "visual" && (
+          <>
+            <ToolbarButton label="Negrita" onClick={() => exec("bold")}>
+              <IconBold className="size-4" />
+            </ToolbarButton>
+            <ToolbarButton label="Cursiva" onClick={() => exec("italic")}>
+              <IconItalic className="size-4" />
+            </ToolbarButton>
+            <ToolbarButton label="Subrayado" onClick={() => exec("underline")}>
+              <IconUnderline className="size-4" />
+            </ToolbarButton>
+            <Divider />
+            <ToolbarButton
+              label="Título grande"
+              onClick={() => exec("formatBlock", "h2")}
+            >
+              H2
+            </ToolbarButton>
+            <ToolbarButton
+              label="Título pequeño"
+              onClick={() => exec("formatBlock", "h3")}
+            >
+              H3
+            </ToolbarButton>
+            <ToolbarButton
+              label="Párrafo normal"
+              onClick={() => exec("formatBlock", "p")}
+            >
+              P
+            </ToolbarButton>
+            <Divider />
+            <ToolbarButton
+              label="Lista con viñetas"
+              onClick={() => exec("insertUnorderedList")}
+            >
+              <IconBulletList className="size-4" />
+            </ToolbarButton>
+            <ToolbarButton
+              label="Lista numerada"
+              onClick={() => exec("insertOrderedList")}
+            >
+              <IconNumberedList className="size-4" />
+            </ToolbarButton>
+            <Divider />
+            <ToolbarButton label="Insertar enlace" onClick={handleLink}>
+              <IconLink className="size-4" />
+            </ToolbarButton>
+            <ToolbarButton
+              label="Quitar formato"
+              onClick={() => exec("removeFormat")}
+            >
+              <IconClear className="size-4" />
+            </ToolbarButton>
+          </>
+        )}
+        <div className="ml-auto">
+          <ToolbarButton
+            label={mode === "visual" ? "Ver código HTML" : "Ver vista previa"}
+            onClick={mode === "visual" ? switchToHtml : switchToVisual}
+          >
+            <IconCode className="size-4" />
+          </ToolbarButton>
+        </div>
       </div>
-      <div
-        ref={editorRef}
-        contentEditable
-        suppressContentEditableWarning
-        onInput={syncHiddenInput}
-        onBlur={syncHiddenInput}
-        dangerouslySetInnerHTML={{ __html: defaultValue ?? "" }}
-        className="min-h-48 rounded-b-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:border-brand-blue focus:ring-1 focus:ring-brand-blue focus:outline-none [&_h2]:text-xl [&_h2]:font-bold [&_h2]:mt-3 [&_h2]:mb-1 [&_h3]:text-lg [&_h3]:font-semibold [&_h3]:mt-3 [&_h3]:mb-1 [&_p]:my-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_a]:text-brand-blue [&_a]:underline"
-      />
+      {mode === "visual" ? (
+        <div
+          ref={editorRef}
+          contentEditable
+          suppressContentEditableWarning
+          onInput={syncFromEditor}
+          onBlur={syncFromEditor}
+          dangerouslySetInnerHTML={{ __html: htmlValue }}
+          className="min-h-48 rounded-b-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:border-brand-blue focus:ring-1 focus:ring-brand-blue focus:outline-none [&_h2]:text-xl [&_h2]:font-bold [&_h2]:mt-3 [&_h2]:mb-1 [&_h3]:text-lg [&_h3]:font-semibold [&_h3]:mt-3 [&_h3]:mb-1 [&_p]:my-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_a]:text-brand-blue [&_a]:underline"
+        />
+      ) : (
+        <textarea
+          value={htmlValue}
+          onChange={(e) => handleHtmlChange(e.target.value)}
+          spellCheck={false}
+          className="min-h-48 w-full rounded-b-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 font-mono text-xs text-gray-900 dark:text-gray-100 focus:border-brand-blue focus:ring-1 focus:ring-brand-blue focus:outline-none"
+        />
+      )}
       <input
         ref={hiddenInputRef}
         type="hidden"
@@ -196,6 +239,15 @@ function IconLink(props: SVGProps<SVGSVGElement>) {
       <path d="M9 15 15 9" />
       <path d="M11 6 12.5 4.5a3.5 3.5 0 1 1 5 5L16 11" />
       <path d="M13 18l-1.5 1.5a3.5 3.5 0 1 1-5-5L8 13" />
+    </svg>
+  );
+}
+
+function IconCode(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg" {...props}>
+      <path d="m9 6-6 6 6 6" />
+      <path d="m15 6 6 6-6 6" />
     </svg>
   );
 }
