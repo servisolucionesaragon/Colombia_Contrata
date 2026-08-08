@@ -1,29 +1,55 @@
 "use client";
 
-import { useState, type ChangeEvent, type FormEvent } from "react";
+import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
+import { supabase } from "@/lib/supabase";
 
 type ImageField = {
   file: File | null;
   previewUrl: string | null;
 };
 
-const emptyImage: ImageField = { file: null, previewUrl: null };
+const uploadImage = async (file: File, prefix: string) => {
+  const ext = file.name.split(".").pop() ?? "png";
+  const path = `${prefix}-${Date.now()}.${ext}`;
+  const { error } = await supabase.storage
+    .from("portal-assets")
+    .upload(path, file, { upsert: true });
+  if (error) throw error;
+  const { data } = supabase.storage.from("portal-assets").getPublicUrl(path);
+  return data.publicUrl;
+};
 
 export default function AdminSettingsForm() {
+  const [loading, setLoading] = useState(true);
   const [nombrePortal, setNombrePortal] = useState("Colombia Contrata");
-  const [eslogan, setEslogan] = useState(
-    "Todos tus documentos de contratación pública, en un solo lugar",
-  );
+  const [eslogan, setEslogan] = useState("");
   const [colorPrimario, setColorPrimario] = useState("#1d4ed8");
-  const [logo, setLogo] = useState<ImageField>({
-    file: null,
-    previewUrl: "/icono.png",
-  });
+  const [logo, setLogo] = useState<ImageField>({ file: null, previewUrl: null });
   const [favicon, setFavicon] = useState<ImageField>({
     file: null,
-    previewUrl: "/icono.png",
+    previewUrl: null,
   });
+  const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase
+      .from("configuracion_portal")
+      .select("*")
+      .eq("id", 1)
+      .single()
+      .then(({ data }) => {
+        if (data) {
+          setNombrePortal(data.nombre_portal);
+          setEslogan(data.eslogan);
+          setColorPrimario(data.color_primario);
+          setLogo({ file: null, previewUrl: data.logo_url });
+          setFavicon({ file: null, previewUrl: data.favicon_url });
+        }
+        setLoading(false);
+      });
+  }, []);
 
   const handleImageChange =
     (setter: (field: ImageField) => void) =>
@@ -35,12 +61,46 @@ export default function AdminSettingsForm() {
       });
     };
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    // TODO: conectar con el backend (guardar en base de datos y subir
-    // logo/favicon a almacenamiento) una vez esté definido.
-    setSaved(true);
+    setSaving(true);
+    setSaved(false);
+    setError(null);
+
+    try {
+      const newLogoUrl = logo.file
+        ? await uploadImage(logo.file, "logo")
+        : logo.previewUrl;
+      const newFaviconUrl = favicon.file
+        ? await uploadImage(favicon.file, "favicon")
+        : favicon.previewUrl;
+
+      const { error: updateError } = await supabase
+        .from("configuracion_portal")
+        .update({
+          nombre_portal: nombrePortal,
+          eslogan,
+          color_primario: colorPrimario,
+          logo_url: newLogoUrl,
+          favicon_url: newFaviconUrl,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", 1);
+      if (updateError) throw updateError;
+
+      setLogo({ file: null, previewUrl: newLogoUrl });
+      setFavicon({ file: null, previewUrl: newFaviconUrl });
+      setSaved(true);
+    } catch {
+      setError("No pudimos guardar los cambios. Intenta de nuevo.");
+    } finally {
+      setSaving(false);
+    }
   };
+
+  if (loading) {
+    return <p className="text-sm text-gray-500 dark:text-gray-400">Cargando...</p>;
+  }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
@@ -147,17 +207,21 @@ export default function AdminSettingsForm() {
         <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">{eslogan}</p>
       </section>
 
+      {error && (
+        <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+      )}
+
       <div className="flex items-center gap-x-3">
         <button
           type="submit"
-          className="inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent bg-brand-blue text-white hover:bg-brand-blue-dark px-5 py-2.5"
+          disabled={saving}
+          className="inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent bg-brand-blue text-white hover:bg-brand-blue-dark disabled:bg-gray-300 dark:disabled:bg-gray-700 disabled:cursor-not-allowed px-5 py-2.5"
         >
-          Guardar cambios
+          {saving ? "Guardando..." : "Guardar cambios"}
         </button>
         {saved && (
-          <span className="text-sm text-gray-600 dark:text-gray-400">
-            Vista previa actualizada — todavía no se guarda en un backend
-            real.
+          <span className="text-sm text-green-600 dark:text-green-400">
+            Cambios guardados correctamente.
           </span>
         )}
       </div>
