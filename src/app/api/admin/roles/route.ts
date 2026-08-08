@@ -6,6 +6,15 @@ const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 function adminClient() {
+  console.log(
+    "[admin/roles] env check",
+    JSON.stringify({
+      hasUrl: !!supabaseUrl,
+      hasAnon: !!anonKey,
+      hasServiceRole: !!serviceRoleKey,
+      serviceRoleLength: serviceRoleKey ? serviceRoleKey.length : 0,
+    })
+  );
   return createClient(supabaseUrl, serviceRoleKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
