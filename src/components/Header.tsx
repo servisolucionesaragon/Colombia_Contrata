@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type SVGProps } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -14,16 +14,100 @@ const navLinks = [
   { href: "#empresas", label: "Empresas" },
 ];
 
+function IconHome(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
+      <rect width="7" height="9" x="3" y="3" rx="1" />
+      <rect width="7" height="5" x="14" y="3" rx="1" />
+      <rect width="7" height="9" x="14" y="12" rx="1" />
+      <rect width="7" height="5" x="3" y="16" rx="1" />
+    </svg>
+  );
+}
+
+function IconHistory(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
+      <path d="M3 12a9 9 0 1 0 2.6-6.4L3 8" />
+      <path d="M3 3v5h5" />
+      <path d="M12 7v5l4 2" />
+    </svg>
+  );
+}
+
+function IconUser(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
+      <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+      <circle cx="12" cy="7" r="4" />
+    </svg>
+  );
+}
+
+function IconLogout(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+      <path d="m16 17 5-5-5-5" />
+      <path d="M21 12H9" />
+    </svg>
+  );
+}
+
 const userMenuLinks = [
-  { href: "/", label: "Inicio" },
-  { href: "/historial", label: "Historial" },
-  { href: "/perfil", label: "Perfil" },
+  { href: "/", label: "Inicio", icon: IconHome },
+  { href: "/historial", label: "Historial", icon: IconHistory },
+  { href: "/perfil", label: "Perfil", icon: IconUser },
 ];
+
+function getInitials(name: string): string {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return "?";
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+  return (words[0][0] + words[1][0]).toUpperCase();
+}
 
 export default function Header() {
   const router = useRouter();
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [displayName, setDisplayName] = useState<string | null>(null);
+  const [email, setEmail] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -32,17 +116,21 @@ export default function Header() {
 
     const loadDisplayName = async (
       userId: string | undefined,
-      email: string | undefined,
+      userEmail: string | undefined,
       accountType: string | undefined
     ) => {
       if (!userId) {
         if (active) {
           setIsSignedIn(false);
           setDisplayName(null);
+          setEmail(null);
         }
         return;
       }
-      if (active) setIsSignedIn(true);
+      if (active) {
+        setIsSignedIn(true);
+        setEmail(userEmail ?? null);
+      }
 
       // El nombre para mostrar vive en la tabla "profiles" (no en la
       // sesión de Auth), y puede no existir todavía si el usuario aún no
@@ -56,7 +144,7 @@ export default function Header() {
 
       const name =
         accountType === "empresa" ? profile?.razon_social : profile?.primer_nombre;
-      setDisplayName(name || email || null);
+      setDisplayName(name || userEmail || null);
     };
 
     supabase.auth.getUser().then(({ data }) => {
@@ -141,11 +229,18 @@ export default function Header() {
                 type="button"
                 onClick={() => setMenuOpen((open) => !open)}
                 aria-expanded={menuOpen}
-                className="inline-flex items-center gap-x-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-brand-blue dark:hover:text-brand-blue px-3 py-2 max-w-[16rem]"
+                className="inline-flex items-center gap-x-2 rounded-lg px-2 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-800 max-w-[16rem]"
               >
-                <span className="truncate">{displayName}</span>
+                {displayName && (
+                  <span className="flex-none flex items-center justify-center size-7 rounded-full bg-brand-blue text-white text-xs font-bold">
+                    {getInitials(displayName)}
+                  </span>
+                )}
+                <span className="truncate text-sm font-bold text-brand-blue">
+                  {displayName}
+                </span>
                 <svg
-                  className={`size-4 shrink-0 transition-transform ${menuOpen ? "rotate-180" : ""}`}
+                  className={`size-4 shrink-0 text-gray-400 dark:text-gray-500 transition-transform ${menuOpen ? "rotate-180" : ""}`}
                   xmlns="http://www.w3.org/2000/svg"
                   viewBox="0 0 24 24"
                   fill="none"
@@ -159,24 +254,40 @@ export default function Header() {
               </button>
 
               {menuOpen && (
-                <div className="absolute right-0 mt-1 w-48 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-lg py-1">
-                  {userMenuLinks.map((link) => (
-                    <Link
-                      key={link.href}
-                      href={link.href}
-                      onClick={() => setMenuOpen(false)}
-                      className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+                <div className="absolute right-0 mt-1 w-60 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-lg py-1">
+                  <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800">
+                    <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
+                      {displayName}
+                    </p>
+                    {email && (
+                      <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                        {email}
+                      </p>
+                    )}
+                  </div>
+                  <div className="py-1">
+                    {userMenuLinks.map((link) => (
+                      <Link
+                        key={link.href}
+                        href={link.href}
+                        onClick={() => setMenuOpen(false)}
+                        className="flex items-center gap-x-2.5 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+                      >
+                        <link.icon className="size-4 text-gray-400 dark:text-gray-500" />
+                        {link.label}
+                      </Link>
+                    ))}
+                  </div>
+                  <div className="border-t border-gray-100 dark:border-gray-800 py-1">
+                    <button
+                      type="button"
+                      onClick={handleSignOut}
+                      className="flex items-center gap-x-2.5 w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
                     >
-                      {link.label}
-                    </Link>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={handleSignOut}
-                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
-                  >
-                    Cerrar sesión
-                  </button>
+                      <IconLogout className="size-4 text-gray-400 dark:text-gray-500" />
+                      Cerrar sesión
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -246,12 +357,26 @@ export default function Header() {
 
           {isSignedIn ? (
             <>
+              <div className="flex items-center gap-x-2.5 pt-2 border-t border-gray-200 dark:border-gray-800">
+                {displayName && (
+                  <span className="flex-none flex items-center justify-center size-8 rounded-full bg-brand-blue text-white text-xs font-bold">
+                    {getInitials(displayName)}
+                  </span>
+                )}
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-bold text-brand-blue">{displayName}</p>
+                  {email && (
+                    <p className="truncate text-xs text-gray-500 dark:text-gray-400">{email}</p>
+                  )}
+                </div>
+              </div>
               {userMenuLinks.map((link) => (
                 <Link
                   key={link.href}
                   href={link.href}
-                  className="font-medium text-gray-600 dark:text-gray-400 hover:text-brand-blue"
+                  className="flex items-center gap-x-2.5 font-medium text-gray-600 dark:text-gray-400 hover:text-brand-blue"
                 >
+                  <link.icon className="size-4" />
                   {link.label}
                 </Link>
               ))}
@@ -260,6 +385,7 @@ export default function Header() {
                 onClick={handleSignOut}
                 className="inline-flex items-center justify-center gap-x-2 text-sm font-semibold rounded-lg border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 px-4 py-2 mt-1"
               >
+                <IconLogout className="size-4" />
                 Cerrar sesión
               </button>
             </>
