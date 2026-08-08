@@ -547,6 +547,14 @@ Cuando hay sesión activa, `Header.tsx` reemplaza los botones "Iniciar sesión"/
 
 **Tamaños de logo/avatar** (ajustados 2026-08-08 a pedido del usuario): el isotipo del Header mide 44px (`size-11`/`h-11`, antes 32px). El círculo de iniciales del menú desplegable de escritorio mide 28px (`size-7`); el del panel de menú móvil (el que se abre con el ícono de hamburguesa) mide 40px (`size-10`, antes 32px) para que se vea proporcional al logo agrandado.
 
+## Estilo visual de la página principal (2026-08-08)
+
+Después de aplicar un diseño personalizado completo a la página "Nosotros" (ver más abajo), al usuario le gustó tanto el estilo que pidió adoptarlo también en `/` — **incluyendo la franja de colores de marca arriba**. A diferencia de "Nosotros" (HTML/CSS estático pegado tal cual), en `/` el mismo lenguaje visual se **tradujo a clases de Tailwind** aplicadas directamente en `src/app/page.tsx` (y en `PreciosDocumentosPricing.tsx`, `PlanPersonaCard.tsx`, `PlanesEmpresaPricing.tsx`) — a propósito, para no perder nada de lo dinámico (textos de `configuracion_landing`, planes y documentos en vivo desde Supabase, interruptores mostrar/ocultar) ni el soporte de modo oscuro, que un bloque de CSS suelto no habría tenido.
+
+Cambios de estilo aplicados: fondo degradado + badge + título más grande en el hero; tarjetas redondeadas con sombra al pasar el mouse en "Cómo funciona", "Documentos disponibles" y los planes; botones con efecto de elevación (`hover:-translate-y-0.5` + sombra de color) en vez de solo cambiar de color; encabezados de sección más grandes y consistentes en todas las secciones, incluidos los Bloques de contenido.
+
+**Franja de colores de marca** (amarillo/azul/rojo, 5px de alto): se agregó como elemento propio en `page.tsx`, **justo debajo del `<Header />`** y fuera de él a propósito — el usuario pidió explícitamente que "se oculte cuando haga scroll hacia abajo". Como `Header.tsx` es `sticky top-0`, si la franja viviera *dentro* del Header se quedaría pegada arriba para siempre; al vivir *después* del Header, en el flujo normal de la página, desaparece apenas se hace scroll mientras el menú se mantiene fijo. Por ahora la franja solo está en `/` (no en `Header.tsx`), así que no aparece en las demás páginas del sitio — si se quiere en todo el sitio, habría que moverla a `Header.tsx` o a `layout.tsx` con el mismo cuidado de no ponerla dentro del contenedor sticky.
+
 ## Páginas propias
 
 Desde `/admin` → **Páginas** se pueden crear páginas con su propia URL — pensado para cosas como "Nosotros", "Visión y misión", "Servicios", etc. — sin tocar código.
