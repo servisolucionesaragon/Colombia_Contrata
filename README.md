@@ -537,6 +537,10 @@ where email = 'correo@ejemplo.com';
 
 Cuenta con acceso de administrador actualmente: `yorbis10@gmail.com`.
 
+## Enlaces de navegación (anclas a la página principal)
+
+`navLinks` en `Header.tsx` (Cómo funciona / Documentos / Planes / Empresas) y los enlaces de la columna "Plataforma" en `Footer.tsx` apuntan a secciones de `/` por ancla — **`/#planes`, no `#planes`**. El `/` inicial es obligatorio: como el Header y el Footer se muestran en todas las páginas del sitio (no solo en `/`), un `href="#planes"` sin el `/` solo cambiaría el fragmento de la URL de la página en la que ya estás — en `/paginas/nosotros`, por ejemplo, el enlace no llevaría a ningún lado porque ahí no existe ningún elemento con `id="planes"`. Con `/#planes` el navegador siempre vuelve primero a la página principal y después salta a la sección. (El botón "Soy empresa" del propio hero en `page.tsx` sí puede usar `#empresas` sin barra, porque ese botón solo existe dentro de `/`.)
+
 ## Menú de usuario
 
 Cuando hay sesión activa, `Header.tsx` reemplaza los botones "Iniciar sesión"/"Crear cuenta" por un menú desplegable: círculo con iniciales (calculadas del nombre/razón social) en azul, nombre en azul negrilla, y al abrirlo muestra nombre + correo arriba y cuatro opciones con ícono — **Inicio**, **Historial**, **Perfil** y **Cerrar sesión**. El nombre viene de la tabla `profiles` — para persona es `primer_nombre` + `primer_apellido` (no solo el primer nombre), para empresa es `razon_social` — con el correo como respaldo si el usuario aún no la completó. Las iniciales del círculo: persona → primera letra de `primer_nombre` + primera letra de `primer_apellido`; empresa → iniciales de las dos primeras palabras de `razon_social`.
