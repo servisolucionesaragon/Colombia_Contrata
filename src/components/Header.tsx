@@ -395,7 +395,7 @@ export default function Header() {
             <>
               <div className="flex items-center gap-x-2.5 pt-2 border-t border-gray-200 dark:border-gray-800">
                 {displayName && (
-                  <span className="flex-none flex items-center justify-center size-8 rounded-full bg-brand-blue text-white text-xs font-bold">
+                  <span className="flex-none flex items-center justify-center size-10 rounded-full bg-brand-blue text-white text-sm font-bold">
                     {initials || getInitials(displayName)}
                   </span>
                 )}
