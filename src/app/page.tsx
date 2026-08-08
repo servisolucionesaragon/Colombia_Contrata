@@ -1,15 +1,7 @@
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import PlanesEmpresaPricing from "@/components/PlanesEmpresaPricing";
-
-const documentos = [
-  "Antecedentes judiciales (Policía Nacional)",
-  "Antecedentes disciplinarios (Procuraduría)",
-  "Antecedentes fiscales (Contraloría)",
-  "Medidas correctivas",
-  "Registro de conductas sexuales (REDAM/RNMDS)",
-  "Antecedentes penales",
-];
+import PreciosDocumentosPricing from "@/components/PreciosDocumentosPricing";
 
 const pasos = [
   {
@@ -97,33 +89,10 @@ export default function Home() {
             </h2>
             <p className="mt-3 text-center text-gray-600 dark:text-gray-400">
               Los certificados más solicitados para procesos de contratación
-              pública.
+              pública, con su precio.
             </p>
-            <div className="mt-10 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {documentos.map((doc) => (
-                <div
-                  key={doc}
-                  className="flex items-center gap-x-3 p-4 rounded-lg border border-gray-200 dark:border-gray-700"
-                >
-                  <span className="flex-none flex items-center justify-center size-8 rounded-full bg-brand-blue/10 text-brand-blue">
-                    <svg
-                      className="size-4"
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M20 6 9 17l-5-5" />
-                    </svg>
-                  </span>
-                  <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
-                    {doc}
-                  </span>
-                </div>
-              ))}
+            <div className="mt-10">
+              <PreciosDocumentosPricing />
             </div>
           </div>
         </section>
