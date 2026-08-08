@@ -51,7 +51,7 @@ Basada en `Manual_Identidad_Visual_Colombia_Contrata` (carpeta `Colombia Contrat
 | `/` | Landing page (hero, cómo funciona, documentos, planes) | Completa (frontend) |
 | `/registro` | Alta de cuenta (correo + contraseña + toggle Persona natural / Empresa + consentimiento Habeas Data) | **Conectado a Supabase Auth real** — crea la cuenta y envía correo de verificación |
 | `/login` | Inicio de sesión (correo + contraseña) | **Conectado a Supabase Auth real** vía `supabase.auth.signInWithPassword` |
-| `/perfil` | Datos ampliados post-confirmación (persona: nombre/documento/fechas/género/ubicación; empresa: razón social/NIT/representante/sector/ubicación) | **Conectado de verdad** — lee y guarda (`upsert`) en la tabla `profiles` de Supabase, precarga los datos si ya existían |
+| `/perfil` | Datos ampliados post-confirmación (persona: nombre/documento/fechas/género/ubicación; empresa: razón social/NIT/representante/sector/ubicación) + sección "Seguridad de la cuenta" (cambiar contraseña y correo) | **Conectado de verdad** — lee y guarda (`upsert`) en la tabla `profiles` de Supabase, precarga los datos si ya existían; cambio de contraseña/correo vía `supabase.auth.updateUser` |
 | `/terminos` | Términos y Condiciones | Borrador, falta revisión legal |
 | `/privacidad` | Política de Tratamiento de Datos Personales (Ley 1581) | Borrador, falta revisión legal |
 | `/admin` | Back office: nombre, eslogan, logo, favicon, color primario | **Protegido con autenticación real** (solo cuentas con `app_metadata.role = "admin"`, ver [Panel de administración](#panel-de-administración)); el guardado de los cambios sigue siendo solo vista previa |
@@ -102,6 +102,7 @@ src/
     RegisterForm.tsx       # registro real vía Supabase Auth (signUp + metadata de consentimiento)
     LoginForm.tsx           # login real vía Supabase Auth (signInWithPassword)
     ProfileForm.tsx        # lee y guarda (upsert) en la tabla profiles según persona/empresa
+    AccountSecurityForm.tsx # cambio de contraseña/correo vía supabase.auth.updateUser, en /perfil
     AdminGate.tsx           # bloquea /admin a menos que la sesión tenga app_metadata.role === "admin"
     AdminSettingsForm.tsx  # formulario de configuración del portal (guardado aún es vista previa)
     LegalDisclaimer.tsx    # aviso de "falta revisión legal" en /terminos y /privacidad
@@ -230,7 +231,6 @@ Cuenta con acceso de administrador actualmente: `yorbis10@gmail.com`.
 ## Roadmap / pendientes
 
 - [ ] Construir `/solicitar` (checklist de documentos) y `/empresas`.
-- [ ] Sección de "cuenta" en `/perfil` para cambiar contraseña y correo (el teléfono ya se edita ahí). Ambos usan `supabase.auth.updateUser` — la plantilla "Change Email Address" ya está activada y traducida en Supabase, solo falta construir la UI.
 - [ ] Registrar la IP en la trazabilidad de consentimiento de Habeas Data (requiere un endpoint de servidor/Route Handler, ya que `supabase.auth.signUp` corre en el cliente).
 - [ ] Conectar el guardado de `AdminSettingsForm.tsx` a un backend real (hoy `/admin` ya está protegido por autenticación, pero los cambios que se guardan ahí siguen siendo solo vista previa).
 - [ ] Postgres + storage con URLs firmadas para la expiración de 10 días de los documentos.

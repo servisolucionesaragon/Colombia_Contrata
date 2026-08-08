@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import ProfileForm from "@/components/ProfileForm";
+import AccountSecurityForm from "@/components/AccountSecurityForm";
 
 export const metadata: Metadata = {
   title: "Completar perfil — Colombia Contrata",
@@ -24,6 +25,13 @@ export default function PerfilPage() {
 
           <div className="mt-8 bg-white border border-gray-200 rounded-2xl p-6 sm:p-8">
             <ProfileForm />
+          </div>
+
+          <h2 className="mt-10 text-xl font-bold text-gray-900 text-center">
+            Seguridad de la cuenta
+          </h2>
+          <div className="mt-4 bg-white border border-gray-200 rounded-2xl p-6 sm:p-8">
+            <AccountSecurityForm />
           </div>
         </div>
       </main>
