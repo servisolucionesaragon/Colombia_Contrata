@@ -3,6 +3,7 @@ import Link from "next/link";
 import AdminGate from "@/components/AdminGate";
 import AdminSettingsForm from "@/components/AdminSettingsForm";
 import LandingConfigManager from "@/components/LandingConfigManager";
+import BloquesLandingManager from "@/components/BloquesLandingManager";
 import ConfiguracionPersonaManager from "@/components/ConfiguracionPersonaManager";
 import PlanesEmpresaManager from "@/components/PlanesEmpresaManager";
 import PreciosDocumentosManager from "@/components/PreciosDocumentosManager";
@@ -44,6 +45,11 @@ export default function AdminPage() {
               landing={
                 <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 sm:p-8">
                   <LandingConfigManager />
+                </div>
+              }
+              bloques={
+                <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 sm:p-8">
+                  <BloquesLandingManager />
                 </div>
               }
               personas={

@@ -38,14 +38,28 @@ const defaults = {
     "Paquetes de consultas para validar antecedentes de tus candidatos antes de contratar, con su autorización.",
 };
 
+type Bloque = {
+  id: string;
+  titulo: string | null;
+  descripcion: string | null;
+  imagen_url: string | null;
+  imagen_posicion: "izquierda" | "derecha";
+  boton_label: string | null;
+  boton_href: string | null;
+};
+
 export default async function Home() {
-  const { data } = await supabase
-    .from("configuracion_landing")
-    .select("*")
-    .eq("id", 1)
-    .single();
+  const [{ data }, { data: bloquesData }] = await Promise.all([
+    supabase.from("configuracion_landing").select("*").eq("id", 1).single(),
+    supabase
+      .from("bloques_landing")
+      .select("*")
+      .eq("activo", true)
+      .order("orden", { ascending: true }),
+  ]);
 
   const c = { ...defaults, ...data };
+  const bloques = (bloquesData as Bloque[]) ?? [];
 
   const pasos = [
     { numero: "1", titulo: c.paso1_titulo, descripcion: c.paso1_descripcion },
@@ -150,6 +164,55 @@ export default async function Home() {
             </div>
           </section>
         )}
+
+        {/* Bloques de contenido (configurables desde /admin) */}
+        {bloques.map((bloque, index) => (
+          <section
+            key={bloque.id}
+            className={index % 2 === 0 ? "py-16" : "bg-gray-50 dark:bg-gray-900 py-16"}
+          >
+            <div
+              className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col ${
+                bloque.imagen_url
+                  ? bloque.imagen_posicion === "izquierda"
+                    ? "sm:flex-row"
+                    : "sm:flex-row-reverse"
+                  : ""
+              } items-center gap-8`}
+            >
+              {bloque.imagen_url && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={bloque.imagen_url}
+                  alt={bloque.titulo ?? ""}
+                  className="w-full sm:w-1/2 rounded-2xl object-cover"
+                />
+              )}
+              <div
+                className={`w-full ${bloque.imagen_url ? "sm:w-1/2" : "max-w-2xl mx-auto text-center"}`}
+              >
+                {bloque.titulo && (
+                  <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+                    {bloque.titulo}
+                  </h2>
+                )}
+                {bloque.descripcion && (
+                  <p className="mt-4 text-gray-600 dark:text-gray-400 whitespace-pre-line">
+                    {bloque.descripcion}
+                  </p>
+                )}
+                {bloque.boton_label && bloque.boton_href && (
+                  <a
+                    href={bloque.boton_href}
+                    className="mt-6 inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent bg-brand-blue text-white hover:bg-brand-blue-dark px-6 py-3"
+                  >
+                    {bloque.boton_label}
+                  </a>
+                )}
+              </div>
+            </div>
+          </section>
+        ))}
       </main>
 
       <Footer />
