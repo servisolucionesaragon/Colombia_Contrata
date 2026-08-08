@@ -27,12 +27,7 @@ export default function PerfilPage() {
             <ProfileForm />
           </div>
 
-          <h2 className="mt-10 text-xl font-bold text-gray-900 text-center">
-            Seguridad de la cuenta
-          </h2>
-          <div className="mt-4 bg-white border border-gray-200 rounded-2xl p-6 sm:p-8">
-            <AccountSecurityForm />
-          </div>
+          <AccountSecurityForm />
         </div>
       </main>
       <Footer />
