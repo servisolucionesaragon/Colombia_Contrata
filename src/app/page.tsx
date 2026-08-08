@@ -45,6 +45,7 @@ type Bloque = {
   imagen_url: string | null;
   imagen_posicion: "izquierda" | "derecha";
   imagen_ancho: number | null;
+  fondo_color: string | null;
   boton_label: string | null;
   boton_href: string | null;
 };
@@ -170,7 +171,14 @@ export default async function Home() {
         {bloques.map((bloque, index) => (
           <section
             key={bloque.id}
-            className={index % 2 === 0 ? "py-16" : "bg-gray-50 dark:bg-gray-900 py-16"}
+            className={
+              bloque.fondo_color
+                ? "py-16"
+                : index % 2 === 0
+                  ? "py-16"
+                  : "bg-gray-50 dark:bg-gray-900 py-16"
+            }
+            style={bloque.fondo_color ? { backgroundColor: bloque.fondo_color } : undefined}
           >
             <div
               className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col ${

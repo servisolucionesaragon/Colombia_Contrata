@@ -12,6 +12,7 @@ type Bloque = {
   imagen_url: string | null;
   imagen_posicion: "izquierda" | "derecha";
   imagen_ancho: number | null;
+  fondo_color: string | null;
   boton_label: string | null;
   boton_href: string | null;
 };
@@ -73,6 +74,7 @@ export default function BloquesLandingManager() {
         imagen_url: imagenUrl,
         imagen_posicion: formData.get("imagen_posicion") as string,
         imagen_ancho: anchoRaw ? Number(anchoRaw) : null,
+        fondo_color: (formData.get("fondo_color") as string) || null,
         boton_label: (formData.get("boton_label") as string) || null,
         boton_href: (formData.get("boton_href") as string) || null,
         activo: formData.get("activo") === "on",
@@ -261,6 +263,7 @@ function BloqueForm({
   error: string | null;
 }) {
   const [preview, setPreview] = useState<string | null>(bloque?.imagen_url ?? null);
+  const [fondoColor, setFondoColor] = useState(bloque?.fondo_color ?? "");
 
   const handleImageChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -362,6 +365,35 @@ function BloqueForm({
           />
         </Field>
       </div>
+
+      <Field label="Color de fondo del bloque (opcional)" htmlFor="fondo_color">
+        <div className="flex items-center gap-x-3">
+          <input
+            type="color"
+            value={fondoColor || "#ffffff"}
+            onChange={(e) => setFondoColor(e.target.value)}
+            className="size-10 rounded-lg border border-gray-300 dark:border-gray-600 p-1"
+          />
+          <input
+            id="fondo_color"
+            name="fondo_color"
+            type="text"
+            placeholder="Automático (alterna claro/gris)"
+            value={fondoColor}
+            onChange={(e) => setFondoColor(e.target.value)}
+            className={`${inputClass} max-w-40`}
+          />
+          {fondoColor && (
+            <button
+              type="button"
+              onClick={() => setFondoColor("")}
+              className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+            >
+              Quitar (volver a automático)
+            </button>
+          )}
+        </div>
+      </Field>
 
       <label className="inline-flex items-center gap-x-2 text-sm text-gray-700 dark:text-gray-300">
         <input
