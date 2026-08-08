@@ -5,6 +5,7 @@ import AdminWarningBanner from "@/components/AdminWarningBanner";
 import AdminSettingsForm from "@/components/AdminSettingsForm";
 import PlanesEmpresaManager from "@/components/PlanesEmpresaManager";
 import PreciosDocumentosManager from "@/components/PreciosDocumentosManager";
+import AdminTabs from "@/components/AdminTabs";
 
 export const metadata: Metadata = {
   title: "Configuración del portal — Admin",
@@ -34,17 +35,23 @@ export default function AdminPage() {
           <AdminGate>
             <AdminWarningBanner />
 
-            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 sm:p-8">
-              <AdminSettingsForm />
-            </div>
-
-            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 sm:p-8">
-              <PlanesEmpresaManager />
-            </div>
-
-            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 sm:p-8">
-              <PreciosDocumentosManager />
-            </div>
+            <AdminTabs
+              identidad={
+                <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 sm:p-8">
+                  <AdminSettingsForm />
+                </div>
+              }
+              planes={
+                <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 sm:p-8">
+                  <PlanesEmpresaManager />
+                </div>
+              }
+              precios={
+                <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 sm:p-8">
+                  <PreciosDocumentosManager />
+                </div>
+              }
+            />
           </AdminGate>
         </div>
       </main>

@@ -17,9 +17,11 @@ export default function AdminWarningBanner() {
       </svg>
       <p>
         Esta pantalla ya está protegida — solo cuentas de administrador
-        pueden verla. Los cambios que guardes aquí todavía son solo una
-        vista previa de la interfaz, falta conectar el guardado real en un
-        backend.
+        pueden verla. Los cambios en <strong>Planes de empresa</strong> y{" "}
+        <strong>Precios de documentos</strong> se guardan de verdad. Los de{" "}
+        <strong>Identidad del portal</strong> (nombre, logo, colores)
+        todavía son solo vista previa — falta conectar ese guardado a un
+        backend/almacenamiento real.
       </p>
     </div>
   );
