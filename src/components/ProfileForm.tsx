@@ -74,13 +74,13 @@ export default function ProfileForm() {
   };
 
   if (status === "loading") {
-    return <p className="text-sm text-gray-500">Cargando tu cuenta...</p>;
+    return <p className="text-sm text-gray-500 dark:text-gray-400">Cargando tu cuenta...</p>;
   }
 
   if (status === "signed-out") {
     return (
       <div className="text-center py-4">
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-gray-600 dark:text-gray-400">
           Debes iniciar sesión para completar tu perfil.
         </p>
         <Link
@@ -95,14 +95,14 @@ export default function ProfileForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="flex items-center justify-between rounded-lg bg-gray-50 border border-gray-200 px-4 py-3">
+      <div className="flex items-center justify-between rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-4 py-3">
         <div>
-          <span className="text-xs text-gray-500">Tipo de cuenta</span>
-          <p className="text-sm font-semibold text-gray-900">
+          <span className="text-xs text-gray-500 dark:text-gray-400">Tipo de cuenta</span>
+          <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
             {accountType === "persona" ? "Persona natural" : "Empresa"}
           </p>
         </div>
-        {email && <span className="text-sm text-gray-500">{email}</span>}
+        {email && <span className="text-sm text-gray-500 dark:text-gray-400">{email}</span>}
       </div>
 
       {accountType === "persona" ? (
@@ -112,21 +112,21 @@ export default function ProfileForm() {
       )}
 
       {errorMessage && (
-        <p className="text-sm text-red-600 rounded-lg bg-red-50 border border-red-200 px-3 py-2">
+        <p className="text-sm text-red-600 dark:text-red-400 rounded-lg bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-900 px-3 py-2">
           {errorMessage}
         </p>
       )}
 
-      <div className="flex items-center gap-x-3 pt-2 border-t border-gray-200">
+      <div className="flex items-center gap-x-3 pt-2 border-t border-gray-200 dark:border-gray-700">
         <button
           type="submit"
           disabled={saving}
-          className="inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent bg-brand-blue text-white hover:bg-brand-blue-dark disabled:bg-gray-300 disabled:cursor-not-allowed px-5 py-2.5"
+          className="inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent bg-brand-blue text-white hover:bg-brand-blue-dark disabled:bg-gray-300 dark:disabled:bg-gray-700 disabled:cursor-not-allowed px-5 py-2.5"
         >
           {saving ? "Guardando..." : "Guardar datos"}
         </button>
         {saved && (
-          <span className="text-sm text-green-600">
+          <span className="text-sm text-green-600 dark:text-green-400">
             Tus datos se guardaron correctamente.
           </span>
         )}
@@ -568,7 +568,7 @@ function CitySelect({
       required
       disabled={!departamento}
       defaultValue={initialValue}
-      className={`${inputClass} disabled:bg-gray-50 disabled:text-gray-400`}
+      className={`${inputClass} disabled:bg-gray-50 dark:disabled:bg-gray-900 disabled:text-gray-400`}
     >
       <option value="" disabled>
         {departamento
@@ -585,7 +585,7 @@ function CitySelect({
 }
 
 const inputClass =
-  "block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-brand-blue focus:ring-1 focus:ring-brand-blue focus:outline-none";
+  "block w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:border-brand-blue focus:ring-1 focus:ring-brand-blue focus:outline-none";
 
 function FieldGroup({
   title,
@@ -596,7 +596,7 @@ function FieldGroup({
 }) {
   return (
     <section>
-      <h2 className="text-sm font-semibold text-gray-900 mb-3">{title}</h2>
+      <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">{title}</h2>
       {children}
     </section>
   );
@@ -617,7 +617,7 @@ function Field({
     <div className={className}>
       <label
         htmlFor={htmlFor}
-        className="block text-sm font-medium text-gray-700 mb-1"
+        className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
       >
         {label}
       </label>

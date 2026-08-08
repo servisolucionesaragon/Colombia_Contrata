@@ -45,7 +45,7 @@ export default function AdminSettingsForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
       <section>
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
           Identidad del portal
         </h2>
         <div className="space-y-4">
@@ -71,7 +71,7 @@ export default function AdminSettingsForm() {
       </section>
 
       <section>
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
           Marca visual
         </h2>
         <div className="grid sm:grid-cols-2 gap-6">
@@ -97,7 +97,7 @@ export default function AdminSettingsForm() {
                 type="color"
                 value={colorPrimario}
                 onChange={(e) => setColorPrimario(e.target.value)}
-                className="size-10 rounded-lg border border-gray-300 p-1"
+                className="size-10 rounded-lg border border-gray-300 dark:border-gray-600 p-1"
               />
               <input
                 type="text"
@@ -106,7 +106,7 @@ export default function AdminSettingsForm() {
                 className={`${inputClass} max-w-32`}
                 aria-label="Código hexadecimal del color primario"
               />
-              <span className="text-sm text-gray-500">
+              <span className="text-sm text-gray-500 dark:text-gray-400">
                 Botones, enlaces y acentos del sitio.
               </span>
             </div>
@@ -115,10 +115,10 @@ export default function AdminSettingsForm() {
       </section>
 
       <section>
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
           Vista previa
         </h2>
-        <div className="rounded-lg border border-gray-200 p-4 flex items-center justify-between bg-white">
+        <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-4 flex items-center justify-between bg-white dark:bg-gray-800">
           <div className="flex items-center gap-x-3">
             {logo.previewUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -144,7 +144,7 @@ export default function AdminSettingsForm() {
             Crear cuenta
           </button>
         </div>
-        <p className="mt-2 text-sm text-gray-600">{eslogan}</p>
+        <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">{eslogan}</p>
       </section>
 
       <div className="flex items-center gap-x-3">
@@ -155,7 +155,7 @@ export default function AdminSettingsForm() {
           Guardar cambios
         </button>
         {saved && (
-          <span className="text-sm text-gray-600">
+          <span className="text-sm text-gray-600 dark:text-gray-400">
             Vista previa actualizada — todavía no se guarda en un backend
             real.
           </span>
@@ -166,7 +166,7 @@ export default function AdminSettingsForm() {
 }
 
 const inputClass =
-  "block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-brand-blue focus:ring-1 focus:ring-brand-blue focus:outline-none";
+  "block w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:border-brand-blue focus:ring-1 focus:ring-brand-blue focus:outline-none";
 
 function Field({
   label,
@@ -181,7 +181,7 @@ function Field({
     <div>
       <label
         htmlFor={htmlFor}
-        className="block text-sm font-medium text-gray-700 mb-1"
+        className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
       >
         {label}
       </label>
@@ -203,11 +203,11 @@ function ImageUpload({
 }) {
   return (
     <div>
-      <span className="block text-sm font-medium text-gray-700 mb-1">
+      <span className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
         {label}
       </span>
       <div className="flex items-center gap-x-4">
-        <div className="flex items-center justify-center size-16 rounded-lg border border-dashed border-gray-300 bg-gray-50 overflow-hidden">
+        <div className="flex items-center justify-center size-16 rounded-lg border border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 overflow-hidden">
           {image.previewUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -217,7 +217,7 @@ function ImageUpload({
             />
           ) : (
             <svg
-              className="size-6 text-gray-300"
+              className="size-6 text-gray-300 dark:text-gray-600"
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 24 24"
               fill="none"
@@ -242,7 +242,7 @@ function ImageUpload({
               className="sr-only"
             />
           </label>
-          <p className="text-xs text-gray-500 mt-0.5">{hint}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{hint}</p>
         </div>
       </div>
     </div>

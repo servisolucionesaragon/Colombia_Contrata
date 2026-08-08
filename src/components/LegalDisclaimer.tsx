@@ -1,6 +1,6 @@
 export default function LegalDisclaimer() {
   return (
-    <div className="mt-6 flex gap-x-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+    <div className="mt-6 flex gap-x-3 rounded-lg border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950 p-4 text-sm text-amber-800 dark:text-amber-300">
       <svg
         className="size-5 shrink-0 mt-0.5"
         xmlns="http://www.w3.org/2000/svg"

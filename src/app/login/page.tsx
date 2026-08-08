@@ -14,14 +14,14 @@ export default function LoginPage() {
       <Header />
       <main className="flex-1 py-12 sm:py-16">
         <div className="max-w-xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h1 className="text-3xl font-bold text-gray-900 text-center">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 text-center">
             Inicia sesión
           </h1>
-          <p className="mt-2 text-center text-gray-600">
+          <p className="mt-2 text-center text-gray-600 dark:text-gray-400">
             Ingresa con tu correo y contraseña para continuar.
           </p>
 
-          <div className="mt-8 bg-white border border-gray-200 rounded-2xl p-6 sm:p-8">
+          <div className="mt-8 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 sm:p-8">
             <LoginForm />
           </div>
         </div>

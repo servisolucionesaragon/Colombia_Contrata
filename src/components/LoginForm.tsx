@@ -64,7 +64,7 @@ export default function LoginForm() {
       </Field>
 
       {errorMessage && (
-        <p className="text-sm text-red-600 rounded-lg bg-red-50 border border-red-200 px-3 py-2">
+        <p className="text-sm text-red-600 dark:text-red-400 rounded-lg bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-900 px-3 py-2">
           {errorMessage}
         </p>
       )}
@@ -72,12 +72,12 @@ export default function LoginForm() {
       <button
         type="submit"
         disabled={!canSubmit}
-        className="w-full inline-flex items-center justify-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent bg-brand-blue text-white hover:bg-brand-blue-dark disabled:bg-gray-300 disabled:cursor-not-allowed px-4 py-2.5"
+        className="w-full inline-flex items-center justify-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent bg-brand-blue text-white hover:bg-brand-blue-dark disabled:bg-gray-300 dark:disabled:bg-gray-700 disabled:cursor-not-allowed px-4 py-2.5"
       >
         {submitting ? "Iniciando sesión..." : "Iniciar sesión"}
       </button>
 
-      <p className="text-center text-sm text-gray-600">
+      <p className="text-center text-sm text-gray-600 dark:text-gray-400">
         ¿No tienes cuenta?{" "}
         <Link href="/registro" className="text-brand-blue hover:underline">
           Crea una
@@ -100,7 +100,7 @@ function traducirError(message: string): string {
 }
 
 const inputClass =
-  "block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-brand-blue focus:ring-1 focus:ring-brand-blue focus:outline-none";
+  "block w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:border-brand-blue focus:ring-1 focus:ring-brand-blue focus:outline-none";
 
 function Field({
   label,
@@ -115,7 +115,7 @@ function Field({
     <div>
       <label
         htmlFor={htmlFor}
-        className="block text-sm font-medium text-gray-700 mb-1"
+        className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
       >
         {label}
       </label>

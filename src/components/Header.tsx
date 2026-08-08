@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import ThemeToggle from "@/components/ThemeToggle";
 
 const navLinks = [
   { href: "#como-funciona", label: "Cómo funciona" },
@@ -13,10 +14,18 @@ const navLinks = [
   { href: "#empresas", label: "Empresas" },
 ];
 
+const userMenuLinks = [
+  { href: "/", label: "Inicio" },
+  { href: "/historial", label: "Historial" },
+  { href: "/perfil", label: "Perfil" },
+];
+
 export default function Header() {
   const router = useRouter();
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [displayName, setDisplayName] = useState<string | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let active = true;
@@ -75,14 +84,26 @@ export default function Header() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [menuOpen]);
+
   const handleSignOut = async () => {
+    setMenuOpen(false);
     await supabase.auth.signOut();
     router.push("/");
     router.refresh();
   };
 
   return (
-    <header className="sticky top-0 z-50 flex flex-wrap md:justify-start md:flex-nowrap w-full bg-white border-b border-gray-200 text-sm py-3">
+    <header className="sticky top-0 z-50 flex flex-wrap md:justify-start md:flex-nowrap w-full bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 text-sm py-3">
       <nav className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
         <Link href="/" className="flex-none flex items-center gap-x-2">
           <Image
@@ -94,7 +115,7 @@ export default function Header() {
             priority
           />
           <span className="text-xl font-bold">
-            <span className="text-brand-navy">Colombia</span>{" "}
+            <span className="text-brand-navy dark:text-white">Colombia</span>{" "}
             <span className="text-brand-blue">Contrata</span>
           </span>
         </Link>
@@ -104,7 +125,7 @@ export default function Header() {
             <a
               key={link.href}
               href={link.href}
-              className="font-medium text-gray-600 hover:text-brand-blue"
+              className="font-medium text-gray-600 dark:text-gray-400 hover:text-brand-blue dark:hover:text-brand-blue"
             >
               {link.label}
             </a>
@@ -112,27 +133,58 @@ export default function Header() {
         </div>
 
         <div className="flex items-center gap-x-2">
+          <ThemeToggle className="hidden sm:flex items-center justify-center size-9 rounded-lg border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800" />
+
           {isSignedIn ? (
-            <>
-              <Link
-                href="/perfil"
-                className="hidden sm:inline-flex items-center gap-x-2 text-sm font-medium text-gray-700 hover:text-brand-blue px-3 py-2 truncate max-w-[14rem]"
-              >
-                {displayName}
-              </Link>
+            <div className="hidden sm:block relative" ref={menuRef}>
               <button
                 type="button"
-                onClick={handleSignOut}
-                className="hidden sm:inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 px-4 py-2"
+                onClick={() => setMenuOpen((open) => !open)}
+                aria-expanded={menuOpen}
+                className="inline-flex items-center gap-x-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-brand-blue dark:hover:text-brand-blue px-3 py-2 max-w-[16rem]"
               >
-                Cerrar sesión
+                <span className="truncate">{displayName}</span>
+                <svg
+                  className={`size-4 shrink-0 transition-transform ${menuOpen ? "rotate-180" : ""}`}
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
               </button>
-            </>
+
+              {menuOpen && (
+                <div className="absolute right-0 mt-1 w-48 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-lg py-1">
+                  {userMenuLinks.map((link) => (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      onClick={() => setMenuOpen(false)}
+                      className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+                    >
+                      {link.label}
+                    </Link>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={handleSignOut}
+                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+                  >
+                    Cerrar sesión
+                  </button>
+                </div>
+              )}
+            </div>
           ) : (
             <>
               <Link
                 href="/login"
-                className="hidden sm:inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent text-gray-700 hover:text-brand-blue px-3 py-2"
+                className="hidden sm:inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent text-gray-700 dark:text-gray-300 hover:text-brand-blue dark:hover:text-brand-blue px-3 py-2"
               >
                 Iniciar sesión
               </Link>
@@ -147,7 +199,7 @@ export default function Header() {
 
           <button
             type="button"
-            className="hs-collapse-toggle md:hidden flex justify-center items-center size-9 rounded-lg border border-gray-200 text-gray-500"
+            className="hs-collapse-toggle md:hidden flex justify-center items-center size-9 rounded-lg border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400"
             data-hs-collapse="#mobile-menu"
             aria-controls="mobile-menu"
             aria-label="Abrir menú"
@@ -181,23 +233,32 @@ export default function Header() {
             <a
               key={link.href}
               href={link.href}
-              className="font-medium text-gray-600 hover:text-brand-blue"
+              className="font-medium text-gray-600 dark:text-gray-400 hover:text-brand-blue"
             >
               {link.label}
             </a>
           ))}
+
+          <div className="flex items-center justify-between pt-2 border-t border-gray-200 dark:border-gray-800">
+            <span className="text-sm text-gray-500 dark:text-gray-400">Tema</span>
+            <ThemeToggle />
+          </div>
+
           {isSignedIn ? (
             <>
-              <Link
-                href="/perfil"
-                className="font-medium text-gray-600 hover:text-brand-blue truncate"
-              >
-                {displayName}
-              </Link>
+              {userMenuLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className="font-medium text-gray-600 dark:text-gray-400 hover:text-brand-blue"
+                >
+                  {link.label}
+                </Link>
+              ))}
               <button
                 type="button"
                 onClick={handleSignOut}
-                className="sm:hidden inline-flex items-center justify-center gap-x-2 text-sm font-semibold rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 px-4 py-2 mt-1"
+                className="inline-flex items-center justify-center gap-x-2 text-sm font-semibold rounded-lg border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 px-4 py-2 mt-1"
               >
                 Cerrar sesión
               </button>
@@ -206,13 +267,13 @@ export default function Header() {
             <>
               <Link
                 href="/login"
-                className="font-medium text-gray-600 hover:text-brand-blue"
+                className="font-medium text-gray-600 dark:text-gray-400 hover:text-brand-blue"
               >
                 Iniciar sesión
               </Link>
               <Link
                 href="/registro"
-                className="sm:hidden inline-flex items-center justify-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent bg-brand-blue text-white hover:bg-brand-blue-dark px-4 py-2 mt-1"
+                className="inline-flex items-center justify-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent bg-brand-blue text-white hover:bg-brand-blue-dark px-4 py-2 mt-1"
               >
                 Crear cuenta
               </Link>

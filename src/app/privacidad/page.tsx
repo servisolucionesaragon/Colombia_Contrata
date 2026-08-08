@@ -15,16 +15,16 @@ export default function PrivacidadPage() {
       <Header />
       <main className="flex-1 py-12 sm:py-16">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h1 className="text-3xl font-bold text-gray-900">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
             Política de Tratamiento de Datos Personales
           </h1>
-          <p className="mt-2 text-sm text-gray-500">
+          <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
             Última actualización: [fecha pendiente de publicación]
           </p>
 
           <LegalDisclaimer />
 
-          <div className="mt-8 space-y-8 text-gray-700 leading-relaxed">
+          <div className="mt-8 space-y-8 text-gray-700 dark:text-gray-300 leading-relaxed">
             <Section title="1. Responsable del tratamiento">
               <p>
                 [Razón social de la empresa], identificada con NIT [NIT
@@ -249,7 +249,7 @@ function Section({
 }) {
   return (
     <section>
-      <h2 className="text-lg font-semibold text-gray-900 mb-2">{title}</h2>
+      <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">{title}</h2>
       {children}
     </section>
   );

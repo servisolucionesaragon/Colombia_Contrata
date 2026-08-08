@@ -67,7 +67,7 @@ export default function RegisterForm() {
   if (submitted) {
     return (
       <div className="text-center py-8">
-        <div className="mx-auto flex items-center justify-center size-12 rounded-full bg-green-50 text-green-600">
+        <div className="mx-auto flex items-center justify-center size-12 rounded-full bg-green-50 dark:bg-green-950 text-green-600 dark:text-green-400">
           <svg
             className="size-6"
             xmlns="http://www.w3.org/2000/svg"
@@ -82,15 +82,15 @@ export default function RegisterForm() {
             <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
           </svg>
         </div>
-        <h2 className="mt-4 text-lg font-semibold text-gray-900">
+        <h2 className="mt-4 text-lg font-semibold text-gray-900 dark:text-gray-100">
           Revisa tu correo
         </h2>
-        <p className="mt-2 text-sm text-gray-600">
+        <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
           Te enviamos un enlace de confirmación a{" "}
-          <span className="font-medium text-gray-900">{email}</span>. Haz
+          <span className="font-medium text-gray-900 dark:text-gray-100">{email}</span>. Haz
           clic en el enlace para activar tu cuenta y completar tu perfil.
         </p>
-        <p className="mt-3 text-xs text-gray-500">
+        <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
           ¿No llega? Revisa la carpeta de spam o correo no deseado.
         </p>
       </div>
@@ -102,7 +102,7 @@ export default function RegisterForm() {
       <div
         role="tablist"
         aria-label="Tipo de cuenta"
-        className="grid grid-cols-2 gap-2 p-1 bg-gray-100 rounded-lg"
+        className="grid grid-cols-2 gap-2 p-1 bg-gray-100 dark:bg-gray-800 rounded-lg"
       >
         <button
           type="button"
@@ -111,8 +111,8 @@ export default function RegisterForm() {
           onClick={() => setAccountType("persona")}
           className={`text-sm font-medium rounded-md py-2 transition-colors ${
             accountType === "persona"
-              ? "bg-white text-brand-blue shadow-sm"
-              : "text-gray-600 hover:text-gray-900"
+              ? "bg-white dark:bg-gray-700 text-brand-blue shadow-sm"
+              : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
           }`}
         >
           Persona natural
@@ -124,8 +124,8 @@ export default function RegisterForm() {
           onClick={() => setAccountType("empresa")}
           className={`text-sm font-medium rounded-md py-2 transition-colors ${
             accountType === "empresa"
-              ? "bg-white text-brand-blue shadow-sm"
-              : "text-gray-600 hover:text-gray-900"
+              ? "bg-white dark:bg-gray-700 text-brand-blue shadow-sm"
+              : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
           }`}
         >
           Empresa
@@ -184,7 +184,7 @@ export default function RegisterForm() {
         </p>
       )}
 
-      <div className="space-y-3 pt-2 border-t border-gray-200">
+      <div className="space-y-3 pt-2 border-t border-gray-200 dark:border-gray-700">
         <Checkbox
           id="acceptTerms"
           checked={acceptTerms}
@@ -214,7 +214,7 @@ export default function RegisterForm() {
           checked={acceptSensitiveData}
           onChange={setAcceptSensitiveData}
         >
-          <span className="font-medium text-gray-900">
+          <span className="font-medium text-gray-900 dark:text-gray-100">
             Autorizo expresamente
           </span>{" "}
           el tratamiento de mis datos sensibles (antecedentes penales,
@@ -225,7 +225,7 @@ export default function RegisterForm() {
       </div>
 
       {errorMessage && (
-        <p className="text-sm text-red-600 rounded-lg bg-red-50 border border-red-200 px-3 py-2">
+        <p className="text-sm text-red-600 dark:text-red-400 rounded-lg bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-900 px-3 py-2">
           {errorMessage}
         </p>
       )}
@@ -233,12 +233,12 @@ export default function RegisterForm() {
       <button
         type="submit"
         disabled={!canSubmit}
-        className="w-full inline-flex items-center justify-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent bg-brand-blue text-white hover:bg-brand-blue-dark disabled:bg-gray-300 disabled:cursor-not-allowed px-4 py-2.5"
+        className="w-full inline-flex items-center justify-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent bg-brand-blue text-white hover:bg-brand-blue-dark disabled:bg-gray-300 dark:disabled:bg-gray-700 disabled:cursor-not-allowed px-4 py-2.5"
       >
         {submitting ? "Creando cuenta..." : "Crear cuenta"}
       </button>
 
-      <p className="text-center text-sm text-gray-600">
+      <p className="text-center text-sm text-gray-600 dark:text-gray-400">
         ¿Ya tienes cuenta?{" "}
         <Link href="/login" className="text-brand-blue hover:underline">
           Inicia sesión
@@ -266,7 +266,7 @@ function traducirError(message: string): string {
 }
 
 const inputClass =
-  "block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-brand-blue focus:ring-1 focus:ring-brand-blue focus:outline-none";
+  "block w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:border-brand-blue focus:ring-1 focus:ring-brand-blue focus:outline-none";
 
 function Field({
   label,
@@ -281,7 +281,7 @@ function Field({
     <div>
       <label
         htmlFor={htmlFor}
-        className="block text-sm font-medium text-gray-700 mb-1"
+        className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
       >
         {label}
       </label>
@@ -309,9 +309,9 @@ function Checkbox({
         required
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
-        className="mt-0.5 size-4 shrink-0 rounded border-gray-300 text-brand-blue focus:ring-brand-blue"
+        className="mt-0.5 size-4 shrink-0 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-800 text-brand-blue focus:ring-brand-blue"
       />
-      <label htmlFor={id} className="text-sm text-gray-600">
+      <label htmlFor={id} className="text-sm text-gray-600 dark:text-gray-400">
         {children}
       </label>
     </div>

@@ -28,13 +28,13 @@ export default function AdminGate({
   }, []);
 
   if (status === "loading") {
-    return <p className="text-sm text-gray-400">Verificando acceso...</p>;
+    return <p className="text-sm text-gray-400 dark:text-gray-500">Verificando acceso...</p>;
   }
 
   if (status === "signed-out") {
     return (
       <div className="text-center py-16">
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-gray-600 dark:text-gray-400">
           Debes iniciar sesión con una cuenta de administrador para ver esta
           página.
         </p>
@@ -51,12 +51,12 @@ export default function AdminGate({
   if (status === "forbidden") {
     return (
       <div className="text-center py-16">
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-gray-600 dark:text-gray-400">
           Tu cuenta no tiene permisos de administrador.
         </p>
         <Link
           href="/"
-          className="mt-4 inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 px-5 py-2.5"
+          className="mt-4 inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 px-5 py-2.5"
         >
           Volver al sitio
         </Link>

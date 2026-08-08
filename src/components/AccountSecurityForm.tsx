@@ -20,10 +20,10 @@ export default function AccountSecurityForm() {
 
   return (
     <>
-      <h2 className="mt-10 text-xl font-bold text-gray-900 text-center">
+      <h2 className="mt-10 text-xl font-bold text-gray-900 dark:text-gray-100 text-center">
         Seguridad de la cuenta
       </h2>
-      <div className="mt-4 bg-white border border-gray-200 rounded-2xl p-6 sm:p-8 space-y-8">
+      <div className="mt-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 sm:p-8 space-y-8">
         <ChangeEmailForm />
         <ChangePasswordForm />
       </div>
@@ -56,7 +56,7 @@ function ChangeEmailForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
-      <h3 className="text-sm font-semibold text-gray-900">Cambiar correo</h3>
+      <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Cambiar correo</h3>
       <div className="flex flex-col sm:flex-row gap-3">
         <input
           type="email"
@@ -70,7 +70,7 @@ function ChangeEmailForm() {
         <button
           type="submit"
           disabled={submitting}
-          className="inline-flex items-center justify-center gap-x-2 text-sm font-semibold rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed px-4 py-2 whitespace-nowrap"
+          className="inline-flex items-center justify-center gap-x-2 text-sm font-semibold rounded-lg border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:text-gray-400 dark:disabled:text-gray-600 disabled:cursor-not-allowed px-4 py-2 whitespace-nowrap"
         >
           {submitting ? "Enviando..." : "Cambiar correo"}
         </button>
@@ -78,7 +78,9 @@ function ChangeEmailForm() {
       {message && (
         <p
           className={
-            message.type === "error" ? "text-sm text-red-600" : "text-sm text-green-600"
+            message.type === "error"
+              ? "text-sm text-red-600 dark:text-red-400"
+              : "text-sm text-green-600 dark:text-green-400"
           }
         >
           {message.text}
@@ -116,9 +118,9 @@ function ChangePasswordForm() {
   return (
     <form
       onSubmit={handleSubmit}
-      className="space-y-3 pt-6 border-t border-gray-200"
+      className="space-y-3 pt-6 border-t border-gray-200 dark:border-gray-700"
     >
-      <h3 className="text-sm font-semibold text-gray-900">Cambiar contraseña</h3>
+      <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Cambiar contraseña</h3>
       <div className="grid sm:grid-cols-2 gap-3">
         <input
           type="password"
@@ -142,19 +144,21 @@ function ChangePasswordForm() {
         />
       </div>
       {confirmPassword.length > 0 && !passwordsMatch && (
-        <p className="text-sm text-red-600">Las contraseñas no coinciden.</p>
+        <p className="text-sm text-red-600 dark:text-red-400">Las contraseñas no coinciden.</p>
       )}
       <button
         type="submit"
         disabled={submitting || !passwordsMatch}
-        className="inline-flex items-center justify-center gap-x-2 text-sm font-semibold rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed px-4 py-2"
+        className="inline-flex items-center justify-center gap-x-2 text-sm font-semibold rounded-lg border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:text-gray-400 dark:disabled:text-gray-600 disabled:cursor-not-allowed px-4 py-2"
       >
         {submitting ? "Guardando..." : "Actualizar contraseña"}
       </button>
       {message && (
         <p
           className={
-            message.type === "error" ? "text-sm text-red-600" : "text-sm text-green-600"
+            message.type === "error"
+              ? "text-sm text-red-600 dark:text-red-400"
+              : "text-sm text-green-600 dark:text-green-400"
           }
         >
           {message.text}
@@ -187,4 +191,4 @@ function traducirErrorPassword(message: string): string {
 }
 
 const inputClass =
-  "block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-brand-blue focus:ring-1 focus:ring-brand-blue focus:outline-none";
+  "block w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:border-brand-blue focus:ring-1 focus:ring-brand-blue focus:outline-none";
