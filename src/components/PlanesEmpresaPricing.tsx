@@ -112,7 +112,7 @@ function PlanCard({ plan, periodo }: { plan: Plan; periodo: Periodo }) {
 
   return (
     <div
-      className={`relative flex flex-col rounded-2xl border p-6 bg-white dark:bg-gray-900 ${
+      className={`relative flex flex-col rounded-2xl border p-6 bg-white dark:bg-gray-900 transition-shadow hover:shadow-lg hover:shadow-gray-900/5 ${
         plan.destacado
           ? "border-brand-blue ring-2 ring-brand-blue"
           : "border-gray-200 dark:border-gray-700"
@@ -158,9 +158,9 @@ function PlanCard({ plan, periodo }: { plan: Plan; periodo: Periodo }) {
 
       <a
         href="/registro"
-        className={`mt-6 inline-flex items-center justify-center gap-x-2 text-sm font-semibold rounded-lg px-4 py-2.5 ${
+        className={`mt-6 inline-flex items-center justify-center gap-x-2 text-sm font-bold rounded-xl px-4 py-2.5 transition-all ${
           plan.destacado
-            ? "bg-brand-blue text-white hover:bg-brand-blue-dark"
+            ? "bg-brand-blue text-white hover:bg-brand-blue-dark hover:-translate-y-0.5 hover:shadow-lg hover:shadow-brand-blue/25"
             : "border border-brand-blue text-brand-blue hover:bg-brand-blue/10"
         }`}
       >

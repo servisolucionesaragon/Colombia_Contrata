@@ -36,7 +36,7 @@ export default function PreciosDocumentosPricing() {
       {documentos.map((doc) => (
         <div
           key={doc.id}
-          className="flex items-center gap-x-3 p-4 rounded-lg border border-gray-200 dark:border-gray-700"
+          className="flex items-center gap-x-3 p-4 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 transition-shadow hover:shadow-lg hover:shadow-gray-900/5"
         >
           <span className="flex-none flex items-center justify-center size-8 rounded-full bg-brand-blue/10 text-brand-blue">
             <svg

@@ -71,51 +71,67 @@ export default async function Home() {
 
   return (
     <>
+      {/* Franja de colores de marca */}
+      <div className="flex h-[5px] w-full shrink-0">
+        <div className="w-1/2 bg-brand-yellow" />
+        <div className="w-1/4 bg-brand-blue" />
+        <div className="w-1/4 bg-brand-red" />
+      </div>
+
       <Header />
 
       <main className="flex-1">
         {/* Hero */}
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-20 text-center">
-          <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 dark:text-gray-100 tracking-tight">
-            {c.hero_titulo_prefijo}{" "}
-            <span className="text-brand-blue">{c.hero_titulo_destacado}</span>
-          </h1>
-          <p className="mt-5 max-w-2xl mx-auto text-lg text-gray-600 dark:text-gray-400">
-            {c.hero_subtitulo}
-          </p>
-          <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
-            <a
-              href="/registro"
-              className="inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent bg-brand-blue text-white hover:bg-brand-blue-dark px-6 py-3"
-            >
-              {c.hero_cta_primario_label}
-            </a>
-            <a
-              href="#empresas"
-              className="inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 px-6 py-3"
-            >
-              {c.hero_cta_secundario_label}
-            </a>
+        <section className="relative overflow-hidden bg-gradient-to-br from-blue-50 via-white to-white dark:from-gray-900 dark:via-gray-950 dark:to-gray-950">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-20 sm:pt-24 sm:pb-28 text-center">
+            <span className="inline-flex items-center gap-x-2 rounded-full bg-brand-blue/10 text-brand-blue text-xs font-bold px-4 py-2">
+              <span className="size-1.5 rounded-full bg-brand-blue" />
+              Colombia Contrata
+            </span>
+            <h1 className="mt-6 text-4xl sm:text-6xl font-bold text-gray-900 dark:text-gray-100 tracking-tight leading-[1.05]">
+              {c.hero_titulo_prefijo}{" "}
+              <span className="text-brand-blue">{c.hero_titulo_destacado}</span>
+            </h1>
+            <p className="mt-6 max-w-2xl mx-auto text-lg text-gray-500 dark:text-gray-400 leading-relaxed">
+              {c.hero_subtitulo}
+            </p>
+            <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
+              <a
+                href="/registro"
+                className="inline-flex items-center gap-x-2 text-sm font-bold rounded-xl border border-transparent bg-brand-blue text-white hover:bg-brand-blue-dark hover:-translate-y-0.5 hover:shadow-lg hover:shadow-brand-blue/25 transition-all px-7 py-3.5"
+              >
+                {c.hero_cta_primario_label}
+              </a>
+              <a
+                href="#empresas"
+                className="inline-flex items-center gap-x-2 text-sm font-bold rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 hover:border-brand-blue dark:hover:border-brand-blue transition-colors px-7 py-3.5"
+              >
+                {c.hero_cta_secundario_label}
+              </a>
+            </div>
           </div>
         </section>
 
         {/* Cómo funciona */}
         {c.como_funciona_activo && (
-          <section id="como-funciona" className="bg-gray-50 dark:bg-gray-900 py-16">
+          <section id="como-funciona" className="bg-gray-50 dark:bg-gray-900/50 py-20 sm:py-24">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-              <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-100 text-center">
+              <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-gray-100 text-center tracking-tight">
                 {c.como_funciona_titulo}
               </h2>
-              <div className="mt-12 grid sm:grid-cols-3 gap-8">
+              <div className="mt-14 grid sm:grid-cols-3 gap-6">
                 {pasos.map((paso) => (
-                  <div key={paso.numero} className="text-center">
-                    <div className="mx-auto flex items-center justify-center size-12 rounded-full bg-brand-blue text-white font-bold">
+                  <div
+                    key={paso.numero}
+                    className="text-center rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-8 transition-shadow hover:shadow-lg hover:shadow-gray-900/5"
+                  >
+                    <div className="mx-auto flex items-center justify-center size-14 rounded-full bg-brand-blue text-white font-bold text-lg">
                       {paso.numero}
                     </div>
-                    <h3 className="mt-4 text-lg font-semibold text-gray-900 dark:text-gray-100">
+                    <h3 className="mt-5 text-lg font-semibold text-gray-900 dark:text-gray-100">
                       {paso.titulo}
                     </h3>
-                    <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                    <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
                       {paso.descripcion}
                     </p>
                   </div>
@@ -127,15 +143,15 @@ export default async function Home() {
 
         {/* Documentos disponibles */}
         {c.documentos_activo && (
-          <section id="documentos" className="py-16">
+          <section id="documentos" className="py-20 sm:py-24">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-              <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-100 text-center">
+              <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-gray-100 text-center tracking-tight">
                 {c.documentos_titulo}
               </h2>
-              <p className="mt-3 text-center text-gray-600 dark:text-gray-400">
+              <p className="mt-3 text-center text-gray-500 dark:text-gray-400">
                 {c.documentos_subtitulo}
               </p>
-              <div className="mt-10">
+              <div className="mt-12">
                 <PreciosDocumentosPricing />
               </div>
             </div>
@@ -144,22 +160,22 @@ export default async function Home() {
 
         {/* Planes */}
         {c.planes_activo && (
-          <section id="planes" className="bg-gray-50 dark:bg-gray-900 py-16">
+          <section id="planes" className="bg-gray-50 dark:bg-gray-900/50 py-20 sm:py-24">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-              <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-100 text-center">
+              <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-gray-100 text-center tracking-tight">
                 {c.planes_titulo}
               </h2>
 
               <PlanPersonaCard />
 
-              <div id="empresas" className="mt-20 scroll-mt-20">
-                <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100 text-center">
+              <div id="empresas" className="mt-24 scroll-mt-20">
+                <h3 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100 text-center tracking-tight">
                   {c.planes_empresa_titulo}
                 </h3>
-                <p className="mt-2 text-center text-gray-600 dark:text-gray-400">
+                <p className="mt-3 text-center text-gray-500 dark:text-gray-400">
                   {c.planes_empresa_subtitulo}
                 </p>
-                <div className="mt-8">
+                <div className="mt-10">
                   <PlanesEmpresaPricing />
                 </div>
               </div>
@@ -173,10 +189,10 @@ export default async function Home() {
             key={bloque.id}
             className={
               bloque.fondo_color
-                ? "py-16"
+                ? "py-20 sm:py-24"
                 : index % 2 === 0
-                  ? "py-16"
-                  : "bg-gray-50 dark:bg-gray-900 py-16"
+                  ? "py-20 sm:py-24"
+                  : "bg-gray-50 dark:bg-gray-900/50 py-20 sm:py-24"
             }
             style={bloque.fondo_color ? { backgroundColor: bloque.fondo_color } : undefined}
           >
@@ -210,19 +226,19 @@ export default async function Home() {
                 className={`w-full ${bloque.imagen_url ? "sm:w-1/2" : "max-w-2xl mx-auto text-center"}`}
               >
                 {bloque.titulo && (
-                  <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+                  <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-gray-100 tracking-tight">
                     {bloque.titulo}
                   </h2>
                 )}
                 {bloque.descripcion && (
-                  <p className="mt-4 text-gray-600 dark:text-gray-400 whitespace-pre-line">
+                  <p className="mt-4 text-gray-500 dark:text-gray-400 whitespace-pre-line">
                     {bloque.descripcion}
                   </p>
                 )}
                 {bloque.boton_label && bloque.boton_href && (
                   <a
                     href={bloque.boton_href}
-                    className="mt-6 inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent bg-brand-blue text-white hover:bg-brand-blue-dark px-6 py-3"
+                    className="mt-6 inline-flex items-center gap-x-2 text-sm font-bold rounded-xl border border-transparent bg-brand-blue text-white hover:bg-brand-blue-dark hover:-translate-y-0.5 hover:shadow-lg hover:shadow-brand-blue/25 transition-all px-6 py-3"
                   >
                     {bloque.boton_label}
                   </a>
