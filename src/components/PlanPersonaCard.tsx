@@ -37,24 +37,26 @@ export default function PlanPersonaCard() {
   if (loading || !config || !config.activo) return null;
 
   return (
-    <div className="mt-12 max-w-2xl mx-auto p-8 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+    <div className="mt-12 max-w-2xl mx-auto p-8 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-center">
       <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
         {config.titulo}
       </h3>
       <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
         {config.descripcion}
       </p>
-      {config.precio_desde != null && (
-        <p className="mt-3 text-2xl font-bold text-gray-900 dark:text-gray-100">
-          Desde {formatCOP(config.precio_desde)}
-        </p>
-      )}
-      <a
-        href="/registro"
-        className="mt-6 inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent bg-brand-blue text-white hover:bg-brand-blue-dark px-5 py-2.5"
-      >
-        {config.cta_label}
-      </a>
+      <div className="mt-6 flex flex-wrap items-center justify-center gap-x-4 gap-y-3">
+        {config.precio_desde != null && (
+          <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+            Desde {formatCOP(config.precio_desde)}
+          </p>
+        )}
+        <a
+          href="/registro"
+          className="inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent bg-brand-blue text-white hover:bg-brand-blue-dark px-5 py-2.5"
+        >
+          {config.cta_label}
+        </a>
+      </div>
     </div>
   );
 }

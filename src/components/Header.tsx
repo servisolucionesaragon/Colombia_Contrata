@@ -107,9 +107,22 @@ export default function Header() {
   const router = useRouter();
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [displayName, setDisplayName] = useState<string | null>(null);
+  const [initials, setInitials] = useState<string | null>(null);
   const [email, setEmail] = useState<string | null>(null);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    supabase
+      .from("configuracion_portal")
+      .select("logo_url")
+      .eq("id", 1)
+      .single()
+      .then(({ data }) => {
+        if (data?.logo_url) setLogoUrl(data.logo_url);
+      });
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -123,6 +136,7 @@ export default function Header() {
         if (active) {
           setIsSignedIn(false);
           setDisplayName(null);
+          setInitials(null);
           setEmail(null);
         }
         return;
@@ -137,7 +151,7 @@ export default function Header() {
       // completó /perfil — en ese caso mostramos el correo como respaldo.
       const { data: profile } = await supabase
         .from("profiles")
-        .select("primer_nombre, razon_social")
+        .select("primer_nombre, primer_apellido, razon_social")
         .eq("id", userId)
         .maybeSingle();
       if (!active) return;
@@ -145,6 +159,19 @@ export default function Header() {
       const name =
         accountType === "empresa" ? profile?.razon_social : profile?.primer_nombre;
       setDisplayName(name || userEmail || null);
+
+      if (accountType === "empresa") {
+        setInitials(
+          profile?.razon_social ? getInitials(profile.razon_social) : null
+        );
+      } else if (profile?.primer_nombre) {
+        const apellidoLetter = profile?.primer_apellido?.[0] ?? "";
+        setInitials(
+          (profile.primer_nombre[0] + apellidoLetter).toUpperCase() || null
+        );
+      } else {
+        setInitials(null);
+      }
     };
 
     supabase.auth.getUser().then(({ data }) => {
@@ -194,14 +221,19 @@ export default function Header() {
     <header className="sticky top-0 z-50 flex flex-wrap md:justify-start md:flex-nowrap w-full bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 text-sm py-3">
       <nav className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
         <Link href="/" className="flex-none flex items-center gap-x-2">
-          <Image
-            src="/isotipo.png"
-            alt="Colombia Contrata"
-            width={32}
-            height={32}
-            className="size-8"
-            priority
-          />
+          {logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={logoUrl} alt="Colombia Contrata" className="h-8 w-auto" />
+          ) : (
+            <Image
+              src="/isotipo.png"
+              alt="Colombia Contrata"
+              width={32}
+              height={32}
+              className="size-8"
+              priority
+            />
+          )}
           <span className="text-xl font-bold">
             <span className="text-brand-navy dark:text-white">Colombia</span>{" "}
             <span className="text-brand-blue">Contrata</span>
@@ -233,7 +265,7 @@ export default function Header() {
               >
                 {displayName && (
                   <span className="flex-none flex items-center justify-center size-7 rounded-full bg-brand-blue text-white text-xs font-bold">
-                    {getInitials(displayName)}
+                    {initials || getInitials(displayName)}
                   </span>
                 )}
                 <span className="truncate text-sm font-bold text-brand-blue">
@@ -360,7 +392,7 @@ export default function Header() {
               <div className="flex items-center gap-x-2.5 pt-2 border-t border-gray-200 dark:border-gray-800">
                 {displayName && (
                   <span className="flex-none flex items-center justify-center size-8 rounded-full bg-brand-blue text-white text-xs font-bold">
-                    {getInitials(displayName)}
+                    {initials || getInitials(displayName)}
                   </span>
                 )}
                 <div className="min-w-0">
