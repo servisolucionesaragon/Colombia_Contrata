@@ -118,6 +118,8 @@ src/
     AdminSettingsForm.tsx  # identidad del portal — lee/guarda en configuracion_portal, sube logo/favicon a Storage
     LandingConfigManager.tsx # admin: textos y mostrar/ocultar secciones de la página principal (configuracion_landing)
     BloquesLandingManager.tsx # admin: agregar/editar/eliminar/reordenar bloques libres de texto+imagen+botón (bloques_landing)
+    PaginasManager.tsx      # admin: crear/editar/eliminar páginas propias con URL propia (paginas)
+    RichTextEditor.tsx      # editor tipo Word (contentEditable + execCommand, sin dependencias npm) usado por PaginasManager.tsx
     ConfiguracionPersonaManager.tsx # admin: edita la tarjeta "Persona independiente" (configuracion_persona)
     PlanesEmpresaManager.tsx    # CRUD admin de planes_empresa (incluye planes privados por empresa)
     PreciosDocumentosManager.tsx # CRUD admin de documentos disponibles (precios_documentos, sin precio)
@@ -456,6 +458,37 @@ create policy "Admins can delete bloques_landing"
   on public.bloques_landing for delete
   using ((auth.jwt() -> 'app_metadata' ->> 'role') = 'admin');
 
+
+create table public.paginas (
+  id uuid primary key default gen_random_uuid(),
+  slug text not null unique,
+  titulo text not null,
+  contenido text,
+  activo boolean not null default true,
+  mostrar_en_menu boolean not null default false,
+  orden integer not null default 0,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.paginas enable row level security;
+
+create policy "Anyone can view paginas"
+  on public.paginas for select
+  using (true);
+
+create policy "Admins can insert paginas"
+  on public.paginas for insert
+  with check ((auth.jwt() -> 'app_metadata' ->> 'role') = 'admin');
+
+create policy "Admins can update paginas"
+  on public.paginas for update
+  using ((auth.jwt() -> 'app_metadata' ->> 'role') = 'admin');
+
+create policy "Admins can delete paginas"
+  on public.paginas for delete
+  using ((auth.jwt() -> 'app_metadata' ->> 'role') = 'admin');
+
 create policy "Admins can delete portal-assets"
   on storage.objects for delete
   using (bucket_id = 'portal-assets' and (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin');
@@ -473,6 +506,7 @@ create policy "Admins can delete portal-assets"
 - Grupo **Página principal**:
   - **Textos y secciones** (`LandingConfigManager.tsx`) — textos del encabezado, de la sección "Cómo funciona" (título + 3 pasos) y de los títulos/subtítulos de "Documentos disponibles" y "Planes", más un interruptor mostrar/ocultar por sección (`configuracion_landing`).
   - **Bloques de contenido** (`BloquesLandingManager.tsx`) — agregar/editar/eliminar/reordenar bloques libres de texto + imagen opcional + botón opcional, que se muestran al final de `/` antes del pie de página (`bloques_landing`). Ver detalle abajo.
+  - **Páginas** (`PaginasManager.tsx`) — páginas propias con su propia URL (ej. "Nosotros"), con editor de texto enriquecido. Ver detalle abajo.
 - Grupo **Planes y documentos**:
   - **Planes de personas** (`ConfiguracionPersonaManager.tsx`) — título/descripción/precio-desde/CTA de la tarjeta "Persona independiente" en `/`.
   - **Planes de empresa** (`PlanesEmpresaManager.tsx`) — crear/editar/eliminar planes; incluye la opción de asignar un plan a una sola empresa (privado).
@@ -506,6 +540,16 @@ Cuenta con acceso de administrador actualmente: `yorbis10@gmail.com`.
 Cuando hay sesión activa, `Header.tsx` reemplaza los botones "Iniciar sesión"/"Crear cuenta" por un menú desplegable: círculo con iniciales (calculadas del nombre/razón social) en azul, nombre en azul negrilla, y al abrirlo muestra nombre + correo arriba y cuatro opciones con ícono — **Inicio**, **Historial**, **Perfil** y **Cerrar sesión**. El nombre viene de la tabla `profiles` — para persona es `primer_nombre` + `primer_apellido` (no solo el primer nombre), para empresa es `razon_social` — con el correo como respaldo si el usuario aún no la completó. Las iniciales del círculo: persona → primera letra de `primer_nombre` + primera letra de `primer_apellido`; empresa → iniciales de las dos primeras palabras de `razon_social`.
 
 **Tamaños de logo/avatar** (ajustados 2026-08-08 a pedido del usuario): el isotipo del Header mide 44px (`size-11`/`h-11`, antes 32px). El círculo de iniciales del menú desplegable de escritorio mide 28px (`size-7`); el del panel de menú móvil (el que se abre con el ícono de hamburguesa) mide 40px (`size-10`, antes 32px) para que se vea proporcional al logo agrandado.
+
+## Páginas propias
+
+Desde `/admin` → **Páginas** se pueden crear páginas con su propia URL — pensado para cosas como "Nosotros", "Visión y misión", "Servicios", etc. — sin tocar código.
+
+- Tabla `paginas`: `slug` (único, define la URL — `/paginas/<slug>`), `titulo`, `contenido` (HTML, escrito con el editor de texto enriquecido), `activo`, `mostrar_en_menu`, `orden`.
+- **El slug se autogenera del título** (minúsculas, sin tildes, espacios → guiones) la primera vez, pero es editable a mano; debe ser único (si se repite, Postgres devuelve un error de constraint `unique` que `PaginasManager.tsx` traduce a un mensaje legible).
+- **`mostrar_en_menu`**: si está activo, la página aparece automáticamente como un enlace más en el menú de navegación de `Header.tsx` (desktop y móvil), después de los enlaces fijos (Cómo funciona / Documentos / Planes / Empresas). Si está desactivado, la página existe y es accesible por su URL, pero hay que enlazarla a mano — por ejemplo desde el botón de un bloque de `bloques_landing` (pestaña "Bloques de contenido") apuntando a `/paginas/<slug>`, o desde cualquier otro lugar del sitio.
+- La ruta pública es `src/app/paginas/[slug]/page.tsx` — un server component async con `export const revalidate = 60` que hace `notFound()` (404 real de Next.js) si el slug no existe o la página está `activo = false`.
+- **`RichTextEditor.tsx`**: editor tipo Word (negrita, cursiva, subrayado, H2/H3, listas, enlaces, quitar formato) hecho con `contentEditable` + `document.execCommand` — **sin ninguna librería npm nueva**, a propósito, para no arriesgar una instalación lenta/inestable en la unidad de red (ver [Entorno de desarrollo local](#entorno-de-desarrollo-local--importante)). El HTML resultante se guarda tal cual en `contenido` y se renderiza con `dangerouslySetInnerHTML` tanto en el propio editor (para mostrar el valor ya guardado) como en la página pública — es seguro porque ese HTML lo escribe el propio administrador desde `/admin`, no un visitante del sitio, el mismo modelo de confianza que cualquier CMS.
 
 ## Redes sociales y botón de WhatsApp
 
