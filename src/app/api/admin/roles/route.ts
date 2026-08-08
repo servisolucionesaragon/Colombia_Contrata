@@ -85,16 +85,12 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const newAppMetadata = { ...targetUser.app_metadata };
-  if (action === "grant") {
-    newAppMetadata.role = "admin";
-  } else {
-    delete newAppMetadata.role;
-  }
-
+  // supabase-js hace un merge del app_metadata que ya existía, no lo
+  // reemplaza — omitir la clave "role" del objeto no la borra, hay que
+  // sobreescribirla explícitamente con null.
   const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
     targetUser.id,
-    { app_metadata: newAppMetadata }
+    { app_metadata: { role: action === "grant" ? "admin" : null } }
   );
   if (updateError) {
     return NextResponse.json({ error: updateError.message }, { status: 500 });
