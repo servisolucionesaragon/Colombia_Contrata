@@ -104,7 +104,9 @@ src/
     admin/page.tsx        # back office (protegido por AdminGate)
     api/admin/roles/route.ts # Route Handler: dar/quitar admin por correo, usa la Service Role Key (solo servidor)
   components/
-    Header.tsx / Footer.tsx # Header es client component: lee sesión + tabla profiles, muestra menú de usuario (avatar, Inicio/Historial/Perfil/Cerrar sesión) y el ThemeToggle
+    Header.tsx / Footer.tsx # Header es client component: lee sesión + tabla profiles, muestra menú de usuario (avatar, Inicio/Historial/Perfil/Cerrar sesión) y el ThemeToggle. Footer es server component async: lee configuracion_portal y muestra íconos de redes sociales configuradas
+    SocialIcons.tsx         # íconos SVG de Facebook/Instagram/X/LinkedIn/TikTok/WhatsApp, usados por Footer.tsx y WhatsAppButton.tsx
+    WhatsAppButton.tsx      # server component async, botón flotante fijo (agregado en layout.tsx, aparece en todo el sitio); solo se renderiza si whatsapp_activo=true y hay whatsapp_numero
     ThemeToggle.tsx         # botón sol/luna, toggle de clase "dark" en <html>, persiste en localStorage
     RegisterForm.tsx       # registro real vía Supabase Auth (signUp + metadata de consentimiento)
     LoginForm.tsx           # login real vía Supabase Auth (signInWithPassword)
@@ -222,7 +224,7 @@ Estas tablas tienen **lectura pública** (`using (true)`, salvo `planes_empresa`
 - **`planes_empresa`**: planes de créditos/consultas para empresas. Columnas: `nombre`, `descripcion`, `creditos`, `precio_mensual`, `precio_anual` (opcional), `destacado` (insignia "Recomendado"), `features` (`text[]`, una línea por característica en el formulario admin), `cta_label` (texto del botón, opcional), `mostrar_precio_desde` (para planes tipo cotización, ej. "Enterprise"), y **`empresa_id`** (opcional, referencia a `profiles.id`) — si tiene valor, es un **plan privado** visible solo para esa empresa y para admins, no aparece en la grilla pública de `/`. La política de `select` filtra por `empresa_id is null or empresa_id = auth.uid() or ...admin`. Planes actuales: **Lite, Standard, Advanced, Professional, Business, Enterprise** — precios/créditos son valores de ejemplo puestos por el asistente, no confirmados por el usuario, editables desde `/admin` → Planes de empresa.
 - **`precios_documentos`** (pestaña "Documentos disponibles" en el admin, a pesar del nombre de la tabla): estos documentos **no tienen precio individual** — la columna `precio` sigue existiendo mismo pero es nullable y no se usa en la UI (se dejó por si se retoma más adelante). Solo `documento` y `activo`.
 - **`configuracion_persona`**: fila única (`id` fijo en `1`) para la tarjeta "Persona independiente" que se muestra en `/` — `titulo`, `descripcion`, `cta_label`, `precio_desde` (opcional) y `activo` (si está en `false`, la tarjeta no se muestra).
-- **`configuracion_portal`**: fila única (`id` fijo en `1`, con `check (id = 1)`) para nombre del portal, eslogan, color primario y URLs de logo/favicon. Las imágenes se suben al bucket de Storage **`portal-assets`** (público para lectura, admin-only para escribir) vía `supabase.storage.from("portal-assets").upload(...)`.
+- **`configuracion_portal`**: fila única (`id` fijo en `1`, con `check (id = 1)`) para nombre del portal, eslogan, color primario y URLs de logo/favicon. Las imágenes se suben al bucket de Storage **`portal-assets`** (público para lectura, admin-only para escribir) vía `supabase.storage.from("portal-assets").upload(...)`. También tiene las **redes sociales** (`facebook_url`, `instagram_url`, `twitter_url`, `linkedin_url`, `tiktok_url` — todas opcionales, se agregaron 2026-08-08) y el **botón flotante de WhatsApp** (`whatsapp_numero`, `whatsapp_mensaje`, `whatsapp_activo`).
 - **`configuracion_landing`**: fila única (`id` fijo en `1`) con los textos de la página de inicio (`/`) y un interruptor de mostrar/ocultar por sección. Columnas: `hero_titulo_prefijo` / `hero_titulo_destacado` (el título del encabezado se parte en dos para poder resaltar la segunda parte en azul), `hero_subtitulo`, `hero_cta_primario_label`, `hero_cta_secundario_label` (el encabezado principal siempre se muestra, sin interruptor); `como_funciona_activo` + `como_funciona_titulo` + `paso1_titulo`/`paso1_descripcion`/`paso2_*`/`paso3_*`; `documentos_activo` + `documentos_titulo` + `documentos_subtitulo` (la lista de documentos en sí sigue viniendo de `precios_documentos`); `planes_activo` + `planes_titulo` + `planes_empresa_titulo` + `planes_empresa_subtitulo` (la tarjeta de persona y los planes de empresa en sí siguen viniendo de `configuracion_persona`/`planes_empresa`). Se administra desde `/admin` → pestaña **Página principal** (`LandingConfigManager.tsx`).
 - **`bloques_landing`**: a diferencia de las anteriores, **no** es fila única — cada fila es un bloque libre de contenido (texto + imagen opcional + botón opcional) que se muestra en `/`, en orden, al final de la página antes del pie de página. Columnas: `orden` (entero, controla la posición — se reasigna al usar las flechas ▲▼ en el admin, intercambiando el `orden` con el bloque vecino), `activo`, `titulo` (opcional), `descripcion` (opcional, admite saltos de línea — se renderiza con `whitespace-pre-line`), `imagen_url` (opcional, sube a Storage `portal-assets`), `imagen_posicion` (`'izquierda'` o `'derecha'`, solo aplica si hay imagen — controla si el texto queda a la izquierda o derecha de la imagen en pantallas ≥ `sm`, en mobile siempre se apilan), `boton_label` + `boton_href` (opcionales, deben venir los dos juntos para que se muestre el botón). Si un bloque no tiene imagen, el texto se centra como un bloque de texto simple. El fondo alterna claro/gris automáticamente según la posición del bloque en la lista (no es un campo editable). Se administra desde `/admin` → pestaña **Bloques de contenido** (`BloquesLandingManager.tsx`), con soporte para agregar, editar, eliminar y reordenar.
 
@@ -339,6 +341,14 @@ create table public.configuracion_portal (
   color_primario text not null default '#1d4ed8',
   logo_url text,
   favicon_url text,
+  facebook_url text,
+  instagram_url text,
+  twitter_url text,
+  linkedin_url text,
+  tiktok_url text,
+  whatsapp_numero text,
+  whatsapp_mensaje text default 'Hola, quiero más información.',
+  whatsapp_activo boolean not null default false,
   updated_at timestamptz not null default now(),
   constraint configuracion_portal_singleton check (id = 1)
 );
@@ -494,6 +504,15 @@ Cuenta con acceso de administrador actualmente: `yorbis10@gmail.com`.
 Cuando hay sesión activa, `Header.tsx` reemplaza los botones "Iniciar sesión"/"Crear cuenta" por un menú desplegable: círculo con iniciales (calculadas del nombre/razón social) en azul, nombre en azul negrilla, y al abrirlo muestra nombre + correo arriba y cuatro opciones con ícono — **Inicio**, **Historial**, **Perfil** y **Cerrar sesión**. El nombre viene de la tabla `profiles` — para persona es `primer_nombre` + `primer_apellido` (no solo el primer nombre), para empresa es `razon_social` — con el correo como respaldo si el usuario aún no la completó. Las iniciales del círculo: persona → primera letra de `primer_nombre` + primera letra de `primer_apellido`; empresa → iniciales de las dos primeras palabras de `razon_social`.
 
 **Tamaños de logo/avatar** (ajustados 2026-08-08 a pedido del usuario): el isotipo del Header mide 44px (`size-11`/`h-11`, antes 32px). El círculo de iniciales del menú desplegable de escritorio mide 28px (`size-7`); el del panel de menú móvil (el que se abre con el ícono de hamburguesa) mide 40px (`size-10`, antes 32px) para que se vea proporcional al logo agrandado.
+
+## Redes sociales y botón de WhatsApp
+
+Ambos configurables desde `/admin` → **Identidad del portal** (mismo formulario que nombre/logo/color, mismas columnas de `configuracion_portal`):
+
+- **Redes sociales**: `Footer.tsx` (ahora un **server component async**, ya no estático) lee `facebook_url`, `instagram_url`, `twitter_url`, `linkedin_url`, `tiktok_url` y muestra un ícono circular por cada una que tenga un enlace configurado, en la columna "Contacto" del pie de página. Si ninguna tiene enlace, no se muestra la fila de íconos. Los íconos SVG viven en `SocialIcons.tsx`.
+- **Botón flotante de WhatsApp**: `WhatsAppButton.tsx` (server component async) se agrega en `layout.tsx`, por lo que aparece en **todas** las páginas del sitio (fijo, esquina inferior derecha). Solo se renderiza si `whatsapp_activo = true` **y** hay un `whatsapp_numero` guardado — si cualquiera de las dos condiciones falta, el componente devuelve `null`. El enlace usa el formato `https://wa.me/<numero>?text=<mensaje codificado>`; `whatsapp_numero` debe ser solo dígitos con código de país (ej. `573001234567`, sin `+` ni espacios) y el componente igual limpia cualquier carácter no numérico por seguridad (`replace(/[^0-9]/g, "")`).
+
+⚠️ **Gotcha de esta máquina — inputs de texto no responden a `triple_click` + `Delete`/`Backspace` ni a `Ctrl+A` + `Backspace`**: al limpiar campos de prueba (URLs de redes sociales, número de WhatsApp) en el navegador automatizado de Claude Code, seleccionar el texto y borrarlo con el teclado no tuvo ningún efecto sobre el valor real del input controlado por React — el campo seguía mostrando el valor viejo aunque visualmente pareciera seleccionado. Confirmado leyendo `input.value` por JS antes y después. Solución que funcionó: actualizar el valor directamente por SQL en Supabase en vez de por el formulario. (Ya se conocía un problema similar con `window.confirm()` no confirmable en este entorno — ver gotcha de `bloques_landing`; parece ser una limitación más amplia de este navegador automatizado con la interacción de teclado sobre inputs controlados.)
 
 ## Modo oscuro
 
