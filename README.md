@@ -115,6 +115,7 @@ src/
     AdminTabs.tsx            # pestañas del panel admin (Identidad / Página principal / Planes de personas / Planes de empresa / Documentos / Administradores)
     AdminSettingsForm.tsx  # identidad del portal — lee/guarda en configuracion_portal, sube logo/favicon a Storage
     LandingConfigManager.tsx # admin: textos y mostrar/ocultar secciones de la página principal (configuracion_landing)
+    BloquesLandingManager.tsx # admin: agregar/editar/eliminar/reordenar bloques libres de texto+imagen+botón (bloques_landing)
     ConfiguracionPersonaManager.tsx # admin: edita la tarjeta "Persona independiente" (configuracion_persona)
     PlanesEmpresaManager.tsx    # CRUD admin de planes_empresa (incluye planes privados por empresa)
     PreciosDocumentosManager.tsx # CRUD admin de documentos disponibles (precios_documentos, sin precio)
@@ -223,6 +224,9 @@ Estas tablas tienen **lectura pública** (`using (true)`, salvo `planes_empresa`
 - **`configuracion_persona`**: fila única (`id` fijo en `1`) para la tarjeta "Persona independiente" que se muestra en `/` — `titulo`, `descripcion`, `cta_label`, `precio_desde` (opcional) y `activo` (si está en `false`, la tarjeta no se muestra).
 - **`configuracion_portal`**: fila única (`id` fijo en `1`, con `check (id = 1)`) para nombre del portal, eslogan, color primario y URLs de logo/favicon. Las imágenes se suben al bucket de Storage **`portal-assets`** (público para lectura, admin-only para escribir) vía `supabase.storage.from("portal-assets").upload(...)`.
 - **`configuracion_landing`**: fila única (`id` fijo en `1`) con los textos de la página de inicio (`/`) y un interruptor de mostrar/ocultar por sección. Columnas: `hero_titulo_prefijo` / `hero_titulo_destacado` (el título del encabezado se parte en dos para poder resaltar la segunda parte en azul), `hero_subtitulo`, `hero_cta_primario_label`, `hero_cta_secundario_label` (el encabezado principal siempre se muestra, sin interruptor); `como_funciona_activo` + `como_funciona_titulo` + `paso1_titulo`/`paso1_descripcion`/`paso2_*`/`paso3_*`; `documentos_activo` + `documentos_titulo` + `documentos_subtitulo` (la lista de documentos en sí sigue viniendo de `precios_documentos`); `planes_activo` + `planes_titulo` + `planes_empresa_titulo` + `planes_empresa_subtitulo` (la tarjeta de persona y los planes de empresa en sí siguen viniendo de `configuracion_persona`/`planes_empresa`). Se administra desde `/admin` → pestaña **Página principal** (`LandingConfigManager.tsx`).
+- **`bloques_landing`**: a diferencia de las anteriores, **no** es fila única — cada fila es un bloque libre de contenido (texto + imagen opcional + botón opcional) que se muestra en `/`, en orden, al final de la página antes del pie de página. Columnas: `orden` (entero, controla la posición — se reasigna al usar las flechas ▲▼ en el admin, intercambiando el `orden` con el bloque vecino), `activo`, `titulo` (opcional), `descripcion` (opcional, admite saltos de línea — se renderiza con `whitespace-pre-line`), `imagen_url` (opcional, sube a Storage `portal-assets`), `imagen_posicion` (`'izquierda'` o `'derecha'`, solo aplica si hay imagen — controla si el texto queda a la izquierda o derecha de la imagen en pantallas ≥ `sm`, en mobile siempre se apilan), `boton_label` + `boton_href` (opcionales, deben venir los dos juntos para que se muestre el botón). Si un bloque no tiene imagen, el texto se centra como un bloque de texto simple. El fondo alterna claro/gris automáticamente según la posición del bloque en la lista (no es un campo editable). Se administra desde `/admin` → pestaña **Bloques de contenido** (`BloquesLandingManager.tsx`), con soporte para agregar, editar, eliminar y reordenar.
+
+⚠️ **Gotcha del botón "Eliminar" en el navegador automatizado de Claude Code**: `BloquesLandingManager.tsx` (igual que `PlanesEmpresaManager.tsx`) usa `window.confirm(...)` antes de borrar. En un navegador normal esto muestra el diálogo nativo de confirmación sin problema. En el navegador automatizado que usa el asistente dentro de Claude Code, ese diálogo nativo no se puede aceptar (el clic en "Eliminar" no tiene efecto visible) — para borrar una fila de prueba durante una sesión de verificación hay que hacerlo por SQL directo en Supabase en vez de por la UI. Esto es una limitación de la herramienta de automatización, no un bug del sitio.
 
 Todas se administran desde `/admin` (ver [Panel de administración](#panel-de-administración)) y se reflejan en vivo en el sitio: `configuracion_persona` y los planes/documentos de inmediato (lectura client-side); `configuracion_portal` (logo, favicon y color primario) y `configuracion_landing` (textos e interruptores de la página de inicio) con hasta 60s de retraso — `Header.tsx` lee `logo_url`/`color_primario` client-side; `layout.tsx` (favicon) y `page.tsx` (textos de la landing) usan `export const revalidate = 60`, así no hace falta un redeploy para ver el cambio, solo esperar hasta un minuto y recargar. El nombre del portal y el eslogan de `configuracion_portal` siguen sin conectarse al front — solo se guardan en la tabla, pendiente en el roadmap.
 
@@ -407,6 +411,39 @@ create policy "Admins can update configuracion_landing"
   on public.configuracion_landing for update
   using ((auth.jwt() -> 'app_metadata' ->> 'role') = 'admin');
 
+
+create table public.bloques_landing (
+  id uuid primary key default gen_random_uuid(),
+  orden integer not null default 0,
+  activo boolean not null default true,
+  titulo text,
+  descripcion text,
+  imagen_url text,
+  imagen_posicion text not null default 'derecha' check (imagen_posicion in ('izquierda','derecha')),
+  boton_label text,
+  boton_href text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.bloques_landing enable row level security;
+
+create policy "Anyone can view bloques_landing"
+  on public.bloques_landing for select
+  using (true);
+
+create policy "Admins can insert bloques_landing"
+  on public.bloques_landing for insert
+  with check ((auth.jwt() -> 'app_metadata' ->> 'role') = 'admin');
+
+create policy "Admins can update bloques_landing"
+  on public.bloques_landing for update
+  using ((auth.jwt() -> 'app_metadata' ->> 'role') = 'admin');
+
+create policy "Admins can delete bloques_landing"
+  on public.bloques_landing for delete
+  using ((auth.jwt() -> 'app_metadata' ->> 'role') = 'admin');
+
 create policy "Admins can delete portal-assets"
   on storage.objects for delete
   using (bucket_id = 'portal-assets' and (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin');
@@ -418,10 +455,11 @@ create policy "Admins can delete portal-assets"
 
 `/admin` está protegido por `AdminGate.tsx` (client component): revisa que la sesión tenga `user.app_metadata.role === "admin"`. Se usa `app_metadata` y no `user_metadata` a propósito — `user_metadata` lo puede editar el propio usuario desde el cliente (`supabase.auth.updateUser`), así que no sirve para permisos; `app_metadata` solo se puede modificar desde el backend de Supabase.
 
-`AdminTabs.tsx` organiza el panel en seis pestañas, todas con guardado real:
+`AdminTabs.tsx` organiza el panel en siete pestañas, todas con guardado real:
 
 - **Identidad del portal** (`AdminSettingsForm.tsx`) — nombre, eslogan, color primario, logo y favicon (`configuracion_portal` + Storage).
 - **Página principal** (`LandingConfigManager.tsx`) — textos del encabezado, de la sección "Cómo funciona" (título + 3 pasos) y de los títulos/subtítulos de "Documentos disponibles" y "Planes", más un interruptor mostrar/ocultar por sección (`configuracion_landing`).
+- **Bloques de contenido** (`BloquesLandingManager.tsx`) — agregar/editar/eliminar/reordenar bloques libres de texto + imagen opcional + botón opcional, que se muestran al final de `/` antes del pie de página (`bloques_landing`). Ver detalle abajo.
 - **Planes de personas** (`ConfiguracionPersonaManager.tsx`) — título/descripción/precio-desde/CTA de la tarjeta "Persona independiente" en `/`.
 - **Planes de empresa** (`PlanesEmpresaManager.tsx`) — crear/editar/eliminar planes; incluye la opción de asignar un plan a una sola empresa (privado).
 - **Documentos disponibles** (`PreciosDocumentosManager.tsx`) — lista de documentos para personas naturales (sin precio).
