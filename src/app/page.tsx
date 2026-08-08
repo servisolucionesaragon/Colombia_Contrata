@@ -85,11 +85,7 @@ export default async function Home() {
         {/* Hero */}
         <section className="relative overflow-hidden bg-gradient-to-br from-blue-50 via-white to-white dark:from-gray-900 dark:via-gray-950 dark:to-gray-950">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-20 sm:pt-24 sm:pb-28 text-center">
-            <span className="inline-flex items-center gap-x-2 rounded-full bg-brand-blue/10 text-brand-blue text-xs font-bold px-4 py-2">
-              <span className="size-1.5 rounded-full bg-brand-blue" />
-              Colombia Contrata
-            </span>
-            <h1 className="mt-6 text-4xl sm:text-6xl font-bold text-gray-900 dark:text-gray-100 tracking-tight leading-[1.05]">
+            <h1 className="text-4xl sm:text-6xl font-bold text-gray-900 dark:text-gray-100 tracking-tight leading-[1.05]">
               {c.hero_titulo_prefijo}{" "}
               <span className="text-brand-blue">{c.hero_titulo_destacado}</span>
             </h1>
