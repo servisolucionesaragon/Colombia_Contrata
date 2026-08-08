@@ -15,7 +15,7 @@ Tiene dos perfiles de usuario:
 - [Tailwind CSS](https://tailwindcss.com) v4
 - [Preline UI](https://preline.co) — librería de componentes
 - Tipografía: **Montserrat** (`next/font/google`)
-- **Supabase** — autenticación (`@supabase/supabase-js`, cliente en `src/lib/supabase.ts`). Postgres/storage aún no se usan.
+- **Supabase** — autenticación (`@supabase/supabase-js`, cliente en `src/lib/supabase.ts`) + tabla `profiles` en Postgres (con RLS) para los datos ampliados de `/perfil`. Storage aún no se usa.
 - **Resend** — proveedor SMTP conectado a Supabase Auth, para que los correos salgan desde `noreply@colombiacontrata.com` en vez del dominio compartido de Supabase.
 - Pendiente de definir: proveedor de pagos (Wompi / PayU), y la API del proveedor externo que genera los documentos.
 
@@ -50,12 +50,13 @@ Basada en `Manual_Identidad_Visual_Colombia_Contrata` (carpeta `Colombia Contrat
 |---|---|---|
 | `/` | Landing page (hero, cómo funciona, documentos, planes) | Completa (frontend) |
 | `/registro` | Alta de cuenta (correo + contraseña + toggle Persona natural / Empresa + consentimiento Habeas Data) | **Conectado a Supabase Auth real** — crea la cuenta y envía correo de verificación |
-| `/perfil` | Datos ampliados post-confirmación (persona: nombre/documento/fechas/género/ubicación; empresa: razón social/NIT/representante/sector/ubicación) | Lee el tipo de cuenta real desde la sesión de Supabase; el formulario en sí **aún no persiste** (falta tabla `profiles`) |
+| `/login` | Inicio de sesión (correo + contraseña) | **Conectado a Supabase Auth real** vía `supabase.auth.signInWithPassword` |
+| `/perfil` | Datos ampliados post-confirmación (persona: nombre/documento/fechas/género/ubicación; empresa: razón social/NIT/representante/sector/ubicación) | **Conectado de verdad** — lee y guarda (`upsert`) en la tabla `profiles` de Supabase, precarga los datos si ya existían |
 | `/terminos` | Términos y Condiciones | Borrador, falta revisión legal |
 | `/privacidad` | Política de Tratamiento de Datos Personales (Ley 1581) | Borrador, falta revisión legal |
-| `/admin` | Back office: nombre, eslogan, logo, favicon, color primario | Vista previa; **sin autenticación ni persistencia** |
+| `/admin` | Back office: nombre, eslogan, logo, favicon, color primario | **Protegido con autenticación real** (solo cuentas con `app_metadata.role = "admin"`, ver [Panel de administración](#panel-de-administración)); el guardado de los cambios sigue siendo solo vista previa |
 
-`/solicitar`, `/login` y `/empresas` están enlazadas desde la UI pero **todavía no existen** (darán 404 si se navega directo). `/login` en particular ya es necesaria pronto: `/perfil` redirige ahí cuando no hay sesión.
+`/solicitar` y `/empresas` están enlazadas desde la UI pero **todavía no existen** (darán 404 si se navega directo).
 
 ## Requisitos
 
@@ -91,17 +92,20 @@ src/
     globals.css          # Tailwind v4 (@theme con colores de marca) + @source hacia preline/dist
     icon.png              # favicon (Next.js lo detecta automáticamente)
     registro/page.tsx     # alta de cuenta
+    login/page.tsx         # inicio de sesión
     perfil/page.tsx        # completar datos post-registro
     terminos/page.tsx     # términos y condiciones
     privacidad/page.tsx   # política de datos personales
-    admin/page.tsx        # back office (vista previa, sin auth)
+    admin/page.tsx        # back office (protegido por AdminGate)
   components/
-    Header.tsx / Footer.tsx
+    Header.tsx / Footer.tsx # Header es client component: lee sesión + tabla profiles para mostrar nombre/razón social y botón de cerrar sesión
     RegisterForm.tsx       # registro real vía Supabase Auth (signUp + metadata de consentimiento)
-    ProfileForm.tsx        # lee supabase.auth.getUser() para saber persona/empresa; guardado aún es vista previa
-    AdminSettingsForm.tsx  # formulario de configuración del portal
+    LoginForm.tsx           # login real vía Supabase Auth (signInWithPassword)
+    ProfileForm.tsx        # lee y guarda (upsert) en la tabla profiles según persona/empresa
+    AdminGate.tsx           # bloquea /admin a menos que la sesión tenga app_metadata.role === "admin"
+    AdminSettingsForm.tsx  # formulario de configuración del portal (guardado aún es vista previa)
     LegalDisclaimer.tsx    # aviso de "falta revisión legal" en /terminos y /privacidad
-    AdminWarningBanner.tsx # aviso de "sin autenticación" en /admin
+    AdminWarningBanner.tsx # aviso de "guardado aún es vista previa" en /admin
     PrelineScript.tsx      # inicializa los componentes JS de Preline en cada navegación
   lib/
     supabase.ts            # cliente de Supabase (createClient con las env vars NEXT_PUBLIC_*)
@@ -126,12 +130,94 @@ El registro ya guarda trazabilidad básica del consentimiento en `user_metadata`
 
 `/terminos` y `/privacidad` son **borradores de plantilla** (con aviso visible en la propia página) — deben ser revisados por un abogado y completados con la razón social/NIT reales antes de producción.
 
+## Base de datos (Postgres)
+
+Tabla `profiles` en Supabase (creada a mano vía SQL Editor — no hay migraciones versionadas en el repo todavía): una fila por usuario, `id` es el mismo `uuid` que `auth.users.id`. Tiene columnas separadas y nulas según el tipo de cuenta (persona vs. empresa, definido por `account_type`), para no necesitar dos tablas. RLS habilitado con 3 políticas (`select`/`insert`/`update`, todas con `auth.uid() = id`, así cada usuario solo ve/edita su propia fila).
+
+<details>
+<summary>Ver el SQL completo</summary>
+
+```sql
+create table public.profiles (
+  id uuid primary key references auth.users(id) on delete cascade,
+  account_type text not null check (account_type in ('persona', 'empresa')),
+
+  -- Persona natural
+  primer_nombre text,
+  segundo_nombre text,
+  primer_apellido text,
+  segundo_apellido text,
+  tipo_documento text,
+  documento text,
+  fecha_nacimiento date,
+  fecha_expedicion date,
+  genero text,
+  profesion text,
+  telefono text,
+  direccion text,
+  departamento text,
+  ciudad text,
+
+  -- Empresa
+  razon_social text,
+  nit text,
+  tipo_sociedad text,
+  fecha_constitucion date,
+  sector_economico text,
+  sitio_web text,
+  telefono_empresa text,
+  direccion_empresa text,
+  departamento_empresa text,
+  ciudad_empresa text,
+  representante_legal text,
+  documento_representante text,
+  nombre_contacto text,
+  telefono_contacto text,
+
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.profiles enable row level security;
+
+create policy "Users can view own profile"
+  on public.profiles for select
+  using (auth.uid() = id);
+
+create policy "Users can insert own profile"
+  on public.profiles for insert
+  with check (auth.uid() = id);
+
+create policy "Users can update own profile"
+  on public.profiles for update
+  using (auth.uid() = id);
+```
+
+</details>
+
+`ProfileForm.tsx` mapea cada campo del formulario 1:1 a una columna (vía el atributo `name` de cada input) y hace `supabase.from("profiles").upsert(...)` al guardar. Cuando empresas necesiten planes/paquetes/créditos para consultar candidatos, eso se modelará como tablas nuevas aparte de `profiles` — no como columnas adicionales aquí.
+
+## Panel de administración
+
+`/admin` está protegido por `AdminGate.tsx` (client component): revisa que la sesión tenga `user.app_metadata.role === "admin"`. Se usa `app_metadata` y no `user_metadata` a propósito — `user_metadata` lo puede editar el propio usuario desde el cliente (`supabase.auth.updateUser`), así que no sirve para permisos; `app_metadata` solo se puede modificar desde el backend de Supabase.
+
+Para dar acceso de administrador a una cuenta (ya registrada) desde el SQL Editor de Supabase:
+
+```sql
+update auth.users
+set raw_app_meta_data = raw_app_meta_data || jsonb_build_object('role', 'admin')
+where email = 'correo@ejemplo.com';
+```
+
+Cuenta con acceso de administrador actualmente: `yorbis10@gmail.com`.
+
 ## Despliegue
 
 - **Hosting**: [Vercel](https://vercel.com), proyecto `servisoluciones-aragon/colombia-contrata`, conectado al repo de GitHub — cada push a `main` despliega automáticamente a producción.
 - **Repo**: [servisolucionesaragon/Colombia_Contrata](https://github.com/servisolucionesaragon/Colombia_Contrata).
-- **Backend**: [Supabase](https://supabase.com) (proyecto `colombia-contrata`, ref `zjbijmieiyumpqwyqhfm`, región São Paulo) — por ahora solo Auth.
-- **Email**: Supabase Auth usa SMTP personalizado vía [Resend](https://resend.com) (`smtp.resend.com`, remitente `noreply@colombiacontrata.com`). Configurado en Supabase → Authentication → Emails → SMTP Settings. Las 6 plantillas de "Authentication" (Confirm signup, Invite, Magic Link, Change email, Reset password, Reauthentication) están traducidas al español; las 7 de "Security" (password/email/phone changed, MFA, etc.) siguen desactivadas por defecto y sin traducir porque no se usan todavía.
+- **Backend**: [Supabase](https://supabase.com) (proyecto `colombia-contrata`, ref `zjbijmieiyumpqwyqhfm`, región São Paulo) — Auth + tabla `profiles` en Postgres (ver [Base de datos](#base-de-datos-postgres)). Storage aún no se usa.
+- **Email**: Supabase Auth usa SMTP personalizado vía [Resend](https://resend.com) (`smtp.resend.com`, remitente `noreply@colombiacontrata.com`). Configurado en Supabase → Authentication → Emails → SMTP Settings. Las 6 plantillas de "Authentication" (Confirm signup, Invite, Magic Link, Change email, Reset password, Reauthentication) están traducidas al español. De las 7 de "Security", **"Change Email Address" ya está activada y traducida** (necesaria para poder cambiar el correo desde `/perfil`); el resto (password/phone changed, MFA, etc.) siguen desactivadas por defecto y sin traducir porque no se usan todavía.
+- **Auth → URL Configuration**: el **Site URL** y los **Redirect URLs** están configurados en `https://colombiacontrata.com` / `https://www.colombiacontrata.com` (se mantiene también `https://colombia-contrata.vercel.app/**` por si se sigue usando para pruebas). El enlace de los correos de confirmación (`{{ .ConfirmationURL }}`) usa el `redirect_to` que manda el cliente (`emailRedirectTo: window.location.origin + "/perfil"` en `RegisterForm.tsx`) **solo si ese dominio está en la lista de Redirect URLs** — si no, Supabase cae de vuelta al Site URL. Si se agrega otro dominio/subdominio desde el que la gente se registre, hay que agregarlo ahí también.
 - **Dominio propio** `colombiacontrata.com`: comprado, DNS/CDN en Cloudflare, **ya conectado a Vercel** (2026-08-07). `colombiacontrata.com` y `www.colombiacontrata.com` están agregados en Vercel → Domains (Production), con "Redirect apex domains to www" activado (colombiacontrata.com hace 308 a www). En Cloudflare → DNS → Registros existen los dos CNAME requeridos, ambos "DNS only" (proxy desactivado, nube gris):
 
     | Type | Name | Value | Proxy |
@@ -143,14 +229,14 @@ El registro ya guarda trazabilidad básica del consentimiento en `user_metadata`
 
 ## Roadmap / pendientes
 
-- [ ] Construir `/login` (urgente — `/perfil` ya redirige ahí sin sesión) y `/solicitar` (checklist de documentos) y `/empresas`.
-- [ ] Crear tabla `profiles` en Supabase (Postgres) y conectar `ProfileForm.tsx` para que persista de verdad.
+- [ ] Construir `/solicitar` (checklist de documentos) y `/empresas`.
+- [ ] Sección de "cuenta" en `/perfil` para cambiar contraseña y correo (el teléfono ya se edita ahí). Ambos usan `supabase.auth.updateUser` — la plantilla "Change Email Address" ya está activada y traducida en Supabase, solo falta construir la UI.
 - [ ] Registrar la IP en la trazabilidad de consentimiento de Habeas Data (requiere un endpoint de servidor/Route Handler, ya que `supabase.auth.signUp` corre en el cliente).
-- [ ] Proteger `/admin` con autenticación real (solo administradores).
+- [ ] Conectar el guardado de `AdminSettingsForm.tsx` a un backend real (hoy `/admin` ya está protegido por autenticación, pero los cambios que se guardan ahí siguen siendo solo vista previa).
 - [ ] Postgres + storage con URLs firmadas para la expiración de 10 días de los documentos.
+- [ ] Tablas de planes/paquetes/créditos para el flujo de empresas (compra de créditos, invitación de candidatos, historial) — separadas de `profiles`.
 - [ ] Integración con la API del proveedor de fuentes (contraloría, policía, procuraduría, etc.) — aún no contratada.
 - [ ] Pasarela de pagos (Wompi / PayU).
 - [ ] Generación y empaquetado de PDFs + expiración de 10 días.
-- [ ] Panel de empresa (créditos, invitación de candidatos, historial).
 - [ ] Revisión legal de `/terminos` y `/privacidad` + completar datos legales de la empresa.
-- [ ] Traducir y activar las plantillas de "Security" en Supabase si se llegan a necesitar (MFA, cambios de contraseña/correo/teléfono).
+- [ ] Traducir y activar el resto de plantillas de "Security" en Supabase si se llegan a necesitar (MFA, cambio de contraseña, cambio de teléfono — "Change Email Address" ya está lista).
