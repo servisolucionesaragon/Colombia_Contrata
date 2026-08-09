@@ -13,19 +13,43 @@ export default function TerminosPage() {
   return (
     <>
       <Header />
-      <main className="flex-1 py-12 sm:py-16">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
-            Términos y Condiciones
-          </h1>
-          <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-            Última actualización: [fecha pendiente de publicación]
-          </p>
+      <main className="flex-1">
+        {/* Hero */}
+        <section className="relative overflow-hidden bg-gradient-to-br from-blue-50 via-white to-white dark:from-gray-900 dark:via-gray-950 dark:to-gray-950">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-14 sm:pt-20 sm:pb-16 text-center">
+            <span className="inline-flex items-center justify-center size-14 rounded-2xl bg-brand-blue/10 text-brand-blue">
+              <svg
+                className="size-7"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
+                <path d="M14 2v6h6" />
+                <path d="M9 13h6" />
+                <path d="M9 17h6" />
+              </svg>
+            </span>
+            <h1 className="mt-6 text-3xl sm:text-5xl font-bold text-gray-900 dark:text-gray-100 tracking-tight">
+              Términos y Condiciones
+            </h1>
+            <p className="mt-4 text-gray-500 dark:text-gray-400">
+              Última actualización: [fecha pendiente de publicación]
+            </p>
+          </div>
+        </section>
 
-          <LegalDisclaimer />
+        {/* Contenido */}
+        <section className="bg-gray-50 dark:bg-gray-900/50 py-16 sm:py-20">
+          <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+            <LegalDisclaimer />
 
-          <div className="mt-8 space-y-8 text-gray-700 dark:text-gray-300 leading-relaxed">
-            <Section title="1. Objeto">
+            <div className="mt-8 rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-6 sm:p-10 space-y-10 text-gray-700 dark:text-gray-300 leading-relaxed">
+              <Section title="1. Objeto">
               <p>
                 Estos Términos y Condiciones regulan el acceso y uso de la
                 plataforma <strong>Colombia Contrata</strong> (en adelante,
@@ -184,8 +208,9 @@ export default function TerminosPage() {
                 .
               </p>
             </Section>
+            </div>
           </div>
-        </div>
+        </section>
       </main>
       <Footer />
     </>
@@ -199,10 +224,21 @@ function Section({
   title: string;
   children: React.ReactNode;
 }) {
+  const match = title.match(/^(\d+)\.\s*(.*)$/);
+  const numero = match?.[1];
+  const texto = match?.[2] ?? title;
+
   return (
-    <section>
-      <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">{title}</h2>
-      {children}
+    <section id={numero ? `seccion-${numero}` : undefined} className="scroll-mt-24">
+      <div className="flex items-center gap-x-3 mb-3">
+        {numero && (
+          <span className="flex items-center justify-center size-8 shrink-0 rounded-full bg-brand-blue text-white text-sm font-bold">
+            {numero}
+          </span>
+        )}
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{texto}</h2>
+      </div>
+      <div className="sm:pl-11">{children}</div>
     </section>
   );
 }
