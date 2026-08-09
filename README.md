@@ -55,8 +55,8 @@ Basada en `Manual_Identidad_Visual_Colombia_Contrata` (carpeta `Colombia Contrat
 | `/registro` | Alta de cuenta (correo + contraseña + toggle Persona natural / Empresa + consentimiento Habeas Data) | **Conectado a Supabase Auth real** — crea la cuenta y envía correo de verificación |
 | `/login` | Inicio de sesión (correo + contraseña) | **Conectado a Supabase Auth real** vía `supabase.auth.signInWithPassword` |
 | `/perfil` | Datos ampliados post-confirmación (persona: nombre/documento/fechas/género/ubicación; empresa: razón social/NIT/representante/sector/ubicación) + sección "Seguridad de la cuenta" (cambiar contraseña y correo) | **Conectado de verdad** — lee y guarda (`upsert`) en la tabla `profiles` de Supabase, precarga los datos si ya existían; cambio de contraseña/correo vía `supabase.auth.updateUser` |
-| `/terminos` | Términos y Condiciones | Borrador, falta revisión legal |
-| `/privacidad` | Política de Tratamiento de Datos Personales (Ley 1581) | Borrador, falta revisión legal |
+| `/terminos` | Términos y Condiciones | Borrador, falta revisión legal — **editable desde `/admin` → Páginas** (ver [Términos y Privacidad como páginas editables](#términos-y-privacidad-como-páginas-editables)) |
+| `/privacidad` | Política de Tratamiento de Datos Personales (Ley 1581) | Borrador, falta revisión legal — **editable desde `/admin` → Páginas** (mismo mecanismo que `/terminos`) |
 | `/admin` | Back office con pestañas: Identidad del portal, Planes de personas, Planes de empresa, Documentos disponibles, Administradores | **Protegido con autenticación real** (solo cuentas con `app_metadata.role = "admin"`, ver [Panel de administración](#panel-de-administración)) — **todo se guarda de verdad**, incluyendo subida de logo/favicon a Storage y dar/quitar acceso admin por correo |
 | `/historial` | Historial de solicitudes/verificaciones del usuario | Placeholder protegido por sesión ("Aún no tienes solicitudes") — falta el flujo real de solicitud de documentos para tener datos que mostrar |
 
@@ -99,8 +99,8 @@ src/
     login/page.tsx         # inicio de sesión
     perfil/page.tsx        # completar datos post-registro
     historial/page.tsx     # placeholder de historial de solicitudes (protegido por sesión)
-    terminos/page.tsx     # términos y condiciones
-    privacidad/page.tsx   # política de datos personales
+    terminos/page.tsx     # términos y condiciones — lee titulo/contenido de la tabla paginas (slug "terminos"), con fallback hardcodeado si no hay fila
+    privacidad/page.tsx   # política de datos personales — mismo mecanismo, slug "privacidad"
     admin/page.tsx        # back office (protegido por AdminGate)
     api/admin/roles/route.ts # Route Handler: dar/quitar admin por correo, usa la Service Role Key (solo servidor)
   components/
@@ -127,7 +127,6 @@ src/
     PlanPersonaCard.tsx          # tarjeta pública "Persona independiente" en "/", lee configuracion_persona
     PlanesEmpresaPricing.tsx    # tarjetas de precios públicas en "/" (toggle mensual/anual)
     PreciosDocumentosPricing.tsx # lista pública de documentos disponibles en "/" (sin precio)
-    LegalDisclaimer.tsx    # aviso de "falta revisión legal" en /terminos y /privacidad
     PrelineScript.tsx      # inicializa los componentes JS de Preline en cada navegación
   lib/
     supabase.ts            # cliente de Supabase (createClient con las env vars NEXT_PUBLIC_*)
@@ -150,7 +149,7 @@ Los antecedentes penales, policiales y disciplinarios se consideran **dato sensi
 
 El registro ya guarda trazabilidad básica del consentimiento en `user_metadata` de Supabase (booleans de cada checkbox + `policy_version` + `accepted_at`, ver `POLICY_VERSION` en `RegisterForm.tsx`). Falta registrar la **IP** (requiere un endpoint de servidor, `signUp` corre en el cliente y no tiene acceso a ella) y evaluar el registro en el RNBD ante la SIC si se supera el umbral de registros.
 
-`/terminos` y `/privacidad` son **borradores de plantilla** (con aviso visible en la propia página) — deben ser revisados por un abogado y completados con la razón social/NIT reales antes de producción.
+`/terminos` y `/privacidad` son **borradores de plantilla** — deben ser revisados por un abogado y completados con la razón social/NIT reales antes de producción. El aviso visible de "falta revisión legal" que tenían en pantalla se quitó a pedido del usuario (2026-08-09, componente `LegalDisclaimer.tsx` eliminado); esta advertencia queda solo aquí y en `.claude/CLAUDE.md`, no en el sitio público.
 
 ## Base de datos (Postgres)
 
@@ -553,7 +552,27 @@ Después de aplicar un diseño personalizado completo a la página "Nosotros" (v
 
 Cambios de estilo aplicados: fondo degradado + badge + título más grande en el hero; tarjetas redondeadas con sombra al pasar el mouse en "Cómo funciona", "Documentos disponibles" y los planes; botones con efecto de elevación (`hover:-translate-y-0.5` + sombra de color) en vez de solo cambiar de color; encabezados de sección más grandes y consistentes en todas las secciones, incluidos los Bloques de contenido.
 
-**Franja de colores de marca** (amarillo/azul/rojo, 5px de alto): se agregó como elemento propio en `page.tsx`, **justo debajo del `<Header />`** y fuera de él a propósito — el usuario pidió explícitamente que "se oculte cuando haga scroll hacia abajo". Como `Header.tsx` es `sticky top-0`, si la franja viviera *dentro* del Header se quedaría pegada arriba para siempre; al vivir *después* del Header, en el flujo normal de la página, desaparece apenas se hace scroll mientras el menú se mantiene fijo. Por ahora la franja solo está en `/` (no en `Header.tsx`), así que no aparece en las demás páginas del sitio — si se quiere en todo el sitio, habría que moverla a `Header.tsx` o a `layout.tsx` con el mismo cuidado de no ponerla dentro del contenedor sticky.
+**Franja de colores de marca** (amarillo/azul/rojo, 5px de alto): se agregó originalmente como elemento propio en `page.tsx`, justo debajo del `<Header />` y fuera de él a propósito — el usuario pidió explícitamente que "se oculte cuando haga scroll hacia abajo". Como `Header.tsx` es `sticky top-0`, si la franja viviera *dentro* del Header se quedaría pegada arriba para siempre; al vivir *después*, en el flujo normal de la página, desaparece apenas se hace scroll mientras el menú se mantiene fijo. **Actualización 2026-08-09**: el usuario pidió que la franja estuviera "siempre en todas las páginas", no solo en `/` — se movió de `page.tsx` a `Header.tsx` mismo, que ahora devuelve un fragment con el `<header>` sticky y la franja como **hermana** (no dentro del sticky, mismo cuidado que antes para que se siga ocultando al hacer scroll). Como `Header.tsx` se usa en todas las páginas del sitio, la franja ahora aparece automáticamente en cualquier página nueva sin tener que agregarla a mano — verificado en `/`, `/terminos`, `/privacidad` y `/login`.
+
+**Insignia del hero quitada** (2026-08-08): el hero tenía una insignia pequeña ("● Colombia Contrata") encima del título — el usuario pidió quitarla ("quita el texto 'Colombia Contrata' que está por encima de 'Todos tus documentos de contratación...'"). Se eliminó el `<span>` completo (el punto + el texto), no solo el texto, para no dejar una píldora vacía; el `<h1>` pasó a ser el primer elemento dentro del hero.
+
+## Términos y Privacidad como páginas editables
+
+`/terminos` y `/privacidad` (2026-08-09, a pedido del usuario "ponle diseño también" y luego "conviértelo en páginas editables desde admin") pasaron por dos cambios seguidos:
+
+1. **Rediseño visual** con el mismo lenguaje que el resto del sitio: encabezado tipo hero con degradado e ícono (documento para Términos, escudo para Privacidad), y el contenido dentro de una tarjeta redondeada (`rounded-2xl`) sobre fondo gris claro — mismo tratamiento que las tarjetas de precios. Cada sección (antes un `<h2>` simple con "1. Objeto" escrito a mano) ahora numera automáticamente con un círculo azul de marca vía **CSS counter** (`.legal-content` en `globals.css`): `counter-reset`/`counter-increment` en cada `<h2>`, con el número dibujado en un `::before` — así el admin escribe `<h2>Objeto</h2>` sin número y el círculo "1" aparece solo, igual que los pasos de "Cómo funciona" en `/`.
+2. **Contenido editable desde `/admin`**: ambas páginas ahora leen `titulo`/`contenido` de la misma tabla `paginas` que usa "Nosotros" (`.eq("slug", "terminos")` / `"privacidad")`, con un `DEFAULT_CONTENIDO`/`DEFAULT_TITULO` hardcodeado en cada `page.tsx` como respaldo si la fila no existe o `activo=false` — así el sitio nunca se queda sin contenido legal aunque alguien borre la fila por error. Las dos filas se cargaron por SQL directo (no por el textarea del admin) para transcribir el HTML exacto sin pelear con la automatización de teclado.
+
+Como `terminos` y `privacidad` son ahora filas de `paginas` pero con **ruta propia fija** (no genérica `/paginas/<slug>`), se agregaron tres salvaguardas para que no queden accesibles ni enlazadas por duplicado en `/paginas/terminos`:
+   - `src/app/paginas/[slug]/page.tsx` hace `notFound()` si el slug es `"terminos"` o `"privacidad"` (constante `SLUGS_RESERVADOS`).
+   - `Header.tsx` excluye esos dos slugs de la consulta que arma el menú automático de páginas (`.not("slug", "in", "(terminos,privacidad)")`).
+   - `PaginasManager.tsx` detecta estos dos slugs (`SLUGS_ESPECIALES`) y en el listado de `/admin` muestra su URL real (`/terminos`, `/privacidad`) en vez de `/paginas/<slug>`, con el campo de URL en modo solo-lectura y un aviso de que no se debe cambiar — si alguien le cambiara el slug, la página en `/terminos` simplemente caería de vuelta al `DEFAULT_CONTENIDO` hardcodeado (no se rompe, pero deja de reflejar lo que el admin haya editado).
+
+**Aviso de "plantilla base" quitado**: el recuadro amarillo que decía "Este documento es una plantilla base... aún no ha sido revisada por un abogado" (componente `LegalDisclaimer.tsx`) se eliminó por completo a pedido del usuario. La advertencia de que faltan revisión legal y datos reales de la empresa sigue viva en este README y en `.claude/CLAUDE.md`, pero ya no se muestra en el sitio público.
+
+**Ancho igual a "Nosotros"**: el usuario pidió que ambas páginas tuvieran "el mismo ancho que la página de Nosotros". Al medir el `.container` de Nosotros en vivo (`getBoundingClientRect()` con la ventana en 1600px), el ancho real resultó ser `min(1180px, 92%)` → **1180px**, no los 1440px que la documentación anterior decía (ver gotcha abajo). Se ajustaron los contenedores de `/terminos` y `/privacidad` a `max-w-[1180px]` para que coincidan de verdad.
+
+⚠️ **Gotcha — un `UPDATE ... replace()` "exitoso" en Supabase no garantiza que el valor cambió**: la entrada anterior de este README decía que el `.container` de "Nosotros" se había ensanchado de `min(1180px, 92%)` a `min(1440px, 95%)` con un `UPDATE ... SET contenido = replace(...)`. Al medir en vivo el 2026-08-09 para igualar el ancho de Términos/Privacidad, el valor real seguía siendo `min(1180px, 92%)` — el `replace()` no tomó efecto (causa no diagnosticada; posiblemente el patrón buscado no coincidía exactamente con el string guardado) y nadie lo verificó con una medición real en su momento, solo con el mensaje de éxito de Supabase. **Lección**: después de un `UPDATE` que depende de que un patrón de texto coincida exactamente (`replace()`, no un valor fijo), confirmar el resultado leyendo el dato de vuelta o midiendo en el navegador — el "Success" de Supabase solo confirma que la sentencia SQL corrió, no que el `replace()` encontró y cambió algo.
 
 **Insignia del hero quitada** (2026-08-08): el hero tenía una insignia pequeña ("● Colombia Contrata") encima del título — el usuario pidió quitarla ("quita el texto 'Colombia Contrata' que está por encima de 'Todos tus documentos de contratación...'"). Se eliminó el `<span>` completo (el punto + el texto), no solo el texto, para no dejar una píldora vacía; el `<h1>` pasó a ser el primer elemento dentro del hero.
 
@@ -562,6 +581,7 @@ Cambios de estilo aplicados: fondo degradado + badge + título más grande en el
 Desde `/admin` → **Páginas** se pueden crear páginas con su propia URL — pensado para cosas como "Nosotros", "Visión y misión", "Servicios", etc. — sin tocar código.
 
 - Tabla `paginas`: `slug` (único, define la URL — `/paginas/<slug>`), `titulo`, `contenido` (HTML, escrito con el editor de texto enriquecido), `activo`, `mostrar_en_menu`, `orden`.
+- **Excepción**: las filas con slug `terminos` y `privacidad` no se sirven en `/paginas/<slug>` sino en sus rutas fijas `/terminos` y `/privacidad` (con su propio diseño) — ver [Términos y Privacidad como páginas editables](#términos-y-privacidad-como-páginas-editables).
 - **El slug se autogenera del título** (minúsculas, sin tildes, espacios → guiones) la primera vez, pero es editable a mano; debe ser único (si se repite, Postgres devuelve un error de constraint `unique` que `PaginasManager.tsx` traduce a un mensaje legible).
 - **`mostrar_en_menu`**: si está activo, la página aparece automáticamente como un enlace más en el menú de navegación de `Header.tsx` (desktop y móvil), después de los enlaces fijos (Cómo funciona / Documentos / Planes / Empresas). Si está desactivado, la página existe y es accesible por su URL, pero hay que enlazarla a mano — por ejemplo desde el botón de un bloque de `bloques_landing` (pestaña "Bloques de contenido") apuntando a `/paginas/<slug>`, o desde cualquier otro lugar del sitio.
 - La ruta pública es `src/app/paginas/[slug]/page.tsx` — un server component async con `export const revalidate = 60` que hace `notFound()` (404 real de Next.js) si el slug no existe o la página está `activo = false`.
