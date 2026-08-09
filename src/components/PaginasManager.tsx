@@ -14,6 +14,12 @@ type Pagina = {
   orden: number;
 };
 
+// "terminos" y "privacidad" son páginas especiales: tienen su propio
+// diseño y ruta fija (/terminos, /privacidad en vez de /paginas/<slug>).
+// Se editan desde aquí como cualquier otra página, pero mostramos su URL
+// real y avisamos que no conviene cambiarles el slug.
+const SLUGS_ESPECIALES = ["terminos", "privacidad"];
+
 const slugify = (text: string) =>
   text
     .toLowerCase()
@@ -168,7 +174,9 @@ export default function PaginasManager() {
                     )}
                   </div>
                   <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                    /paginas/{pagina.slug}
+                    {SLUGS_ESPECIALES.includes(pagina.slug)
+                      ? `/${pagina.slug} (página especial, no cambies su URL)`
+                      : `/paginas/${pagina.slug}`}
                   </p>
                 </div>
                 <div className="flex items-center gap-x-3 shrink-0">
@@ -212,12 +220,18 @@ function PaginaForm({
   const [titulo, setTitulo] = useState(pagina?.titulo ?? "");
   const [slug, setSlug] = useState(pagina?.slug ?? "");
   const [slugTouched, setSlugTouched] = useState(!!pagina);
+  const esEspecial = !!pagina && SLUGS_ESPECIALES.includes(pagina.slug);
 
   return (
     <form
       onSubmit={onSubmit}
       className="rounded-lg border border-gray-200 dark:border-gray-700 p-4 space-y-3 bg-gray-50 dark:bg-gray-800"
     >
+      {esEspecial && (
+        <p className="text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950 rounded-md px-3 py-2">
+          Esta es una página especial con diseño propio en <strong>/{pagina.slug}</strong>. Puedes editar el título y el contenido, pero la URL no se puede cambiar.
+        </p>
+      )}
       <div className="grid sm:grid-cols-2 gap-3">
         <Field label="Título" htmlFor="titulo">
           <input
@@ -235,12 +249,15 @@ function PaginaForm({
         </Field>
         <Field label="URL de la página" htmlFor="slug">
           <div className="flex items-center gap-x-1">
-            <span className="text-sm text-gray-400 shrink-0">/paginas/</span>
+            <span className="text-sm text-gray-400 shrink-0">
+              {esEspecial ? "/" : "/paginas/"}
+            </span>
             <input
               id="slug"
               name="slug"
               type="text"
               required
+              readOnly={esEspecial}
               value={slug}
               onChange={(e) => {
                 setSlugTouched(true);
@@ -266,15 +283,17 @@ function PaginaForm({
           />
           Página activa
         </label>
-        <label className="inline-flex items-center gap-x-2 text-sm text-gray-700 dark:text-gray-300">
-          <input
-            type="checkbox"
-            name="mostrar_en_menu"
-            defaultChecked={pagina?.mostrar_en_menu ?? false}
-            className="size-4 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700 text-brand-blue focus:ring-brand-blue"
-          />
-          Mostrar en el menú de navegación
-        </label>
+        {!esEspecial && (
+          <label className="inline-flex items-center gap-x-2 text-sm text-gray-700 dark:text-gray-300">
+            <input
+              type="checkbox"
+              name="mostrar_en_menu"
+              defaultChecked={pagina?.mostrar_en_menu ?? false}
+              className="size-4 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700 text-brand-blue focus:ring-brand-blue"
+            />
+            Mostrar en el menú de navegación
+          </label>
+        )}
       </div>
 
       {error && (

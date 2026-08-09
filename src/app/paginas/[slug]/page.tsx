@@ -6,6 +6,11 @@ import { supabase } from "@/lib/supabase";
 
 export const revalidate = 60;
 
+// "terminos" y "privacidad" tienen su propia ruta con diseño propio
+// (src/app/terminos, src/app/privacidad) y se editan desde la misma tabla
+// "paginas" — no deben ser también accesibles como /paginas/<slug>.
+const SLUGS_RESERVADOS = ["terminos", "privacidad"];
+
 async function getPagina(slug: string) {
   const { data } = await supabase
     .from("paginas")
@@ -22,6 +27,7 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
+  if (SLUGS_RESERVADOS.includes(slug)) return {};
   const pagina = await getPagina(slug);
   if (!pagina) return {};
   return { title: `${pagina.titulo} — Colombia Contrata` };
@@ -33,6 +39,8 @@ export default async function PaginaPersonalizada({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
+  if (SLUGS_RESERVADOS.includes(slug)) notFound();
+
   const pagina = await getPagina(slug);
 
   if (!pagina) notFound();

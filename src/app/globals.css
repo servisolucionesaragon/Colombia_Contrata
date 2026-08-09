@@ -39,3 +39,37 @@ body {
   color: var(--foreground);
   font-family: var(--font-montserrat), Arial, Helvetica, sans-serif;
 }
+
+/* Numeración automática de secciones legales (Términos y Privacidad): cada
+   <h2> del contenido editable desde /admin recibe un círculo azul numerado
+   vía CSS counter, sin que el administrador tenga que escribir el número a
+   mano en el texto. */
+.legal-content {
+  counter-reset: legal-section;
+}
+.legal-content h2 {
+  counter-increment: legal-section;
+  position: relative;
+  padding-left: 2.75rem;
+}
+.legal-content h2::before {
+  content: counter(legal-section);
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 9999px;
+  background-color: var(--color-brand-blue);
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+.legal-content p,
+.legal-content ul,
+.legal-content ol {
+  padding-left: 2.75rem;
+}

@@ -156,6 +156,9 @@ export default function Header() {
       .select("slug, titulo")
       .eq("activo", true)
       .eq("mostrar_en_menu", true)
+      // "terminos" y "privacidad" viven en su propia ruta (/terminos,
+      // /privacidad), no en /paginas/<slug> — no deben duplicarse aquí.
+      .not("slug", "in", "(terminos,privacidad)")
       .order("orden", { ascending: true })
       .then(({ data }) => {
         if (data) setPaginasMenu(data);
