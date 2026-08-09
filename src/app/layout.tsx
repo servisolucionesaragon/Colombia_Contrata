@@ -28,6 +28,10 @@ const montserrat = Montserrat({
   weight: ["400", "500", "600", "700"],
 });
 
+const TITLE = "Colombia Contrata";
+const DESCRIPTION =
+  "Todos los documentos requeridos para contratación pública en un solo lugar.";
+
 export async function generateMetadata(): Promise<Metadata> {
   const { data } = await supabase
     .from("configuracion_portal")
@@ -36,11 +40,33 @@ export async function generateMetadata(): Promise<Metadata> {
     .single();
 
   return {
-    title: "Colombia Contrata",
-    description:
-      "Todos los documentos requeridos para contratación pública en un solo lugar.",
+    metadataBase: new URL("https://colombiacontrata.com"),
+    title: TITLE,
+    description: DESCRIPTION,
     icons: {
       icon: data?.favicon_url || "/icono.png",
+    },
+    openGraph: {
+      title: TITLE,
+      description: DESCRIPTION,
+      url: "https://colombiacontrata.com",
+      siteName: TITLE,
+      locale: "es_CO",
+      type: "website",
+      images: [
+        {
+          url: "/og-image.png",
+          width: 1200,
+          height: 630,
+          alt: TITLE,
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: TITLE,
+      description: DESCRIPTION,
+      images: ["/og-image.png"],
     },
   };
 }
