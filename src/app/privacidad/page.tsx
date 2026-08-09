@@ -103,7 +103,7 @@ export default async function PrivacidadPage() {
       <main className="flex-1">
         {/* Hero */}
         <section className="relative overflow-hidden bg-gradient-to-br from-blue-50 via-white to-white dark:from-gray-900 dark:via-gray-950 dark:to-gray-950">
-          <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-14 sm:pt-20 sm:pb-16 text-center">
+          <div className="max-w-[1180px] mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-14 sm:pt-20 sm:pb-16 text-center">
             <span className="inline-flex items-center justify-center size-14 rounded-2xl bg-brand-blue/10 text-brand-blue">
               <svg
                 className="size-7"
@@ -130,7 +130,7 @@ export default async function PrivacidadPage() {
 
         {/* Contenido */}
         <section className="bg-gray-50 dark:bg-gray-900/50 py-16 sm:py-20">
-          <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="max-w-[1180px] mx-auto px-4 sm:px-6 lg:px-8">
             <div
               className="legal-content rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-6 sm:p-10 text-gray-700 dark:text-gray-300 leading-relaxed [&_h2]:text-lg [&_h2]:font-semibold [&_h2]:text-gray-900 [&_h2]:dark:text-gray-100 [&_h2]:mt-8 [&_h2]:mb-3 [&_h2]:first:mt-0 [&_p]:my-3 [&_ul]:list-disc [&_ul]:my-3 [&_ol]:list-decimal [&_ol]:my-3 [&_a]:text-brand-blue [&_a]:hover:underline [&_strong]:font-semibold"
               dangerouslySetInnerHTML={{ __html: contenido }}
