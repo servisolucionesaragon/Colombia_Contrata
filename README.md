@@ -555,6 +555,8 @@ Cambios de estilo aplicados: fondo degradado + badge + título más grande en el
 
 **Franja de colores de marca** (amarillo/azul/rojo, 5px de alto): se agregó como elemento propio en `page.tsx`, **justo debajo del `<Header />`** y fuera de él a propósito — el usuario pidió explícitamente que "se oculte cuando haga scroll hacia abajo". Como `Header.tsx` es `sticky top-0`, si la franja viviera *dentro* del Header se quedaría pegada arriba para siempre; al vivir *después* del Header, en el flujo normal de la página, desaparece apenas se hace scroll mientras el menú se mantiene fijo. Por ahora la franja solo está en `/` (no en `Header.tsx`), así que no aparece en las demás páginas del sitio — si se quiere en todo el sitio, habría que moverla a `Header.tsx` o a `layout.tsx` con el mismo cuidado de no ponerla dentro del contenedor sticky.
 
+**Insignia del hero quitada** (2026-08-08): el hero tenía una insignia pequeña ("● Colombia Contrata") encima del título — el usuario pidió quitarla ("quita el texto 'Colombia Contrata' que está por encima de 'Todos tus documentos de contratación...'"). Se eliminó el `<span>` completo (el punto + el texto), no solo el texto, para no dejar una píldora vacía; el `<h1>` pasó a ser el primer elemento dentro del hero.
+
 ## Páginas propias
 
 Desde `/admin` → **Páginas** se pueden crear páginas con su propia URL — pensado para cosas como "Nosotros", "Visión y misión", "Servicios", etc. — sin tocar código.
@@ -587,6 +589,15 @@ El sitio soporta tema claro/oscuro con un toggle (ícono sol/luna) en el Header,
 - **Sin parpadeo (FOUC)**: `layout.tsx` inyecta un `<Script strategy="beforeInteractive">` que lee `localStorage.getItem("theme")` (o `prefers-color-scheme` si no hay preferencia guardada) y aplica la clase `dark` **antes** de que React hidrate — por eso `<html>` lleva `suppressHydrationWarning`.
 - **Toggle**: `ThemeToggle.tsx` alterna la clase `dark` en `document.documentElement` y guarda la elección en `localStorage` (`theme: "light" | "dark"`).
 - **Cobertura**: se agregaron variantes `dark:` en todas las páginas y componentes existentes (landing, registro, login, perfil, seguridad de cuenta, términos, privacidad, admin, historial).
+
+## Metadatos y vista previa al compartir (Open Graph)
+
+`src/app/layout.tsx` → `generateMetadata()` incluye `metadataBase` (`https://colombiacontrata.com`, necesario para que las rutas relativas de `openGraph.images`/`twitter.images` se resuelvan a URLs absolutas) y bloques `openGraph` + `twitter` (`card: "summary_large_image"`) con título, descripción e imagen fijos en código (no vienen de `configuracion_portal` todavía).
+
+- **Imagen**: `public/og-image.png` (1200×630, tamaño estándar recomendado por Facebook/LinkedIn/WhatsApp/Twitter). Viene del Manual/Brand Book del usuario, copiada desde `\\NAS-YORBIS\personal_folder\SSA\Proyectos SSA\Colombia Contrata\Imagenes\og-image.png` — no se generó en el sitio, es un archivo fijo que el usuario diseñó aparte.
+- Verificado en vivo (2026-08-08) leyendo `document.querySelectorAll('meta[property^="og:"], meta[name^="twitter:"]')` en producción: `og:image` resuelve a `https://colombiacontrata.com/og-image.png` con `width`/`height`/`alt` correctos.
+- **Si se cambia el diseño de la imagen**: basta con reemplazar `public/og-image.png` por un archivo del mismo nombre (idealmente mismas dimensiones) y hacer commit/push — no requiere tocar `layout.tsx`.
+- **Pendiente**: título/descripción/imagen de Open Graph están fijos en código, no editables desde `/admin` — si se quiere que el admin los pueda cambiar (por ejemplo subir otra imagen de campaña), habría que agregar columnas a `configuracion_portal` y leerlas en `generateMetadata()`, similar a como ya se hace con `favicon_url`.
 
 ## Despliegue
 
