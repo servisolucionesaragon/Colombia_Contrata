@@ -73,14 +73,6 @@ export default async function Home() {
     <>
       <Header />
 
-      {/* Franja de colores de marca — no es sticky a propósito: al hacer
-          scroll se oculta de inmediato, mientras el menú se queda fijo. */}
-      <div className="flex h-[5px] w-full shrink-0">
-        <div className="w-1/2 bg-brand-yellow" />
-        <div className="w-1/4 bg-brand-blue" />
-        <div className="w-1/4 bg-brand-red" />
-      </div>
-
       <main className="flex-1">
         {/* Hero */}
         <section className="relative overflow-hidden bg-gradient-to-br from-blue-50 via-white to-white dark:from-gray-900 dark:via-gray-950 dark:to-gray-950">

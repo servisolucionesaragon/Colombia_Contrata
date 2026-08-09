@@ -263,6 +263,7 @@ export default function Header() {
   };
 
   return (
+    <>
     <header className="sticky top-0 z-50 flex flex-wrap md:justify-start md:flex-nowrap w-full bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 text-sm py-3">
       <nav className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
         <Link href="/" className="flex-none flex items-center gap-x-2">
@@ -503,5 +504,17 @@ export default function Header() {
         </div>
       </div>
     </header>
+
+    {/* Franja de colores de marca — hermana del <header>, no dentro: el
+        <header> es sticky, así que cualquier cosa dentro quedaría pegada
+        arriba para siempre. Al estar fuera, en el flujo normal, se oculta
+        con el primer scroll mientras el menú se queda fijo. Vive aquí (no
+        en cada página) para aparecer en todo el sitio automáticamente. */}
+    <div className="flex h-[5px] w-full shrink-0">
+      <div className="w-1/2 bg-brand-yellow" />
+      <div className="w-1/4 bg-brand-blue" />
+      <div className="w-1/4 bg-brand-red" />
+    </div>
+    </>
   );
 }
