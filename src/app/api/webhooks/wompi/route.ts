@@ -16,11 +16,19 @@ export async function POST(request: NextRequest) {
 
   const { data: wompiConfig } = await db
     .from("configuracion_wompi")
-    .select("events_secret")
+    .select("ambiente_activo, sandbox_events_secret, produccion_events_secret")
     .eq("id", 1)
     .maybeSingle();
 
-  const eventsSecret = wompiConfig?.events_secret;
+  // Wompi manda el evento por el ambiente desde el que se generó el pago
+  // (sandbox o producción); como en Colombia Contrata solo hay un
+  // ambiente "activo" a la vez, se verifica con el secreto de ese mismo
+  // ambiente. Si en algún momento se necesita recibir eventos de ambos
+  // ambientes en simultáneo, este es el lugar para intentar con los dos
+  // secretos en vez de uno solo.
+  const ambiente = wompiConfig?.ambiente_activo === "produccion" ? "produccion" : "sandbox";
+  const eventsSecret =
+    ambiente === "produccion" ? wompiConfig?.produccion_events_secret : wompiConfig?.sandbox_events_secret;
   if (!eventsSecret) {
     return NextResponse.json({ error: "Webhook no configurado" }, { status: 503 });
   }

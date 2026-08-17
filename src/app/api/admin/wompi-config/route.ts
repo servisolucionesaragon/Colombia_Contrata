@@ -22,10 +22,13 @@ async function requireAdmin(request: NextRequest) {
   return data.user;
 }
 
-// La llave pública de Wompi no es un secreto (está pensada para usarse en
-// el navegador), así que se devuelve completa. Los dos secretos nunca se
-// devuelven — solo si están configurados o no — para que el formulario de
-// /admin pueda mostrar su estado sin exponerlos de vuelta al navegador.
+type Ambiente = "sandbox" | "produccion";
+
+// La llave pública de cada ambiente no es un secreto (está pensada para
+// usarse en el navegador), así que se devuelve completa. Los dos
+// secretos de cada ambiente nunca se devuelven — solo si están
+// configurados o no — para que el formulario de /admin pueda mostrar su
+// estado sin exponerlos de vuelta al navegador.
 export async function GET(request: NextRequest) {
   const caller = await requireAdmin(request);
   if (!caller) {
@@ -34,16 +37,35 @@ export async function GET(request: NextRequest) {
 
   const { data } = await adminClient()
     .from("configuracion_wompi")
-    .select("public_key, integrity_secret, events_secret")
+    .select(
+      "ambiente_activo, sandbox_base_url, sandbox_public_key, sandbox_integrity_secret, sandbox_events_secret, produccion_base_url, produccion_public_key, produccion_integrity_secret, produccion_events_secret"
+    )
     .eq("id", 1)
     .maybeSingle();
 
   return NextResponse.json({
-    publicKey: data?.public_key ?? "",
-    integritySecretConfigurado: !!data?.integrity_secret,
-    eventsSecretConfigurado: !!data?.events_secret,
+    ambienteActivo: (data?.ambiente_activo as Ambiente) ?? "sandbox",
+    sandbox: {
+      baseUrl: data?.sandbox_base_url || "https://sandbox.wompi.co/v1",
+      publicKey: data?.sandbox_public_key ?? "",
+      integritySecretConfigurado: !!data?.sandbox_integrity_secret,
+      eventsSecretConfigurado: !!data?.sandbox_events_secret,
+    },
+    produccion: {
+      baseUrl: data?.produccion_base_url || "https://production.wompi.co/v1",
+      publicKey: data?.produccion_public_key ?? "",
+      integritySecretConfigurado: !!data?.produccion_integrity_secret,
+      eventsSecretConfigurado: !!data?.produccion_events_secret,
+    },
   });
 }
+
+type EnvPayload = {
+  baseUrl?: string;
+  publicKey?: string;
+  integritySecret?: string;
+  eventsSecret?: string;
+};
 
 export async function POST(request: NextRequest) {
   const caller = await requireAdmin(request);
@@ -51,21 +73,39 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "No autorizado" }, { status: 403 });
   }
 
-  const { publicKey, integritySecret, eventsSecret } = await request.json();
+  const body = await request.json();
+  const { ambienteActivo, sandbox, produccion } = body as {
+    ambienteActivo?: Ambiente;
+    sandbox?: EnvPayload;
+    produccion?: EnvPayload;
+  };
+
+  const payload: Record<string, string> = { updated_at: new Date().toISOString() };
+
+  if (ambienteActivo === "sandbox" || ambienteActivo === "produccion") {
+    payload.ambiente_activo = ambienteActivo;
+  }
 
   // Solo se actualizan los campos que llegaron con contenido — dejar un
   // campo vacío en el formulario significa "no cambiar este valor", no
   // "borrarlo", para no obligar a reescribir los tres cada vez.
-  const payload: Record<string, string> = { updated_at: new Date().toISOString() };
-  if (typeof publicKey === "string" && publicKey.trim()) {
-    payload.public_key = publicKey.trim();
-  }
-  if (typeof integritySecret === "string" && integritySecret.trim()) {
-    payload.integrity_secret = integritySecret.trim();
-  }
-  if (typeof eventsSecret === "string" && eventsSecret.trim()) {
-    payload.events_secret = eventsSecret.trim();
-  }
+  const aplicarEnv = (env: EnvPayload | undefined, prefijo: "sandbox" | "produccion") => {
+    if (!env) return;
+    if (typeof env.baseUrl === "string" && env.baseUrl.trim()) {
+      payload[`${prefijo}_base_url`] = env.baseUrl.trim();
+    }
+    if (typeof env.publicKey === "string" && env.publicKey.trim()) {
+      payload[`${prefijo}_public_key`] = env.publicKey.trim();
+    }
+    if (typeof env.integritySecret === "string" && env.integritySecret.trim()) {
+      payload[`${prefijo}_integrity_secret`] = env.integritySecret.trim();
+    }
+    if (typeof env.eventsSecret === "string" && env.eventsSecret.trim()) {
+      payload[`${prefijo}_events_secret`] = env.eventsSecret.trim();
+    }
+  };
+  aplicarEnv(sandbox, "sandbox");
+  aplicarEnv(produccion, "produccion");
 
   const { error } = await adminClient()
     .from("configuracion_wompi")

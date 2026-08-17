@@ -107,12 +107,22 @@ export async function POST(request: NextRequest) {
 
   const { data: wompiConfig } = await db
     .from("configuracion_wompi")
-    .select("public_key, integrity_secret")
+    .select(
+      "ambiente_activo, sandbox_public_key, sandbox_integrity_secret, produccion_public_key, produccion_integrity_secret"
+    )
     .eq("id", 1)
     .maybeSingle();
 
-  const publicKey = wompiConfig?.public_key;
-  const integritySecret = wompiConfig?.integrity_secret;
+  // Wompi tiene dos ambientes independientes (sandbox/producción), cada
+  // uno con sus propias llaves; el admin elige cuál está activo desde
+  // /admin → Pagos (Wompi) sin perder la configuración del otro.
+  const ambiente = wompiConfig?.ambiente_activo === "produccion" ? "produccion" : "sandbox";
+  const publicKey =
+    ambiente === "produccion" ? wompiConfig?.produccion_public_key : wompiConfig?.sandbox_public_key;
+  const integritySecret =
+    ambiente === "produccion"
+      ? wompiConfig?.produccion_integrity_secret
+      : wompiConfig?.sandbox_integrity_secret;
 
   // La solicitud ya quedó registrada como "pendiente" aunque todavía no
   // haya llaves de Wompi configuradas — así no se pierde el pedido del
