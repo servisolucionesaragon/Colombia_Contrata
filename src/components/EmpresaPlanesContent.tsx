@@ -17,7 +17,7 @@ type Plan = {
 };
 
 type Periodo = "mensual" | "anual";
-type Status = "loading" | "signed-out" | "no-empresa" | "ready" | "pago-no-disponible";
+type Status = "loading" | "signed-out" | "no-empresa" | "sin-permiso" | "ready" | "pago-no-disponible";
 
 const formatCOP = (value: number) =>
   new Intl.NumberFormat("es-CO", {
@@ -44,21 +44,29 @@ export default function EmpresaPlanesContent() {
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("account_type")
+        .select("account_type, empresa_id_padre, rol_empresa")
         .eq("id", userData.user.id)
         .maybeSingle();
 
-      if (profile?.account_type !== "empresa") {
+      if (profile?.account_type !== "empresa" && profile?.account_type !== "empresa_miembro") {
         setStatus("no-empresa");
         return;
       }
+
+      if (profile.account_type === "empresa_miembro" && profile.rol_empresa !== "administrador") {
+        setStatus("sin-permiso");
+        return;
+      }
+
+      const empresaId =
+        profile.account_type === "empresa" ? userData.user.id : profile.empresa_id_padre;
 
       const { data: planesData } = await supabase
         .from("planes_empresa")
         .select(
           "id, nombre, descripcion, creditos, precio_mensual, precio_anual, destacado, features, cta_label"
         )
-        .or(`empresa_id.is.null,empresa_id.eq.${userData.user.id}`)
+        .or(`empresa_id.is.null,empresa_id.eq.${empresaId}`)
         .eq("activo", true)
         .order("precio_mensual", { ascending: true });
 
@@ -129,6 +137,14 @@ export default function EmpresaPlanesContent() {
           Solicitar documentos
         </Link>
         .
+      </p>
+    );
+  }
+
+  if (status === "sin-permiso") {
+    return (
+      <p className="text-sm text-gray-600 dark:text-gray-400 text-center py-4">
+        Solo el administrador de tu empresa puede comprar o cambiar planes.
       </p>
     );
   }

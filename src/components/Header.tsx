@@ -138,7 +138,7 @@ function getUserMenuLinks(accountType: string | null) {
     { href: "/dashboard", label: "Dashboard", icon: IconDashboard },
     { href: "/historial", label: "Historial", icon: IconHistory },
   ];
-  if (accountType === "empresa") {
+  if (accountType === "empresa" || accountType === "empresa_miembro") {
     links.push({ href: "/empresas/consultas", label: "Consultas", icon: IconShieldCheck });
   } else {
     links.push({ href: "/autorizaciones", label: "Autorizaciones", icon: IconShieldCheck });

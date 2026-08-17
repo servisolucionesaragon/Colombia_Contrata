@@ -8,7 +8,7 @@ import {
   DEPARTAMENTOS_COLOMBIA,
 } from "@/lib/colombia";
 
-type AccountType = "persona" | "empresa";
+type AccountType = "persona" | "empresa" | "empresa_miembro";
 type Status = "loading" | "signed-out" | "ready";
 type ProfileRow = Record<string, string | null>;
 
@@ -32,7 +32,7 @@ export default function ProfileForm() {
       // account_type se guarda en el registro (ver RegisterForm) y define
       // qué formulario mostrar — el usuario ya no elige esto aquí.
       const type = user.user_metadata?.account_type as AccountType | undefined;
-      setAccountType(type === "empresa" ? "empresa" : "persona");
+      setAccountType(type === "empresa" || type === "empresa_miembro" ? type : "persona");
       setEmail(user.email ?? null);
       setUserId(user.id);
 
@@ -89,6 +89,24 @@ export default function ProfileForm() {
         >
           Iniciar sesión
         </Link>
+      </div>
+    );
+  }
+
+  if (accountType === "empresa_miembro") {
+    return (
+      <div className="flex items-center justify-between rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-4 py-3">
+        <div>
+          <span className="text-xs text-gray-500 dark:text-gray-400">Tipo de cuenta</span>
+          <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+            Miembro de equipo — {initial?.primer_nombre} {initial?.primer_apellido}
+          </p>
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            Tu nombre y rol los administra el Administrador de tu empresa
+            desde &quot;Equipo&quot;.
+          </p>
+        </div>
+        {email && <span className="text-sm text-gray-500 dark:text-gray-400">{email}</span>}
       </div>
     );
   }

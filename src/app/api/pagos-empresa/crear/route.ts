@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import crypto from "crypto";
 import { getWompiKeys, buildWompiCheckoutUrl, siteUrl } from "@/lib/wompi";
+import { resolverContextoEmpresa } from "@/lib/empresaContext";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -35,8 +36,8 @@ export async function POST(request: NextRequest) {
 
   const db = adminClient();
 
-  const [{ data: profile }, { data: plan }] = await Promise.all([
-    db.from("profiles").select("account_type, razon_social").eq("id", user.id).maybeSingle(),
+  const [contexto, { data: plan }] = await Promise.all([
+    resolverContextoEmpresa(db, user.id),
     db
       .from("planes_empresa")
       .select("id, nombre, creditos, precio_mensual, precio_anual, activo, empresa_id")
@@ -44,17 +45,24 @@ export async function POST(request: NextRequest) {
       .maybeSingle(),
   ]);
 
-  if (!profile || profile.account_type !== "empresa") {
+  if (!contexto) {
     return NextResponse.json(
       { error: "Esta compra es solo para cuentas de empresa." },
       { status: 400 }
     );
   }
 
-  if (!profile.razon_social) {
+  if (!contexto.esAdministrador) {
+    return NextResponse.json(
+      { error: "Solo el administrador de la empresa puede comprar planes." },
+      { status: 403 }
+    );
+  }
+
+  if (!contexto.razonSocial) {
     return NextResponse.json(
       {
-        error: "Completa los datos de tu empresa en tu perfil antes de continuar.",
+        error: "Completa los datos de la empresa en el perfil antes de continuar.",
         code: "PERFIL_INCOMPLETO",
       },
       { status: 400 }
@@ -67,7 +75,7 @@ export async function POST(request: NextRequest) {
 
   // Un plan privado (empresa_id no nulo) solo lo puede comprar la empresa
   // a la que se le asignó.
-  if (plan.empresa_id && plan.empresa_id !== user.id) {
+  if (plan.empresa_id && plan.empresa_id !== contexto.empresaId) {
     return NextResponse.json({ error: "Este plan no está disponible para tu cuenta." }, { status: 403 });
   }
 
@@ -83,7 +91,7 @@ export async function POST(request: NextRequest) {
   const reference = `EMP-${crypto.randomUUID()}`;
 
   const { error: insertError } = await db.from("pagos_empresa").insert({
-    empresa_id: user.id,
+    empresa_id: contexto.empresaId,
     plan_id: plan.id,
     plan_nombre: plan.nombre,
     periodo,

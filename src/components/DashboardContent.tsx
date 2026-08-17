@@ -5,7 +5,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 
 type Status = "loading" | "signed-out" | "ready";
-type AccountType = "persona" | "empresa";
+type AccountType = "persona" | "empresa" | "empresa_miembro";
 type EstadoConsulta = "pendiente" | "autorizada" | "rechazada";
 type EstadoSolicitud = "pendiente" | "pagado" | "fallido";
 type NivelRiesgo = "bajo" | "medio" | "alto";
@@ -38,6 +38,7 @@ export default function DashboardContent() {
   const [nombre, setNombre] = useState<string | null>(null);
 
   const [creditos, setCreditos] = useState(0);
+  const [esAdministrador, setEsAdministrador] = useState(true);
   const [consultasEmpresa, setConsultasEmpresa] = useState<ConsultaEmpresa[]>([]);
 
   const [solicitudes, setSolicitudes] = useState<Solicitud[]>([]);
@@ -58,25 +59,28 @@ export default function DashboardContent() {
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("primer_nombre, razon_social")
+        .select("primer_nombre, razon_social, empresa_id_padre, rol_empresa")
         .eq("id", user.id)
         .maybeSingle();
       setNombre(
         tipo === "empresa" ? profile?.razon_social ?? null : profile?.primer_nombre ?? null
       );
 
-      if (tipo === "empresa") {
+      if (tipo === "empresa" || tipo === "empresa_miembro") {
+        const empresaId = tipo === "empresa" ? user.id : profile?.empresa_id_padre ?? user.id;
+        setEsAdministrador(tipo === "empresa" || profile?.rol_empresa === "administrador");
+
         const ahora = new Date().toISOString();
         const [{ data: pagos }, { data: consultas }] = await Promise.all([
           supabase
             .from("pagos_empresa")
             .select("creditos, fecha_vencimiento")
-            .eq("empresa_id", user.id)
+            .eq("empresa_id", empresaId)
             .eq("estado", "pagado"),
           supabase
             .from("consultas")
             .select("id, candidato_primer_nombre, candidato_primer_apellido, estado, nivel_riesgo, credito_descontado, created_at")
-            .eq("empresa_id", user.id)
+            .eq("empresa_id", empresaId)
             .order("created_at", { ascending: false })
             .limit(200),
         ]);
@@ -130,8 +134,13 @@ export default function DashboardContent() {
     );
   }
 
-  return accountType === "empresa" ? (
-    <DashboardEmpresa nombre={nombre} creditos={creditos} consultas={consultasEmpresa} />
+  return accountType === "empresa" || accountType === "empresa_miembro" ? (
+    <DashboardEmpresa
+      nombre={nombre}
+      creditos={creditos}
+      consultas={consultasEmpresa}
+      esAdministrador={esAdministrador}
+    />
   ) : (
     <DashboardPersona nombre={nombre} solicitudes={solicitudes} consultas={consultasPersona} />
   );
@@ -141,10 +150,12 @@ function DashboardEmpresa({
   nombre,
   creditos,
   consultas,
+  esAdministrador,
 }: {
   nombre: string | null;
   creditos: number;
   consultas: ConsultaEmpresa[];
+  esAdministrador: boolean;
 }) {
   const pendientes = consultas.filter((c) => c.estado === "pendiente").length;
   const autorizadas = consultas.filter((c) => c.estado === "autorizada").length;
@@ -174,9 +185,16 @@ function DashboardEmpresa({
         <Link href="/empresas/consultas/masiva" className={botonSecundario}>
           Carga masiva
         </Link>
-        <Link href="/empresas/planes" className={botonSecundario}>
-          Comprar más créditos
-        </Link>
+        {esAdministrador && (
+          <>
+            <Link href="/empresas/planes" className={botonSecundario}>
+              Comprar más créditos
+            </Link>
+            <Link href="/empresas/equipo" className={botonSecundario}>
+              Gestionar equipo
+            </Link>
+          </>
+        )}
       </div>
 
       <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-6">

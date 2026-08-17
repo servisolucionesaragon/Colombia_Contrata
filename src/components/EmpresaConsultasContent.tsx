@@ -45,6 +45,8 @@ async function authHeader() {
 
 export default function EmpresaConsultasContent() {
   const [status, setStatus] = useState<Status>("loading");
+  const [empresaId, setEmpresaId] = useState<string | null>(null);
+  const [esAdministrador, setEsAdministrador] = useState(true);
   const [creditos, setCreditos] = useState<number | null>(null);
   const [consultas, setConsultas] = useState<Consulta[]>([]);
   const [form, setForm] = useState(formVacio);
@@ -95,16 +97,27 @@ export default function EmpresaConsultasContent() {
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("account_type")
+        .select("account_type, empresa_id_padre, rol_empresa")
         .eq("id", userData.user.id)
         .maybeSingle();
 
-      if (profile?.account_type !== "empresa") {
+      const empresaId =
+        profile?.account_type === "empresa"
+          ? userData.user.id
+          : profile?.account_type === "empresa_miembro"
+          ? profile.empresa_id_padre
+          : null;
+
+      if (!empresaId) {
         setStatus("no-empresa");
         return;
       }
 
-      await cargar(userData.user.id);
+      setEmpresaId(empresaId);
+      setEsAdministrador(
+        profile?.account_type === "empresa" || profile?.rol_empresa === "administrador"
+      );
+      await cargar(empresaId);
       setStatus("ready");
     })();
   }, []);
@@ -133,8 +146,7 @@ export default function EmpresaConsultasContent() {
     setMensaje('Invitación enviada. Aparecerá aquí como "pendiente" hasta que el candidato autorice.');
     setForm(formVacio);
 
-    const { data: userData } = await supabase.auth.getUser();
-    if (userData.user) await cargar(userData.user.id);
+    if (empresaId) await cargar(empresaId);
   };
 
   const set = (campo: keyof typeof formVacio) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
@@ -178,12 +190,14 @@ export default function EmpresaConsultasContent() {
               {creditos ?? 0}
             </p>
           </div>
-          <Link
-            href="/empresas/planes"
-            className="text-sm font-semibold text-brand-blue hover:text-brand-blue-dark"
-          >
-            Comprar más créditos
-          </Link>
+          {esAdministrador && (
+            <Link
+              href="/empresas/planes"
+              className="text-sm font-semibold text-brand-blue hover:text-brand-blue-dark"
+            >
+              Comprar más créditos
+            </Link>
+          )}
         </div>
         <p className="mt-2 text-xs text-gray-400 dark:text-gray-500">
           Invitar a un candidato es gratis — el crédito solo se descuenta

@@ -127,7 +127,9 @@ export default function CargaMasivaContent() {
         .select("account_type")
         .eq("id", userData.user.id)
         .maybeSingle();
-      setStatus(profile?.account_type === "empresa" ? "ready" : "no-empresa");
+      const esEmpresa =
+        profile?.account_type === "empresa" || profile?.account_type === "empresa_miembro";
+      setStatus(esEmpresa ? "ready" : "no-empresa");
     })();
   }, []);
 
