@@ -59,12 +59,14 @@ Basada en `Manual_Identidad_Visual_Colombia_Contrata` (carpeta `Colombia Contrat
 | `/perfil` | Datos ampliados post-confirmación (persona: nombre/documento/fechas/género/ubicación; empresa: razón social/NIT/representante/sector/ubicación) + sección "Seguridad de la cuenta" (cambiar contraseña y correo) | **Conectado de verdad** — lee y guarda (`upsert`) en la tabla `profiles` de Supabase, precarga los datos si ya existían; cambio de contraseña/correo vía `supabase.auth.updateUser` |
 | `/solicitar` | Checklist de documentos para personas naturales + pago | **Conectado de verdad** — crea una fila en `solicitudes` y redirige al checkout de Wompi (ver [Solicitud de documentos y pago con Wompi](#solicitud-de-documentos-y-pago-con-wompi)); solo para cuentas `account_type = "persona"` con perfil completo |
 | `/solicitar/confirmacion` | Página de retorno tras el pago en Wompi | Lee el estado de la `solicitud` por su referencia y lo muestra (pagado/pendiente/fallido) |
+| `/empresas/planes` | Comprar un plan de empresa (mensual o anual) | **Conectado de verdad** — crea una fila en `pagos_empresa` y redirige al checkout de Wompi; solo para cuentas `account_type = "empresa"` con perfil completo (ver [Planes de empresa: compra con pago mensual o anual](#planes-de-empresa-compra-con-pago-mensual-o-anual-2026-08-16)) |
+| `/empresas/planes/confirmacion` | Página de retorno tras el pago en Wompi (empresas) | Misma `ConfirmacionContent.tsx` que `/solicitar/confirmacion`, distingue la tabla a consultar por el prefijo de la referencia |
 | `/terminos` | Términos y Condiciones | Borrador, falta revisión legal — **editable desde `/admin` → Páginas** (ver [Términos y Privacidad como páginas editables](#términos-y-privacidad-como-páginas-editables)) |
 | `/privacidad` | Política de Tratamiento de Datos Personales (Ley 1581) | Borrador, falta revisión legal — **editable desde `/admin` → Páginas** (mismo mecanismo que `/terminos`) |
 | `/admin` | Back office con pestañas: Identidad del portal, Planes de personas, Planes de empresa, Documentos disponibles, Administradores | **Protegido con autenticación real** (solo cuentas con `app_metadata.role = "admin"`, ver [Panel de administración](#panel-de-administración)) — **todo se guarda de verdad**, incluyendo subida de logo/favicon a Storage y dar/quitar acceso admin por correo |
 | `/historial` | Historial de solicitudes/verificaciones del usuario | Placeholder protegido por sesión ("Aún no tienes solicitudes") — falta el flujo real de solicitud de documentos para tener datos que mostrar |
 
-`/solicitar` y `/empresas` están enlazadas desde la UI pero **todavía no existen** (darán 404 si se navega directo).
+`/empresas` (la landing informativa, no `/empresas/planes`) sigue enlazada desde la UI pero **todavía no existe** (dará 404 si se navega directo).
 
 ## Requisitos
 
@@ -107,11 +109,16 @@ src/
     privacidad/page.tsx   # política de datos personales — mismo mecanismo, slug "privacidad"
     solicitar/page.tsx           # checklist de documentos (personas) + creación de la solicitud
     solicitar/confirmacion/page.tsx # página de retorno tras el pago en Wompi
+    empresas/planes/page.tsx           # comprar un plan de empresa (mensual/anual) + creación del pago
+    empresas/planes/confirmacion/page.tsx # página de retorno tras el pago en Wompi (empresas)
     admin/page.tsx        # back office (protegido por AdminGate)
     api/admin/roles/route.ts # Route Handler: dar/quitar admin por correo, usa la Service Role Key (solo servidor)
     api/solicitudes/crear/route.ts # Route Handler: valida perfil/documentos, crea la solicitud, arma la URL del checkout de Wompi (o devuelve pagoDisponible:false si faltan las llaves)
-    api/webhooks/wompi/route.ts    # Route Handler: recibe la confirmación de pago de Wompi y actualiza el estado de la solicitud
+    api/pagos-empresa/crear/route.ts # Route Handler: valida perfil/plan/período, crea el pago de empresa, arma la URL del checkout de Wompi
+    api/webhooks/wompi/route.ts    # Route Handler: recibe la confirmación de pago de Wompi (personas y empresas, distingue por prefijo de referencia) y actualiza el estado
     api/admin/wompi-config/route.ts # Route Handler: guarda/consulta las llaves de Wompi en configuracion_wompi (admin-only, nunca devuelve los secretos ya guardados)
+    api/admin/usuarios/route.ts    # Route Handler: lista usuarios (auth + profiles) y activa/desactiva cuentas (ban_duration)
+    api/admin/pagos/route.ts       # Route Handler: lista solicitudes + pagos_empresa combinados y marca pagos como pagados a mano
   components/
     Header.tsx / Footer.tsx # Header es client component: lee sesión + tabla profiles, muestra menú de usuario (avatar, Inicio/Historial/Perfil/Cerrar sesión) y el ThemeToggle. Footer es server component async: lee configuracion_portal y muestra íconos de redes sociales configuradas
     SocialIcons.tsx         # íconos SVG de Facebook/Instagram/X/LinkedIn/TikTok/WhatsApp, usados por Footer.tsx y WhatsAppButton.tsx
@@ -123,8 +130,11 @@ src/
     AccountSecurityForm.tsx # cambio de contraseña/correo vía supabase.auth.updateUser, en /perfil
     HistorialContent.tsx    # contenido de /historial (gate de sesión + estado vacío)
     SolicitarContent.tsx    # checklist de documentos + total + llamada a /api/solicitudes/crear + redirección al checkout de Wompi
-    ConfirmacionContent.tsx # lee el estado de la solicitud por su referencia (?reference=) y lo muestra tras volver de Wompi
+    ConfirmacionContent.tsx # lee el estado de la solicitud o pago por su referencia (?reference=, distingue SOL-/EMP- por prefijo) y lo muestra tras volver de Wompi
+    EmpresaPlanesContent.tsx # checklist de planes de empresa + toggle mensual/anual + llamada a /api/pagos-empresa/crear
     WompiConfigManager.tsx  # admin: guarda las llaves de Wompi (formulario "write-only" para los secretos, ver Solicitud de documentos y pago con Wompi)
+    UsuariosManager.tsx     # admin: lista de usuarios + activar/desactivar cuentas
+    PagosManager.tsx        # admin: lista combinada de pagos (personas + empresas) + marcar como pagado a mano
     AdminGate.tsx           # bloquea /admin a menos que la sesión tenga app_metadata.role === "admin"
     AdminTabs.tsx            # menú lateral agrupado del panel admin (Identidad / grupo Página principal / grupo Planes y documentos / Administradores)
     AdminSettingsForm.tsx  # identidad del portal — lee/guarda en configuracion_portal, sube logo/favicon a Storage
@@ -143,6 +153,7 @@ src/
   lib/
     supabase.ts            # cliente de Supabase (createClient con las env vars NEXT_PUBLIC_*)
     colombia.ts             # departamentos + ciudades por departamento (para /perfil)
+    wompi.ts                # getWompiKeys/buildWompiCheckoutUrl, compartido por /api/solicitudes/crear y /api/pagos-empresa/crear
   types/
     preline.d.ts          # tipado de window.HSStaticMethods
 public/
@@ -534,6 +545,41 @@ create policy "Users can insert own solicitudes"
 -- el webhook de Wompi (src/app/api/webhooks/wompi/route.ts), que usa la
 -- Service Role Key y por lo tanto ignora RLS.
 
+-- Compra de un plan de empresa (pago único por período, mensual o anual
+-- -- no hay cobro recurrente automático). plan_nombre y creditos quedan
+-- copiados del plan al momento de la compra para no depender de que el
+-- plan siga existiendo igual más adelante.
+create table public.pagos_empresa (
+  id uuid primary key default gen_random_uuid(),
+  empresa_id uuid not null references auth.users(id) on delete cascade,
+  plan_id uuid not null references public.planes_empresa(id),
+  plan_nombre text not null,
+  periodo text not null check (periodo in ('mensual', 'anual')),
+  monto numeric not null,
+  creditos integer not null,
+  estado text not null default 'pendiente' check (estado in ('pendiente', 'pagado', 'fallido')),
+  wompi_referencia text not null unique,
+  wompi_transaction_id text,
+  fecha_inicio timestamptz,
+  fecha_vencimiento timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.pagos_empresa enable row level security;
+
+create policy "Empresas can view own pagos"
+  on public.pagos_empresa for select
+  using (auth.uid() = empresa_id);
+
+create policy "Empresas can insert own pagos"
+  on public.pagos_empresa for insert
+  with check (auth.uid() = empresa_id);
+
+-- Igual que solicitudes: sin policy de "update" pública, el estado solo
+-- lo cambia el webhook de Wompi o el admin desde /admin -> Usuarios y
+-- pagos, ambos con la Service Role Key.
+
 -- Llaves de Wompi, editables desde /admin -> Pagos (Wompi), con Sandbox y
 -- Producción guardados por separado (Colombia Contrata no tiene un sitio
 -- de pruebas aparte) y "ambiente_activo" decidiendo cuál usan
@@ -579,6 +625,9 @@ alter table public.configuracion_wompi enable row level security;
   - **Planes de personas** (`ConfiguracionPersonaManager.tsx`) — título/descripción/precio-desde/CTA de la tarjeta "Persona independiente" en `/`.
   - **Planes de empresa** (`PlanesEmpresaManager.tsx`) — crear/editar/eliminar planes; incluye la opción de asignar un plan a una sola empresa (privado).
   - **Documentos disponibles** (`PreciosDocumentosManager.tsx`) — lista de documentos para personas naturales (sin precio).
+- Grupo **Usuarios y pagos**:
+  - **Usuarios** (`UsuariosManager.tsx`) — lista de cuentas (persona/empresa), activar/desactivar login. Ver [Panel de admin: Usuarios y pagos](#panel-de-admin-usuarios-y-pagos-2026-08-16).
+  - **Pagos** (`PagosManager.tsx`) — solicitudes de personas + pagos de empresa combinados, filtrables, marcar como pagado a mano.
 - **Pagos (Wompi)** (`WompiConfigManager.tsx`) — llave pública y secretos de integridad/eventos de Wompi (`configuracion_wompi`). Ver [Solicitud de documentos y pago con Wompi](#solicitud-de-documentos-y-pago-con-wompi).
 - **Administradores** (`AdminRolesManager.tsx`) — dar/quitar acceso de administrador escribiendo el correo de una cuenta ya registrada.
 
@@ -716,6 +765,30 @@ Todo el flujo (checklist → registro de la solicitud → redirección → fallb
 
 **Lo que falta para que esto genere un documento de verdad**: hoy, aunque el pago se apruebe, no pasa nada más — no existe todavía la integración con el proveedor de fuentes (contraloría, policía, procuraduría, etc.) que generaría los PDFs. El webhook tiene un comentario `TODO` marcando dónde debería dispararse esa generación una vez exista esa pieza. `/historial` tampoco se conectó todavía a `solicitudes` (sigue mostrando el placeholder "Aún no tienes solicitudes") — es un cambio pequeño y natural de hacer ahora que la tabla ya tiene datos reales, pero se dejó fuera de esta sesión para no ampliar el alcance.
 
+**`src/lib/wompi.ts`**: para no duplicar la lógica de llaves/firma entre personas y empresas, se extrajeron dos funciones compartidas — `getWompiKeys(db)` (lee `configuracion_wompi`, decide sandbox/producción, devuelve `null` si al ambiente activo le falta alguna llave) y `buildWompiCheckoutUrl(...)` (arma la URL del checkout con la firma SHA-256). Los dos endpoints de creación de pago (`/api/solicitudes/crear` y `/api/pagos-empresa/crear`) llaman a las mismas dos funciones.
+
+### Planes de empresa: compra con pago mensual o anual (2026-08-16)
+
+El usuario pidió continuar la pasarela con "los planes para empresa (los cuales realizan 1 solo pago al año y pagos mensual)". Aclaró que el cobro debía ser **manual cada período** (la empresa entra y paga, como ya pasa con personas) y **no automático/recurrente** — evita tener que tokenizar tarjetas y programar cobros periódicos, que es mucho más trabajo y no se pidió.
+
+- **`/empresas/planes`** (`EmpresaPlanesContent.tsx`): exige sesión y `account_type = "empresa"`; si el perfil no tiene `razon_social`, pide completar `/perfil` primero. Lista los planes públicos (`empresa_id is null`) más los privados asignados a esa empresa (`empresa_id = auth.uid()`), con el mismo toggle mensual/anual que ya tenía `PlanesEmpresaPricing.tsx` en `/`. El botón "Comprar" llama `POST /api/pagos-empresa/crear` con `{ planId, periodo }`.
+- El endpoint valida el plan (activo, y si es privado que pertenezca a esa empresa), toma `precio_mensual` o `precio_anual` según el período elegido, inserta una fila en `pagos_empresa` (`estado = "pendiente"`) y arma el checkout de Wompi con `getWompiKeys`/`buildWompiCheckoutUrl` — mismo fallback `pagoDisponible:false` si no hay llaves configuradas.
+- Tabla `pagos_empresa`: guarda `plan_id`, `plan_nombre` y `creditos` **copiados en el momento de la compra** (no se leen del plan en vivo después) para que el historial no cambie si el admin edita o borra el plan más adelante. `periodo` es `"mensual"` o `"anual"`.
+- Al aprobarse el pago (webhook o marcado manual desde `/admin`), se calculan `fecha_inicio` (ahora) y `fecha_vencimiento` (+1 mes o +1 año según `periodo`) — es lo único parecido a una "suscripción": una fecha de vencimiento que hoy nadie revisa automáticamente. **No hay recordatorio de renovación ni bloqueo automático al vencer** — eso quedaría para cuando se construya el consumo real de créditos.
+- El webhook de Wompi (`/api/webhooks/wompi`) distingue personas de empresas por el **prefijo de la referencia**: `SOL-` → `solicitudes`, `EMP-` → `pagos_empresa`. Si algún día se necesita, ese es el punto donde agregar más tipos de pago.
+- Botones "Comprar"/CTA de empresa en `/` (`PlanesEmpresaPricing.tsx`) ahora apuntan a `/empresas/planes` en vez de `/registro`, mismo patrón que ya se hizo con los CTA de personas.
+
+⚠️ **No probado con una sesión de empresa real**: se verificó que el *gate* de cuenta funciona (mostrando el mensaje correcto a una cuenta de tipo "persona"), pero el flujo completo de compra (elegir plan → pagar → webhook → `fecha_vencimiento`) no se probó de punta a punta porque no había a mano una cuenta de empresa de prueba en el navegador. Usa exactamente el mismo mecanismo ya verificado para personas, así que el riesgo es bajo, pero conviene una prueba real la próxima vez que haya una cuenta de empresa a mano.
+
+### Panel de admin: Usuarios y pagos (2026-08-16)
+
+A pedido del usuario ("se requiere llevar el control de usuarios y pagos, y también los planes para empresa"), se agregó el grupo **Usuarios y pagos** en `/admin`, con dos pestañas nuevas:
+
+- **Usuarios** (`UsuariosManager.tsx` + `GET`/`POST /api/admin/usuarios`): lista todas las cuentas (`auth.admin.listUsers` cruzado con `profiles` para nombre/tipo de cuenta), con buscador por nombre/correo. El botón **Activar/Desactivar** llama `auth.admin.updateUserById(id, { ban_duration })` — Supabase Auth no tiene un flag "activo" directo, así que desactivar de verdad significa banear el login (`ban_duration: "876000h"`, ~100 años; reactivar es `"none"`). Un admin no puede desactivarse a sí mismo (mismo tipo de guarda que ya existía en `AdminRolesManager.tsx` para no poder quitarse el propio rol).
+- **Pagos** (`PagosManager.tsx` + `GET`/`POST /api/admin/pagos`): combina `solicitudes` (personas) y `pagos_empresa` (empresas) en una sola tabla, con filtros por tipo y estado, mostrando cliente/correo/detalle/monto/fecha/estado. El botón **"Marcar pagado"** actualiza el estado directo por Service Role Key sin pasar por Wompi — pensado para pagos que llegaron por fuera (ej. transferencia bancaria); si es un pago de empresa, calcula `fecha_vencimiento` igual que lo haría el webhook, para que quede consistente.
+
+Verificado en producción con datos reales: la lista de Usuarios muestra las cuentas reales del sitio (incluida la insignia "Admin" en las dos cuentas administradoras) con su tipo de cuenta y fecha de registro correctos; la lista de Pagos mostró correctamente varias solicitudes de prueba que habían quedado de sesiones anteriores (se limpiaron después de confirmar que se veían bien). No se probó el clic en "Desactivar"/"Marcar pagado" en el navegador automatizado por el mismo gotcha de siempre (`confirm()` no se puede confirmar en esta máquina) — verificado por revisión de código, mismo patrón que el resto del panel.
+
 Los botones "Solicitar mis documentos" del hero y de la tarjeta "Persona independiente" en `/` ahora apuntan a `/solicitar` en vez de `/registro` — si el visitante no tiene sesión, `/solicitar` lo manda a `/login` (no se perdió ningún caso, antes iban directo a crear cuenta).
 
 ## Despliegue
@@ -740,11 +813,12 @@ Los botones "Solicitar mis documentos" del hero y de la tarjeta "Persona indepen
 - [ ] **Activar el pago real de Wompi**: guardar las tres llaves reales desde `/admin` → Pagos (Wompi) en cuanto el usuario termine la validación de su cuenta, y probar una transacción de sandbox de punta a punta — se confirmó que el formato del checkout es correcto (ver [Solicitud de documentos y pago con Wompi](#solicitud-de-documentos-y-pago-con-wompi)), pero la firma de integridad y el checksum del webhook siguen sin validarse contra una cuenta real.
 - [ ] Terminar de conectar `nombre_portal` y `eslogan` de `configuracion_portal` al resto del front — `nombre_portal` ya se usa en el copyright del footer, pero el `<title>` de las páginas, el texto "Colombia Contrata" del Header/Footer y el `eslogan` siguen fijos en el código (logo, favicon, color primario, correo de contacto y texto legal del footer ya están conectados — ver sección de tablas).
 - [ ] Registrar la IP en la trazabilidad de consentimiento de Habeas Data (requiere un endpoint de servidor/Route Handler, ya que `supabase.auth.signUp` corre en el cliente).
-- [ ] Flujo de compra/consumo de créditos de `planes_empresa` (checkout, descuento de créditos al consultar, invitación de candidatos, historial real en `/historial`) — hoy los planes solo se muestran y administran, no se pueden comprar ni consumir todavía. El flujo de `/solicitar` para personas puede servir de plantilla (misma estructura: crear registro pendiente → checkout Wompi → webhook actualiza estado).
+- [x] Compra de planes de empresa (`/empresas/planes`, pago único mensual o anual) — ver [Planes de empresa: compra con pago mensual o anual](#planes-de-empresa-compra-con-pago-mensual-o-anual-2026-08-16). Falta: **consumo real de créditos** (descontar al hacer una consulta, invitación de candidatos), **cobro recurrente automático** (hoy es pago manual cada período, decisión explícita del usuario para no tener que tokenizar tarjetas), y conectar `/historial` para empresas.
+- [ ] Probar `/empresas/planes` de punta a punta con una cuenta de empresa real (solo se verificó el *gate* de cuenta, no la compra completa).
 - [ ] Crear cuentas de persona/empresa desde `/admin` (el usuario decidió dejar esto fuera de alcance por ahora — solo se construyó "asignar administradores", que ya está listo).
 - [ ] Storage con URLs firmadas para la expiración de 10 días de los documentos de personas.
 - [ ] Integración con la API del proveedor de fuentes (contraloría, policía, procuraduría, etc.) — aún no contratada. Es el paso que falta para que una `solicitud` en estado "pagado" realmente genere los documentos.
 - [ ] Generación y empaquetado de PDFs + expiración de 10 días.
-- [ ] Conectar `/historial` a la tabla `solicitudes` real (hoy sigue siendo el placeholder "Aún no tienes solicitudes" aunque la tabla ya existe y ya se están creando filas reales desde `/solicitar`).
+- [ ] Conectar `/historial` a las tablas `solicitudes` y `pagos_empresa` reales (hoy sigue siendo el placeholder "Aún no tienes solicitudes" aunque ambas tablas ya existen y ya se están creando filas reales desde `/solicitar` y `/empresas/planes`).
 - [ ] Revisión legal de `/terminos` y `/privacidad` + completar datos legales de la empresa.
 - [ ] Traducir y activar el resto de plantillas de "Security" en Supabase si se llegan a necesitar (MFA, cambio de contraseña, cambio de teléfono — "Change Email Address" ya está lista).
