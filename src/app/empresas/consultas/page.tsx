@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import EmpresaConsultasContent from "@/components/EmpresaConsultasContent";
+import ConsultasTabs from "@/components/ConsultasTabs";
 
 export const metadata: Metadata = {
   title: "Consultas de candidatos — Colombia Contrata",
@@ -21,6 +22,10 @@ export default function EmpresaConsultasPage() {
             Invita a un candidato para que autorice la verificación de sus
             antecedentes.
           </p>
+
+          <div className="mt-6">
+            <ConsultasTabs active="individual" />
+          </div>
 
           <div className="mt-8">
             <EmpresaConsultasContent />

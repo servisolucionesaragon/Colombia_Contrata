@@ -1,3 +1,1 @@
-Primer nombre,Segundo nombre,Primer apellido,Segundo apellido,Correo electrónico del consultado,Tipo de documento,Número de identificación,Fecha de expedición
-Juan,Carlos,Pérez,Gómez,juan.perez@example.com,CC,1020304050,2015-03-10
-María,,Rodríguez,López,maria.rodriguez@example.com,CE,900123456,2020-07-22
+Primer nombre,Segundo nombre,Primer apellido,Segundo apellido,Correo electronico del consultado,Tipo de documento (CC, CE, PT, PA),Numero de identificacion,Fecha de expedicion (DD/MM/AAAA)

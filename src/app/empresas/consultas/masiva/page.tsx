@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import CargaMasivaContent from "@/components/CargaMasivaContent";
+import ConsultasTabs from "@/components/ConsultasTabs";
 
 export const metadata: Metadata = {
   title: "Carga masiva de candidatos — Colombia Contrata",
@@ -20,6 +21,10 @@ export default function CargaMasivaPage() {
           <p className="mt-2 text-center text-gray-600 dark:text-gray-400">
             Invita a varios candidatos a la vez desde un archivo CSV.
           </p>
+
+          <div className="mt-6">
+            <ConsultasTabs active="masiva" />
+          </div>
 
           <div className="mt-8">
             <CargaMasivaContent />

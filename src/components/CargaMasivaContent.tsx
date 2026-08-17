@@ -23,6 +23,16 @@ const emailValido = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 const TIPOS_DOCUMENTO = ["CC", "PPT", "CE", "PA"];
 const fechaValida = (v: string) => v === "" || /^\d{4}-\d{2}-\d{2}$/.test(v);
 
+// La plantilla pide la fecha en formato colombiano DD/MM/AAAA; acá se
+// convierte a AAAA-MM-DD (lo que espera el backend y la columna "date"
+// de Postgres) antes de validar. Si ya viene en AAAA-MM-DD, se deja tal
+// cual.
+function normalizarFecha(v: string): string {
+  const conBarras = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(v);
+  if (conBarras) return `${conBarras[3]}-${conBarras[2]}-${conBarras[1]}`;
+  return v;
+}
+
 // Parser de CSV simple (sin librería): separa por coma, respeta comillas
 // dobles básicas. No pretende cubrir todos los casos raros de CSV, pero
 // alcanza para un archivo exportado desde Excel o Google Sheets.
@@ -55,6 +65,10 @@ const TIPO_DOCUMENTO_ALIAS: Record<string, string> = {
   "permiso por protección temporal": "PPT",
   "permiso por proteccion temporal": "PPT",
   ppt: "PPT",
+  // La plantilla de ejemplo usa "PT" como abreviatura del permiso por
+  // protección temporal en el encabezado — se acepta como alias, pero
+  // internamente se sigue guardando como "PPT".
+  pt: "PPT",
   "cédula de extranjería": "CE",
   "cedula de extranjeria": "CE",
   ce: "CE",
@@ -100,7 +114,13 @@ export default function CargaMasivaContent() {
       return;
     }
 
-    const encabezado = filasCSV[0].map((h) => h.toLowerCase().trim());
+    // Se ignora cualquier aclaración entre paréntesis en el encabezado
+    // (ej. "Tipo de documento (CC, CE, PT, PA)" o "Fecha de expedición
+    // (DD/MM/AAAA)") para que la plantilla pueda incluir esas pistas sin
+    // romper el reconocimiento de columnas.
+    const encabezado = filasCSV[0].map((h) =>
+      h.toLowerCase().trim().replace(/\s*\([^)]*\)\s*$/, "").trim()
+    );
     const indices = COLUMNAS.map((col) => ({
       clave: col.clave,
       idx: encabezado.findIndex((h) => col.encabezados.includes(h)),
@@ -132,7 +152,7 @@ export default function CargaMasivaContent() {
       const tipoDocumento =
         TIPO_DOCUMENTO_ALIAS[tipoDocumentoRaw.toLowerCase()] ?? tipoDocumentoRaw.toUpperCase();
       const numeroDocumento = valorDe(fila, "numeroDocumento");
-      const fechaExpedicion = valorDe(fila, "fechaExpedicion");
+      const fechaExpedicion = normalizarFecha(valorDe(fila, "fechaExpedicion"));
 
       const motivos: string[] = [];
       if (!primerNombre) motivos.push("falta primer nombre");
@@ -140,7 +160,7 @@ export default function CargaMasivaContent() {
       if (!emailValido(email)) motivos.push("correo inválido");
       if (!TIPOS_DOCUMENTO.includes(tipoDocumento)) motivos.push("tipo de documento inválido");
       if (!numeroDocumento) motivos.push("falta número de documento");
-      if (!fechaValida(fechaExpedicion)) motivos.push("fecha de expedición inválida (usa AAAA-MM-DD)");
+      if (!fechaValida(fechaExpedicion)) motivos.push("fecha de expedición inválida (usa DD/MM/AAAA)");
 
       return {
         primerNombre,
@@ -218,9 +238,9 @@ export default function CargaMasivaContent() {
         <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
           El archivo debe tener las columnas: primer nombre, segundo nombre
           (opcional), primer apellido, segundo apellido (opcional), correo
-          electrónico del consultado, tipo de documento, número de
-          identificación y fecha de expedición (opcional, formato
-          AAAA-MM-DD).
+          electrónico del consultado, tipo de documento (CC, CE, PT o PA —
+          PT se guarda internamente como PPT), número de identificación y
+          fecha de expedición (opcional, formato DD/MM/AAAA).
         </p>
         <a
           href="/plantilla-candidatos.csv"
