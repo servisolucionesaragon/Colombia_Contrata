@@ -55,7 +55,8 @@ Basada en `Manual_Identidad_Visual_Colombia_Contrata` (carpeta `Colombia Contrat
 |---|---|---|
 | `/` | Landing page (hero, cómo funciona, documentos, planes) | Completa; la sección "Planes para empresas" (`PlanesEmpresaPricing.tsx`) lee los planes públicos reales desde `planes_empresa`, con toggle mensual/anual |
 | `/registro` | Alta de cuenta (correo + contraseña + toggle Persona natural / Empresa + consentimiento Habeas Data) | **Conectado a Supabase Auth real** — crea la cuenta y envía correo de verificación |
-| `/login` | Inicio de sesión (correo + contraseña) | **Conectado a Supabase Auth real** vía `supabase.auth.signInWithPassword` |
+| `/login` | Inicio de sesión (correo + contraseña) | **Conectado a Supabase Auth real** vía `supabase.auth.signInWithPassword`; tras iniciar sesión redirige a `/dashboard` (ver abajo) |
+| `/dashboard` | Página de resumen tras iniciar sesión, distinta para persona/empresa (créditos o solicitudes, consultas pendientes/autorizadas, actividad reciente) | **Conectado de verdad** — lee `pagos_empresa`/`consultas`/`solicitudes` según el tipo de cuenta (ver [Dashboard](#dashboard-2026-08-17)) |
 | `/perfil` | Datos ampliados post-confirmación (persona: nombre/documento/fechas/género/ubicación; empresa: razón social/NIT/representante/sector/ubicación) + sección "Seguridad de la cuenta" (cambiar contraseña y correo) | **Conectado de verdad** — lee y guarda (`upsert`) en la tabla `profiles` de Supabase, precarga los datos si ya existían; cambio de contraseña/correo vía `supabase.auth.updateUser` |
 | `/solicitar` | Checklist de documentos para personas naturales + pago | **Conectado de verdad** — crea una fila en `solicitudes` y redirige al checkout de Wompi (ver [Solicitud de documentos y pago con Wompi](#solicitud-de-documentos-y-pago-con-wompi)); solo para cuentas `account_type = "persona"` con perfil completo |
 | `/solicitar/confirmacion` | Página de retorno tras el pago en Wompi | Lee el estado de la `solicitud` por su referencia y lo muestra (pagado/pendiente/fallido) |
@@ -107,6 +108,7 @@ src/
     registro/page.tsx     # alta de cuenta
     login/page.tsx         # inicio de sesión
     perfil/page.tsx        # completar datos post-registro
+    dashboard/page.tsx     # página de resumen tras iniciar sesión (persona/empresa), página por defecto post-login
     historial/page.tsx     # placeholder de historial de solicitudes (protegido por sesión) — pendiente conectar a la tabla solicitudes, ver Roadmap
     terminos/page.tsx     # términos y condiciones — lee titulo/contenido de la tabla paginas (slug "terminos"), con fallback hardcodeado si no hay fila
     privacidad/page.tsx   # política de datos personales — mismo mecanismo, slug "privacidad"
@@ -129,7 +131,7 @@ src/
     api/admin/usuarios/route.ts    # Route Handler: lista usuarios (auth + profiles) y activa/desactiva cuentas (ban_duration)
     api/admin/pagos/route.ts       # Route Handler: lista solicitudes + pagos_empresa combinados y marca pagos como pagados a mano
   components/
-    Header.tsx / Footer.tsx # Header es client component: lee sesión + tabla profiles, muestra menú de usuario (avatar, Inicio/Historial/Perfil/Cerrar sesión) y el ThemeToggle. Footer es server component async: lee configuracion_portal y muestra íconos de redes sociales configuradas
+    Header.tsx / Footer.tsx # Header es client component: lee sesión + tabla profiles, muestra menú de usuario (avatar, Inicio/Dashboard/Historial/Consultas o Autorizaciones/Perfil/Cerrar sesión) y el ThemeToggle. Footer es server component async: lee configuracion_portal y muestra íconos de redes sociales configuradas
     SocialIcons.tsx         # íconos SVG de Facebook/Instagram/X/LinkedIn/TikTok/WhatsApp, usados por Footer.tsx y WhatsAppButton.tsx
     WhatsAppButton.tsx      # server component async, botón flotante fijo (agregado en layout.tsx, aparece en todo el sitio); solo se renderiza si whatsapp_activo=true y hay whatsapp_numero
     ThemeToggle.tsx         # botón sol/luna, toggle de clase "dark" en <html>, persiste en localStorage
@@ -138,6 +140,8 @@ src/
     ProfileForm.tsx        # lee y guarda (upsert) en la tabla profiles según persona/empresa
     AccountSecurityForm.tsx # cambio de contraseña/correo vía supabase.auth.updateUser, en /perfil
     HistorialContent.tsx    # contenido de /historial (gate de sesión + estado vacío)
+    DashboardContent.tsx    # contenido de /dashboard, distinto para persona/empresa (créditos o solicitudes, consultas, actividad reciente)
+    ConsultasTabs.tsx        # pestañas "Individual"/"Carga masiva" que enlazan /empresas/consultas y /empresas/consultas/masiva
     SolicitarContent.tsx    # checklist de documentos + total + llamada a /api/solicitudes/crear + redirección al checkout de Wompi
     ConfirmacionContent.tsx # lee el estado de la solicitud o pago por su referencia (?reference=, distingue SOL-/EMP- por prefijo) y lo muestra tras volver de Wompi
     EmpresaPlanesContent.tsx # checklist de planes de empresa + toggle mensual/anual + llamada a /api/pagos-empresa/crear
@@ -886,6 +890,32 @@ Verificado en producción de punta a punta con datos reales:
 ⚠️ **Gotcha de build — dos errores nuevos en este cambio, ambos corregidos antes del deploy final**:
 1. `.select("id", { count: "exact" })` encadenado después de `.insert(...)` no es válido en supabase-js — ese overload con opciones solo existe en el `.select()` inicial sobre `.from()`. Falló como `error TS2554: Expected 0-1 arguments, but got 2` en el build de Vercel. Se quitó el conteo por API y se usó `filas.length` directamente.
 2. Un `"CSV (delimitado por comas)"` escrito como texto plano dentro de JSX (no dentro de un string de JS) volvió a romper el build por comillas sin escapar — el mismo tipo de error ya documentado antes en este README. Se cambió a comillas tipográficas `“ ”`.
+
+### Ajustes posteriores: plantilla real del usuario, parser con comillas, navegación por pestañas (2026-08-17)
+
+El usuario entregó su propia plantilla de ejemplo (`plantilla-candidatos.xlsx`, en una carpeta de red fuera del repo) con encabezados algo distintos a los que se habían generado: sin tildes, con aclaraciones entre paréntesis (ej. `"Tipo de documento (CC, CE, PT, PA)"`, `"Fecha de expedición (DD/MM/AAAA)"`) y, sobre todo, **"PT" en vez de "PPT"** como código de tipo de documento. El usuario corrigió explícitamente **"deja PPT"** cuando se empezó a renombrar el código interno — la solución final fue dejar el valor guardado en base de datos como `"PPT"` (sin tocar el `CHECK` de la tabla) y agregar `"pt": "PPT"` al mapa de alias de `TIPO_DOCUMENTO_ALIAS`, para que la plantilla pueda usar "PT" como texto sin que eso cambie el código interno.
+
+Esto expuso dos problemas reales, corregidos en `CargaMasivaContent.tsx`:
+- El encabezado `"Tipo de documento (CC, CE, PT, PA)"` tiene una coma **dentro** de la celda entre comillas — el parser de CSV original hacía un `split(",")` ingenuo y esa coma desalineaba todas las columnas siguientes. Se reescribió `parseCSVLinea` como un parser carácter por carácter que sí respeta comillas (incluida la comilla escapada `""`).
+- Se agregó `normalizarFecha()` para aceptar fechas en `DD/MM/AAAA` (formato de la plantilla del usuario) además de `AAAA-MM-DD`, convirtiéndolas antes de mandarlas al backend. También se agregó lógica para ignorar cualquier aclaración entre paréntesis al final de un encabezado (`.replace(/\s*\([^)]*\)\s*$/, "")`), así la plantilla puede tener pistas como "(DD/MM/AAAA)" sin romper el reconocimiento de columnas.
+
+Otros tres ajustes del mismo día, todos a pedido explícito del usuario:
+- **Navegación por pestañas**: `ConsultasTabs.tsx` (nuevo) — pestañas "Individual"/"Carga masiva" que enlazan entre `/empresas/consultas` y `/empresas/consultas/masiva`, en vez de quedar como dos páginas sin forma de moverse entre ellas.
+- Se quitó el botón "Carga masiva (CSV)" de `EmpresaConsultasContent.tsx` (la pestaña individual) porque quedó redundante con las pestañas nuevas.
+- La plantilla descargable pasó de `.csv` a **`.xlsx` por defecto** ("Descargar plantilla de ejemplo (Excel)", `public/plantilla-candidatos.xlsx`, regenerada con el encabezado corregido) — el input de carga sigue aceptando solo `.csv`, así que el texto de ayuda le pide al usuario guardarlo como CSV en Excel antes de subirlo.
+
+Verificado en producción: se subió un CSV de prueba con el encabezado real (comilla + coma incluida) y "PT" como tipo de documento → se reconoció como fila válida, `tipoDocumento` quedó guardado como `"PPT"` → "Se enviaron 1 invitaciones correctamente." Se confirmó también que la pestaña individual ya no muestra el botón redundante y que la plantilla `.xlsx` se descarga con el `Content-Type` correcto.
+
+## Dashboard (2026-08-17)
+
+El usuario pidió agregar "Dashboard" al menú de usuario, como página por defecto al iniciar sesión (persona o empresa), con un resumen de consultas, fechas, etc. Se creó `/dashboard` (`DashboardContent.tsx`, client component), que muestra contenido distinto según `account_type`, sin ninguna tabla ni endpoint nuevo — todo se lee client-side con las mismas tablas/RLS que ya usan `/empresas/consultas` y `/autorizaciones`:
+
+- **Empresa**: tarjetas de créditos disponibles (mismo cálculo que `creditos.ts`), total de consultas enviadas, pendientes y autorizadas; tabla con las últimas 5 consultas (candidato/fecha/estado); accesos rápidos a Invitar candidato, Carga masiva y Comprar más créditos.
+- **Persona**: tarjetas de solicitudes de documentos (total y pagadas) y autorizaciones (pendientes y otorgadas); si hay autorizaciones pendientes, un aviso ámbar con enlace directo a `/autorizaciones`; dos listas recientes (solicitudes y consultas recibidas) con fecha y estado; accesos rápidos a Solicitar documentos, Autorizaciones e Historial.
+
+`Header.tsx` agregó "Dashboard" como segundo ítem del menú de usuario (después de "Inicio", antes de "Historial"), con un ícono nuevo (`IconDashboard`, barras tipo gráfico). `LoginForm.tsx` cambió su redirección post-login de `/perfil` a `/dashboard`. **El registro no cambió** — `emailRedirectTo` en `RegisterForm.tsx` sigue apuntando a `/perfil`, a propósito: la primera vez que alguien confirma su correo todavía no ha completado su perfil, así que tiene más sentido mandarlo ahí antes que al dashboard (que para una cuenta nueva estaría vacío).
+
+Verificado en producción con la cuenta de empresa de prueba (`servisolucionesti@gmail.com`): el dashboard mostró correctamente los créditos, los conteos por estado y la tabla de actividad reciente con las filas reales de `consultas`; el ítem "Dashboard" aparece en el menú desplegable con el enlace correcto a `/dashboard`. No se pudo probar con una cuenta de persona por no tener credenciales de prueba a mano en esta sesión — la lógica de RLS para candidato (`candidato_email`/`candidato_id`) es la misma ya verificada en `/autorizaciones`, así que el riesgo es bajo, pero queda pendiente una verificación visual con cuenta de persona.
 
 ## Despliegue
 
