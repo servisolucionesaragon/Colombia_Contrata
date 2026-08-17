@@ -55,19 +55,47 @@ export default function ConsultaManualAdmin() {
     setError(null);
     setResultado(null);
 
-    const res = await fetch("/api/admin/consulta-manual", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", ...(await authHeader()) },
-      body: JSON.stringify(form),
-    });
-    const data = await res.json();
+    // Un corte del servidor (ej. Vercel matando la función a los 60s) no
+    // siempre devuelve JSON — sin este try/catch, esa respuesta rompía la
+    // función a mitad de camino y dejaba el botón trabado en
+    // "Consultando..." para siempre, sin ningún mensaje de error.
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 90_000);
 
-    setConsultando(false);
-    if (!res.ok) {
-      setError(data.error ?? "No pudimos completar la consulta.");
-      return;
+    try {
+      const res = await fetch("/api/admin/consulta-manual", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(await authHeader()) },
+        body: JSON.stringify(form),
+        signal: controller.signal,
+      });
+
+      let data: { error?: string } & Partial<Resultado> = {};
+      try {
+        data = await res.json();
+      } catch {
+        throw new Error(
+          res.ok
+            ? "El servidor no devolvió una respuesta válida."
+            : `El servidor cortó la conexión (código ${res.status}) — probablemente la consulta tardó más de lo que aguanta el servidor.`
+        );
+      }
+
+      if (!res.ok) {
+        setError(data.error ?? "No pudimos completar la consulta.");
+        return;
+      }
+      setResultado(data as Resultado);
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") {
+        setError("La consulta tardó más de 90 segundos y se canceló desde el navegador.");
+      } else {
+        setError(err instanceof Error ? err.message : "No pudimos completar la consulta.");
+      }
+    } finally {
+      clearTimeout(timeoutId);
+      setConsultando(false);
     }
-    setResultado(data);
   };
 
   return (
