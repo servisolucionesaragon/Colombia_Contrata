@@ -1,6 +1,11 @@
 import type { MetadataRoute } from "next";
 import { supabase } from "@/lib/supabase";
 
+// Sin esto, Next.js trata manifest.ts como estático y lo genera una sola
+// vez en build time — un cambio de favicon en /admin nunca se reflejaría
+// sin un redeploy. Mismo patrón que layout.tsx y page.tsx.
+export const revalidate = 60;
+
 // El ícono de la PWA usa la misma imagen configurable desde /admin ->
 // Identidad del portal -> Ícono/Favicon ("favicon_url"), para que no haya
 // que mantener dos íconos por separado — si el usuario cambia el favicon,
