@@ -7,19 +7,25 @@ import { supabase } from "@/lib/supabase";
 type Status = "loading" | "signed-out" | "no-empresa" | "ready";
 
 type Fila = {
-  nombre: string;
-  documento: string;
+  primerNombre: string;
+  segundoNombre: string;
+  primerApellido: string;
+  segundoApellido: string;
   email: string;
+  tipoDocumento: string;
+  numeroDocumento: string;
+  fechaExpedicion: string;
   valido: boolean;
   motivo?: string;
 };
 
 const emailValido = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+const TIPOS_DOCUMENTO = ["CC", "PPT", "CE", "PA"];
+const fechaValida = (v: string) => v === "" || /^\d{4}-\d{2}-\d{2}$/.test(v);
 
 // Parser de CSV simple (sin librería): separa por coma, respeta comillas
 // dobles básicas. No pretende cubrir todos los casos raros de CSV, pero
-// alcanza para un archivo de nombre/documento/correo exportado desde
-// Excel o Google Sheets.
+// alcanza para un archivo exportado desde Excel o Google Sheets.
 function parseCSV(texto: string): string[][] {
   return texto
     .split(/\r\n|\n|\r/)
@@ -30,6 +36,31 @@ function parseCSV(texto: string): string[][] {
         .map((celda) => celda.trim().replace(/^"|"$/g, ""))
     );
 }
+
+const COLUMNAS: { clave: keyof Omit<Fila, "valido" | "motivo">; encabezados: string[] }[] = [
+  { clave: "primerNombre", encabezados: ["primer nombre", "primernombre"] },
+  { clave: "segundoNombre", encabezados: ["segundo nombre", "segundonombre"] },
+  { clave: "primerApellido", encabezados: ["primer apellido", "primerapellido"] },
+  { clave: "segundoApellido", encabezados: ["segundo apellido", "segundoapellido"] },
+  { clave: "email", encabezados: ["correo electrónico del consultado", "correo electronico del consultado", "correo", "email"] },
+  { clave: "tipoDocumento", encabezados: ["tipo de documento", "tipodocumento"] },
+  { clave: "numeroDocumento", encabezados: ["número de identificación", "numero de identificacion", "numerodocumento", "documento"] },
+  { clave: "fechaExpedicion", encabezados: ["fecha de expedición", "fecha de expedicion", "fechaexpedicion"] },
+];
+
+const TIPO_DOCUMENTO_ALIAS: Record<string, string> = {
+  "cédula de ciudadanía": "CC",
+  "cedula de ciudadania": "CC",
+  cc: "CC",
+  "permiso por protección temporal": "PPT",
+  "permiso por proteccion temporal": "PPT",
+  ppt: "PPT",
+  "cédula de extranjería": "CE",
+  "cedula de extranjeria": "CE",
+  ce: "CE",
+  pasaporte: "PA",
+  pa: "PA",
+};
 
 export default function CargaMasivaContent() {
   const [status, setStatus] = useState<Status>("loading");
@@ -69,32 +100,59 @@ export default function CargaMasivaContent() {
       return;
     }
 
-    const encabezado = filasCSV[0].map((h) => h.toLowerCase());
-    const idxNombre = encabezado.findIndex((h) => h.includes("nombre"));
-    const idxDocumento = encabezado.findIndex((h) => h.includes("documento"));
-    const idxEmail = encabezado.findIndex(
-      (h) => h.includes("correo") || h.includes("email")
-    );
+    const encabezado = filasCSV[0].map((h) => h.toLowerCase().trim());
+    const indices = COLUMNAS.map((col) => ({
+      clave: col.clave,
+      idx: encabezado.findIndex((h) => col.encabezados.includes(h)),
+    }));
 
-    if (idxEmail === -1) {
+    const faltantes = indices.filter(
+      (i) => i.idx === -1 && i.clave !== "segundoNombre" && i.clave !== "segundoApellido" && i.clave !== "fechaExpedicion"
+    );
+    if (faltantes.length > 0) {
       setError(
-        'El archivo debe tener una columna de correo (encabezado "correo" o "email").'
+        "Al archivo le faltan columnas obligatorias. Descarga la plantilla de ejemplo para ver los encabezados exactos."
       );
       setFilas([]);
       return;
     }
 
-    const datos = filasCSV.slice(1).map((fila) => {
-      const email = (fila[idxEmail] ?? "").trim().toLowerCase();
-      const nombre = idxNombre >= 0 ? (fila[idxNombre] ?? "").trim() : "";
-      const documento = idxDocumento >= 0 ? (fila[idxDocumento] ?? "").trim() : "";
-      const valido = emailValido(email);
+    const valorDe = (fila: string[], clave: string) => {
+      const columna = indices.find((i) => i.clave === clave);
+      return columna && columna.idx >= 0 ? (fila[columna.idx] ?? "").trim() : "";
+    };
+
+    const datos: Fila[] = filasCSV.slice(1).map((fila) => {
+      const primerNombre = valorDe(fila, "primerNombre");
+      const segundoNombre = valorDe(fila, "segundoNombre");
+      const primerApellido = valorDe(fila, "primerApellido");
+      const segundoApellido = valorDe(fila, "segundoApellido");
+      const email = valorDe(fila, "email").toLowerCase();
+      const tipoDocumentoRaw = valorDe(fila, "tipoDocumento");
+      const tipoDocumento =
+        TIPO_DOCUMENTO_ALIAS[tipoDocumentoRaw.toLowerCase()] ?? tipoDocumentoRaw.toUpperCase();
+      const numeroDocumento = valorDe(fila, "numeroDocumento");
+      const fechaExpedicion = valorDe(fila, "fechaExpedicion");
+
+      const motivos: string[] = [];
+      if (!primerNombre) motivos.push("falta primer nombre");
+      if (!primerApellido) motivos.push("falta primer apellido");
+      if (!emailValido(email)) motivos.push("correo inválido");
+      if (!TIPOS_DOCUMENTO.includes(tipoDocumento)) motivos.push("tipo de documento inválido");
+      if (!numeroDocumento) motivos.push("falta número de documento");
+      if (!fechaValida(fechaExpedicion)) motivos.push("fecha de expedición inválida (usa AAAA-MM-DD)");
+
       return {
-        nombre,
-        documento,
+        primerNombre,
+        segundoNombre,
+        primerApellido,
+        segundoApellido,
         email,
-        valido,
-        motivo: valido ? undefined : "Correo inválido o vacío",
+        tipoDocumento,
+        numeroDocumento,
+        fechaExpedicion,
+        valido: motivos.length === 0,
+        motivo: motivos.join(", ") || undefined,
       };
     });
 
@@ -158,11 +216,19 @@ export default function CargaMasivaContent() {
           Sube un archivo CSV
         </h2>
         <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-          El archivo debe tener columnas <code>nombre</code>,{" "}
-          <code>documento</code> (opcional) y <code>correo</code>. Si lo
-          exportas desde Excel o Google Sheets, guárdalo como “CSV (delimitado
-          por comas)”.
+          El archivo debe tener las columnas: primer nombre, segundo nombre
+          (opcional), primer apellido, segundo apellido (opcional), correo
+          electrónico del consultado, tipo de documento, número de
+          identificación y fecha de expedición (opcional, formato
+          AAAA-MM-DD).
         </p>
+        <a
+          href="/plantilla-candidatos.csv"
+          download
+          className="mt-3 inline-flex items-center gap-x-2 text-sm font-semibold text-brand-blue hover:text-brand-blue-dark"
+        >
+          Descargar plantilla de ejemplo (CSV)
+        </a>
         <input
           ref={fileInputRef}
           type="file"
@@ -223,10 +289,12 @@ export default function CargaMasivaContent() {
                     className="border-b border-gray-100 dark:border-gray-800 last:border-0"
                   >
                     <td className="py-2 pr-4 text-gray-900 dark:text-gray-100">
-                      {f.nombre || "—"}
+                      {[f.primerNombre, f.segundoNombre, f.primerApellido, f.segundoApellido]
+                        .filter(Boolean)
+                        .join(" ") || "—"}
                     </td>
                     <td className="py-2 pr-4 text-gray-600 dark:text-gray-400">
-                      {f.documento || "—"}
+                      {f.tipoDocumento} {f.numeroDocumento || "—"}
                     </td>
                     <td className="py-2 pr-4 text-gray-600 dark:text-gray-400">
                       {f.email || "—"}

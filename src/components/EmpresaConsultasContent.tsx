@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 
@@ -8,10 +8,31 @@ type Status = "loading" | "signed-out" | "no-empresa" | "ready";
 
 type Consulta = {
   id: string;
-  candidato_nombre: string | null;
+  candidato_primer_nombre: string;
+  candidato_primer_apellido: string;
   candidato_email: string;
+  candidato_tipo_documento: string;
+  candidato_numero_documento: string;
   estado: "pendiente" | "autorizada" | "rechazada";
   created_at: string;
+};
+
+const TIPOS_DOCUMENTO = [
+  { value: "CC", label: "Cédula de ciudadanía" },
+  { value: "PPT", label: "Permiso por protección temporal" },
+  { value: "CE", label: "Cédula de extranjería" },
+  { value: "PA", label: "Pasaporte" },
+];
+
+const formVacio = {
+  primerNombre: "",
+  segundoNombre: "",
+  primerApellido: "",
+  segundoApellido: "",
+  email: "",
+  tipoDocumento: "CC",
+  numeroDocumento: "",
+  fechaExpedicion: "",
 };
 
 async function authHeader() {
@@ -23,9 +44,7 @@ export default function EmpresaConsultasContent() {
   const [status, setStatus] = useState<Status>("loading");
   const [creditos, setCreditos] = useState<number | null>(null);
   const [consultas, setConsultas] = useState<Consulta[]>([]);
-  const [nombre, setNombre] = useState("");
-  const [documento, setDocumento] = useState("");
-  const [email, setEmail] = useState("");
+  const [form, setForm] = useState(formVacio);
   const [enviando, setEnviando] = useState(false);
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -47,7 +66,9 @@ export default function EmpresaConsultasContent() {
           .eq("credito_descontado", true),
         supabase
           .from("consultas")
-          .select("id, candidato_nombre, candidato_email, estado, created_at")
+          .select(
+            "id, candidato_primer_nombre, candidato_primer_apellido, candidato_email, candidato_tipo_documento, candidato_numero_documento, estado, created_at"
+          )
           .eq("empresa_id", userId)
           .order("created_at", { ascending: false })
           .limit(50),
@@ -95,7 +116,7 @@ export default function EmpresaConsultasContent() {
     const res = await fetch("/api/consultas/crear", {
       method: "POST",
       headers: { "Content-Type": "application/json", ...(await authHeader()) },
-      body: JSON.stringify({ candidatos: [{ nombre, documento, email }] }),
+      body: JSON.stringify({ candidatos: [form] }),
     });
     const result = await res.json();
 
@@ -106,14 +127,15 @@ export default function EmpresaConsultasContent() {
       return;
     }
 
-    setMensaje("Invitación enviada. Aparecerá aquí como \"pendiente\" hasta que el candidato autorice.");
-    setNombre("");
-    setDocumento("");
-    setEmail("");
+    setMensaje('Invitación enviada. Aparecerá aquí como "pendiente" hasta que el candidato autorice.');
+    setForm(formVacio);
 
     const { data: userData } = await supabase.auth.getUser();
     if (userData.user) await cargar(userData.user.id);
   };
+
+  const set = (campo: keyof typeof formVacio) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+    setForm((prev) => ({ ...prev, [campo]: e.target.value }));
 
   if (status === "loading") {
     return <p className="text-sm text-gray-500 dark:text-gray-400">Cargando...</p>;
@@ -178,33 +200,76 @@ export default function EmpresaConsultasContent() {
         <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
           Invitar un candidato
         </h2>
-        <form onSubmit={handleSubmit} className="mt-4 grid sm:grid-cols-3 gap-3">
+        <form onSubmit={handleSubmit} className="mt-4 grid sm:grid-cols-2 gap-3">
           <input
             type="text"
-            placeholder="Nombre completo"
-            value={nombre}
-            onChange={(e) => setNombre(e.target.value)}
+            required
+            placeholder="Primer nombre"
+            value={form.primerNombre}
+            onChange={set("primerNombre")}
             className={inputClass}
           />
           <input
             type="text"
-            placeholder="Documento (opcional)"
-            value={documento}
-            onChange={(e) => setDocumento(e.target.value)}
+            placeholder="Segundo nombre (opcional)"
+            value={form.segundoNombre}
+            onChange={set("segundoNombre")}
+            className={inputClass}
+          />
+          <input
+            type="text"
+            required
+            placeholder="Primer apellido"
+            value={form.primerApellido}
+            onChange={set("primerApellido")}
+            className={inputClass}
+          />
+          <input
+            type="text"
+            placeholder="Segundo apellido (opcional)"
+            value={form.segundoApellido}
+            onChange={set("segundoApellido")}
             className={inputClass}
           />
           <input
             type="email"
             required
-            placeholder="Correo electrónico"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            placeholder="Correo electrónico del consultado"
+            value={form.email}
+            onChange={set("email")}
+            className="sm:col-span-2 block w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:border-brand-blue focus:ring-1 focus:ring-brand-blue focus:outline-none"
+          />
+          <select value={form.tipoDocumento} onChange={set("tipoDocumento")} className={inputClass}>
+            {TIPOS_DOCUMENTO.map((t) => (
+              <option key={t.value} value={t.value}>
+                {t.label}
+              </option>
+            ))}
+          </select>
+          <input
+            type="text"
+            required
+            placeholder="Número de identificación"
+            value={form.numeroDocumento}
+            onChange={set("numeroDocumento")}
             className={inputClass}
           />
+          <div>
+            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
+              Fecha de expedición
+            </label>
+            <input
+              type="date"
+              required
+              value={form.fechaExpedicion}
+              onChange={set("fechaExpedicion")}
+              className={inputClass}
+            />
+          </div>
           <button
             type="submit"
             disabled={enviando}
-            className="sm:col-span-3 inline-flex items-center justify-center gap-x-2 text-sm font-bold rounded-xl border border-transparent bg-brand-blue text-white hover:bg-brand-blue-dark disabled:opacity-60 disabled:cursor-not-allowed px-6 py-3"
+            className="sm:col-span-2 inline-flex items-center justify-center gap-x-2 text-sm font-bold rounded-xl border border-transparent bg-brand-blue text-white hover:bg-brand-blue-dark disabled:opacity-60 disabled:cursor-not-allowed px-6 py-3 mt-1"
           >
             {enviando ? "Enviando..." : "Invitar candidato"}
           </button>
@@ -237,6 +302,7 @@ export default function EmpresaConsultasContent() {
               <thead>
                 <tr className="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500 border-b border-gray-200 dark:border-gray-700">
                   <th className="py-2 pr-4">Candidato</th>
+                  <th className="py-2 pr-4">Documento</th>
                   <th className="py-2 pr-4">Correo</th>
                   <th className="py-2 pr-4">Fecha</th>
                   <th className="py-2">Estado</th>
@@ -249,7 +315,10 @@ export default function EmpresaConsultasContent() {
                     className="border-b border-gray-100 dark:border-gray-800 last:border-0"
                   >
                     <td className="py-3 pr-4 text-gray-900 dark:text-gray-100">
-                      {c.candidato_nombre || <span className="text-gray-400">—</span>}
+                      {c.candidato_primer_nombre} {c.candidato_primer_apellido}
+                    </td>
+                    <td className="py-3 pr-4 text-gray-600 dark:text-gray-400">
+                      {c.candidato_tipo_documento} {c.candidato_numero_documento}
                     </td>
                     <td className="py-3 pr-4 text-gray-600 dark:text-gray-400">
                       {c.candidato_email}

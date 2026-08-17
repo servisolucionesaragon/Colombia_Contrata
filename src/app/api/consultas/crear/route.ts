@@ -21,6 +21,9 @@ async function requireUser(request: NextRequest) {
 }
 
 const emailValido = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+const TIPOS_DOCUMENTO = ["CC", "PPT", "CE", "PA"];
+
+const texto = (v: unknown) => (typeof v === "string" ? v.trim() : "");
 
 // Crea una o varias invitaciones de consulta (individual = un solo
 // candidato, masiva = varios a la vez desde el CSV). No descuenta
@@ -68,17 +71,35 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const fechaValida = (v: string) => v === "" || /^\d{4}-\d{2}-\d{2}$/.test(v);
+
   const filas = (candidatos as Array<Record<string, unknown>>)
     .map((c) => ({
-      nombre: typeof c.nombre === "string" ? c.nombre.trim() : "",
-      documento: typeof c.documento === "string" ? c.documento.trim() : "",
-      email: typeof c.email === "string" ? c.email.trim().toLowerCase() : "",
+      primerNombre: texto(c.primerNombre),
+      segundoNombre: texto(c.segundoNombre),
+      primerApellido: texto(c.primerApellido),
+      segundoApellido: texto(c.segundoApellido),
+      email: texto(c.email).toLowerCase(),
+      tipoDocumento: texto(c.tipoDocumento).toUpperCase(),
+      numeroDocumento: texto(c.numeroDocumento),
+      fechaExpedicion: texto(c.fechaExpedicion),
     }))
-    .filter((c) => emailValido(c.email));
+    .filter(
+      (c) =>
+        c.primerNombre &&
+        c.primerApellido &&
+        emailValido(c.email) &&
+        TIPOS_DOCUMENTO.includes(c.tipoDocumento) &&
+        c.numeroDocumento &&
+        fechaValida(c.fechaExpedicion)
+    );
 
   if (filas.length === 0) {
     return NextResponse.json(
-      { error: "Ningún candidato tiene un correo válido." },
+      {
+        error:
+          "Ningún candidato tiene todos los datos obligatorios (nombre, apellido, correo, tipo y número de documento).",
+      },
       { status: 400 }
     );
   }
@@ -86,9 +107,14 @@ export async function POST(request: NextRequest) {
   const { error } = await db.from("consultas").insert(
     filas.map((f) => ({
       empresa_id: user.id,
-      candidato_nombre: f.nombre || null,
-      candidato_documento: f.documento || null,
+      candidato_primer_nombre: f.primerNombre,
+      candidato_segundo_nombre: f.segundoNombre || null,
+      candidato_primer_apellido: f.primerApellido,
+      candidato_segundo_apellido: f.segundoApellido || null,
       candidato_email: f.email,
+      candidato_tipo_documento: f.tipoDocumento,
+      candidato_numero_documento: f.numeroDocumento,
+      candidato_fecha_expedicion: f.fechaExpedicion || null,
       lote_referencia: typeof loteReferencia === "string" ? loteReferencia : null,
     }))
   );

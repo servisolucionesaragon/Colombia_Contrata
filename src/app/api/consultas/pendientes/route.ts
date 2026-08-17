@@ -34,7 +34,9 @@ export async function GET(request: NextRequest) {
 
   const { data: consultas } = await db
     .from("consultas")
-    .select("id, empresa_id, estado, created_at")
+    .select(
+      "id, empresa_id, estado, created_at, candidato_primer_nombre, candidato_segundo_nombre, candidato_primer_apellido, candidato_segundo_apellido, candidato_tipo_documento, candidato_numero_documento"
+    )
     .or(`candidato_id.eq.${user.id},candidato_email.eq.${user.email}`)
     .order("created_at", { ascending: false });
 
@@ -51,6 +53,15 @@ export async function GET(request: NextRequest) {
     empresaNombre: nombrePorId.get(c.empresa_id) ?? "Una empresa",
     estado: c.estado,
     fecha: c.created_at,
+    nombreCompleto: [
+      c.candidato_primer_nombre,
+      c.candidato_segundo_nombre,
+      c.candidato_primer_apellido,
+      c.candidato_segundo_apellido,
+    ]
+      .filter(Boolean)
+      .join(" "),
+    documento: `${c.candidato_tipo_documento} ${c.candidato_numero_documento}`,
   }));
 
   return NextResponse.json({ consultas: resultado });

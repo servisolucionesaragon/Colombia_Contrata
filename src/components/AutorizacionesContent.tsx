@@ -11,6 +11,8 @@ type Consulta = {
   empresaNombre: string;
   estado: "pendiente" | "autorizada" | "rechazada";
   fecha: string;
+  nombreCompleto: string;
+  documento: string;
 };
 
 async function authHeader() {
@@ -109,6 +111,9 @@ export default function AutorizacionesContent() {
               <p className="text-sm text-gray-500 dark:text-gray-400">
                 Solicitó verificar tus antecedentes el{" "}
                 {new Date(c.fecha).toLocaleDateString("es-CO")}
+              </p>
+              <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
+                Datos enviados por la empresa: {c.nombreCompleto} — {c.documento}
               </p>
             </div>
             <EstadoBadge estado={c.estado} />
