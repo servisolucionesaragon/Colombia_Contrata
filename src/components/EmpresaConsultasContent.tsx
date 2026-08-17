@@ -3,6 +3,7 @@
 import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import DocumentosResultado from "@/components/DocumentosResultado";
 
 type Status = "loading" | "signed-out" | "no-empresa" | "ready";
 
@@ -354,7 +355,10 @@ export default function EmpresaConsultasContent() {
                     </td>
                     <td className="py-3">
                       {c.estado === "autorizada" ? (
-                        <DocumentosPdf consultaId={c.id} pdfs={c.resultado_pdfs} error={c.resultado_error} />
+                        <DocumentosBoton
+                          consulta={c}
+                          candidatoNombre={`${c.candidato_primer_nombre} ${c.candidato_primer_apellido}`}
+                        />
                       ) : (
                         <span className="text-gray-300 dark:text-gray-600">—</span>
                       )}
@@ -370,61 +374,68 @@ export default function EmpresaConsultasContent() {
   );
 }
 
-const FUENTE_LABEL: Record<string, string> = {
-  registraduria: "Registraduría",
-  policia: "Policía",
-  procuraduria: "Procuraduría",
-  contraloria: "Contraloría",
-  ramaJudicial: "Rama Judicial",
-  rnmc: "Medidas correctivas",
-};
-
-function DocumentosPdf({
-  consultaId,
-  pdfs,
-  error,
+function DocumentosBoton({
+  consulta,
+  candidatoNombre,
 }: {
-  consultaId: string;
-  pdfs: Record<string, string> | null;
-  error: string | null;
+  consulta: Consulta;
+  candidatoNombre: string;
 }) {
-  const [descargando, setDescargando] = useState<string | null>(null);
+  const [abierto, setAbierto] = useState(false);
+  const cantidad = consulta.resultado_pdfs ? Object.keys(consulta.resultado_pdfs).length : 0;
 
-  const descargar = async (fuente: string) => {
-    setDescargando(fuente);
-    const res = await fetch(
-      `/api/consultas/${consultaId}/pdf?fuente=${encodeURIComponent(fuente)}`,
-      { headers: await authHeader() }
+  if (cantidad === 0) {
+    return consulta.resultado_error ? (
+      <span className="text-xs text-gray-400 dark:text-gray-500">No disponible</span>
+    ) : (
+      <span className="text-xs text-gray-400 dark:text-gray-500">—</span>
     );
-    setDescargando(null);
-    if (!res.ok) return;
-    const { url } = await res.json();
-    window.open(url, "_blank", "noopener,noreferrer");
-  };
+  }
 
-  if (pdfs && Object.keys(pdfs).length > 0) {
-    return (
-      <div className="flex flex-wrap gap-2">
-        {Object.keys(pdfs).map((fuente) => (
-          <button
-            key={fuente}
-            type="button"
-            disabled={descargando === fuente}
-            onClick={() => descargar(fuente)}
-            className="text-xs font-medium text-brand-blue hover:text-brand-blue-dark underline disabled:opacity-50"
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setAbierto(true)}
+        className="inline-flex items-center gap-x-1.5 text-xs font-semibold text-brand-blue hover:text-brand-blue-dark"
+      >
+        Ver documentos ({cantidad})
+      </button>
+
+      {abierto && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+          onClick={() => setAbierto(false)}
+        >
+          <div
+            className="w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-6"
+            onClick={(e) => e.stopPropagation()}
           >
-            {descargando === fuente ? "Abriendo..." : FUENTE_LABEL[fuente] ?? fuente}
-          </button>
-        ))}
-      </div>
-    );
-  }
-
-  if (error) {
-    return <span className="text-xs text-gray-400 dark:text-gray-500">No disponible</span>;
-  }
-
-  return <span className="text-xs text-gray-400 dark:text-gray-500">—</span>;
+            <div className="flex items-start justify-between gap-x-3 mb-5">
+              <h3 className="font-semibold text-gray-900 dark:text-gray-100">
+                Documentos de {candidatoNombre}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setAbierto(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-xl leading-none"
+                aria-label="Cerrar"
+              >
+                &times;
+              </button>
+            </div>
+            <DocumentosResultado
+              consultaId={consulta.id}
+              pdfs={consulta.resultado_pdfs}
+              resultadoError={consulta.resultado_error}
+              resultadoObtenidoAt={consulta.resultado_obtenido_at}
+              nivelRiesgo={consulta.nivel_riesgo}
+            />
+          </div>
+        </div>
+      )}
+    </>
+  );
 }
 
 function RiesgoBadge({ nivel }: { nivel: NivelRiesgo | null }) {

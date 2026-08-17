@@ -3,8 +3,11 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import DocumentosResultado from "@/components/DocumentosResultado";
 
 type Status = "loading" | "signed-out";
+
+type NivelRiesgo = "bajo" | "medio" | "alto";
 
 type Consulta = {
   id: string;
@@ -13,6 +16,10 @@ type Consulta = {
   fecha: string;
   nombreCompleto: string;
   documento: string;
+  nivelRiesgo: NivelRiesgo | null;
+  resultadoPdfs: Record<string, string> | null;
+  resultadoError: string | null;
+  resultadoObtenidoAt: string | null;
 };
 
 async function authHeader() {
@@ -158,6 +165,24 @@ export default function AutorizacionesContent() {
                   Rechazar
                 </button>
               </div>
+            </div>
+          )}
+
+          {c.estado === "autorizada" && (
+            <div className="mt-4 border-t border-gray-100 dark:border-gray-800 pt-4">
+              {!c.nivelRiesgo && !c.resultadoError && !c.resultadoObtenidoAt ? (
+                <p className="text-sm text-gray-400 dark:text-gray-500">
+                  Verificando tus antecedentes...
+                </p>
+              ) : (
+                <DocumentosResultado
+                  consultaId={c.id}
+                  pdfs={c.resultadoPdfs}
+                  resultadoError={c.resultadoError}
+                  resultadoObtenidoAt={c.resultadoObtenidoAt}
+                  nivelRiesgo={c.nivelRiesgo}
+                />
+              )}
             </div>
           )}
         </div>

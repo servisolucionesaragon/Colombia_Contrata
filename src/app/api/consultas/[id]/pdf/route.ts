@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { resolverContextoEmpresa } from "@/lib/empresaContext";
+import { resolverAccesoDocumentos } from "@/lib/consultaAcceso";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -24,7 +24,9 @@ async function requireUser(request: NextRequest) {
 // Genera una URL firmada de corta duración para descargar un PDF de
 // soporte de una verificación ya autorizada. Nunca se expone una URL
 // pública fija — el bucket "verificaciones-pdf" es privado y cada
-// descarga pide una URL nueva, válida solo por unos minutos.
+// descarga pide una URL nueva, válida solo por unos minutos. Accesible
+// tanto por la empresa dueña de la consulta como por el propio
+// candidato consultado.
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -41,23 +43,12 @@ export async function GET(
   }
 
   const db = adminClient();
-
-  const contexto = await resolverContextoEmpresa(db, user.id);
-  if (!contexto) {
-    return NextResponse.json({ error: "No autorizado." }, { status: 403 });
-  }
-
-  const { data: consulta } = await db
-    .from("consultas")
-    .select("empresa_id, resultado_pdfs")
-    .eq("id", consultaId)
-    .maybeSingle();
-
-  if (!consulta || consulta.empresa_id !== contexto.empresaId) {
+  const consulta = await resolverAccesoDocumentos(db, consultaId, user);
+  if (!consulta) {
     return NextResponse.json({ error: "No encontramos esta consulta." }, { status: 404 });
   }
 
-  const rutas = (consulta.resultado_pdfs as Record<string, string> | null) ?? {};
+  const rutas = consulta.resultado_pdfs ?? {};
   const ruta = rutas[fuente];
   if (!ruta) {
     return NextResponse.json({ error: "Ese documento no está disponible." }, { status: 404 });
