@@ -28,8 +28,12 @@ async function requireAdmin(request: NextRequest) {
 // empresa — pensada para probar la integración o resolver un caso
 // puntual sin depender del saldo de un cliente. Los PDF se devuelven en
 // base64 directo en la respuesta (no se suben a Storage) porque esta
-// consulta no queda asociada a ningún registro permanente.
-export const maxDuration = 60;
+// consulta no queda asociada a ningún registro permanente. Con Fluid
+// Compute activado en el proyecto de Vercel, el máximo real del plan
+// Hobby es 300s (no 60) — esta ruta sí espera a la respuesta completa
+// (es una herramienta de admin, no un flujo de candidato), así que
+// necesita el margen completo.
+export const maxDuration = 180;
 
 export async function POST(request: NextRequest) {
   const caller = await requireAdmin(request);

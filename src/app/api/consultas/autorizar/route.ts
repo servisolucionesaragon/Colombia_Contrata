@@ -6,9 +6,10 @@ import { getSolverioConfig, consultarVerificacionCompleta, semaforoANivelRiesgo 
 // La verificación real con Solverio puede tardar más de un minuto (una
 // prueba real tardó 68.9s, dominada por una sola fuente lenta) — se
 // dispara con after() después de responder al candidato en vez de
-// hacerlo esperar, y se sube este límite lo más alto que permite Vercel
-// para darle a ese trabajo en segundo plano más margen para completarse.
-export const maxDuration = 60;
+// hacerlo esperar. Con Fluid Compute activado en el proyecto de Vercel,
+// el máximo real del plan Hobby es 300s (no 60) — se deja un buen
+// margen sobre los 68.9s observados.
+export const maxDuration = 180;
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;

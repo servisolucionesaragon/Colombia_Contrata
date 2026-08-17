@@ -60,7 +60,7 @@ export default function ConsultaManualAdmin() {
     // función a mitad de camino y dejaba el botón trabado en
     // "Consultando..." para siempre, sin ningún mensaje de error.
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 90_000);
+    const timeoutId = setTimeout(() => controller.abort(), 170_000);
 
     try {
       const res = await fetch("/api/admin/consulta-manual", {
@@ -88,7 +88,7 @@ export default function ConsultaManualAdmin() {
       setResultado(data as Resultado);
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") {
-        setError("La consulta tardó más de 90 segundos y se canceló desde el navegador.");
+        setError("La consulta tardó demasiado y se canceló desde el navegador.");
       } else {
         setError(err instanceof Error ? err.message : "No pudimos completar la consulta.");
       }
