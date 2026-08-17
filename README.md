@@ -62,7 +62,7 @@ Basada en `Manual_Identidad_Visual_Colombia_Contrata` (carpeta `Colombia Contrat
 | `/solicitar/confirmacion` | Página de retorno tras el pago en Wompi | Lee el estado de la `solicitud` por su referencia y lo muestra (pagado/pendiente/fallido) |
 | `/empresas/planes` | Comprar un plan de empresa (mensual o anual) | **Conectado de verdad** — crea una fila en `pagos_empresa` y redirige al checkout de Wompi; solo para cuentas `account_type = "empresa"` con perfil completo (ver [Planes de empresa: compra con pago mensual o anual](#planes-de-empresa-compra-con-pago-mensual-o-anual-2026-08-16)) |
 | `/empresas/planes/confirmacion` | Página de retorno tras el pago en Wompi (empresas) | Misma `ConfirmacionContent.tsx` que `/solicitar/confirmacion`, distingue la tabla a consultar por el prefijo de la referencia |
-| `/empresas/consultas` | Invitar un candidato (individual) y ver las consultas enviadas | **Conectado de verdad** — crea filas en `consultas`, muestra créditos disponibles; solo para cuentas `account_type = "empresa"` |
+| `/empresas/consultas` | Invitar un candidato (individual) y ver las consultas enviadas, con su nivel de riesgo si ya fue clasificado | **Conectado de verdad** — crea filas en `consultas`, muestra créditos disponibles; solo para cuentas `account_type = "empresa"` |
 | `/empresas/consultas/masiva` | Invitar varios candidatos a la vez desde un CSV | **Conectado de verdad** — parser de CSV propio con vista previa antes de confirmar (ver [Consultas de candidatos](#consultas-de-candidatos-individual-y-masiva--consumo-de-créditos-2026-08-17)) |
 | `/autorizaciones` | El candidato ve y responde las solicitudes de verificación que le llegaron | **Conectado de verdad** — checkbox de Habeas Data obligatorio antes de autorizar; descuenta 1 crédito de la empresa al autorizar |
 | `/terminos` | Términos y Condiciones | Borrador, falta revisión legal — **editable desde `/admin` → Páginas** (ver [Términos y Privacidad como páginas editables](#términos-y-privacidad-como-páginas-editables)) |
@@ -130,6 +130,7 @@ src/
     api/admin/wompi-config/route.ts # Route Handler: guarda/consulta las llaves de Wompi en configuracion_wompi (admin-only, nunca devuelve los secretos ya guardados)
     api/admin/usuarios/route.ts    # Route Handler: lista usuarios (auth + profiles) y activa/desactiva cuentas (ban_duration)
     api/admin/pagos/route.ts       # Route Handler: lista solicitudes + pagos_empresa combinados y marca pagos como pagados a mano
+    api/admin/riesgo-consultas/route.ts # Route Handler: lista consultas autorizadas y guarda su nivel de riesgo (bajo/medio/alto) a mano
   components/
     Header.tsx / Footer.tsx # Header es client component: lee sesión + tabla profiles, muestra menú de usuario (avatar, Inicio/Dashboard/Historial/Consultas o Autorizaciones/Perfil/Cerrar sesión) y el ThemeToggle. Footer es server component async: lee configuracion_portal y muestra íconos de redes sociales configuradas
     SocialIcons.tsx         # íconos SVG de Facebook/Instagram/X/LinkedIn/TikTok/WhatsApp, usados por Footer.tsx y WhatsAppButton.tsx
@@ -151,6 +152,7 @@ src/
     WompiConfigManager.tsx  # admin: guarda las llaves de Wompi (formulario "write-only" para los secretos, ver Solicitud de documentos y pago con Wompi)
     UsuariosManager.tsx     # admin: lista de usuarios + activar/desactivar cuentas
     PagosManager.tsx        # admin: lista combinada de pagos (personas + empresas) + marcar como pagado a mano
+    RiesgoConsultasManager.tsx # admin: asigna a mano el nivel de riesgo (bajo/medio/alto) a consultas ya autorizadas
     AdminGate.tsx           # bloquea /admin a menos que la sesión tenga app_metadata.role === "admin"
     AdminTabs.tsx            # menú lateral agrupado del panel admin (Identidad / grupo Página principal / grupo Planes y documentos / Administradores)
     AdminSettingsForm.tsx  # identidad del portal — lee/guarda en configuracion_portal, sube logo/favicon a Storage
@@ -916,6 +918,27 @@ El usuario pidió agregar "Dashboard" al menú de usuario, como página por defe
 `Header.tsx` agregó "Dashboard" como segundo ítem del menú de usuario (después de "Inicio", antes de "Historial"), con un ícono nuevo (`IconDashboard`, barras tipo gráfico). `LoginForm.tsx` cambió su redirección post-login de `/perfil` a `/dashboard`. **El registro no cambió** — `emailRedirectTo` en `RegisterForm.tsx` sigue apuntando a `/perfil`, a propósito: la primera vez que alguien confirma su correo todavía no ha completado su perfil, así que tiene más sentido mandarlo ahí antes que al dashboard (que para una cuenta nueva estaría vacío).
 
 Verificado en producción con la cuenta de empresa de prueba (`servisolucionesti@gmail.com`): el dashboard mostró correctamente los créditos, los conteos por estado y la tabla de actividad reciente con las filas reales de `consultas`; el ítem "Dashboard" aparece en el menú desplegable con el enlace correcto a `/dashboard`. No se pudo probar con una cuenta de persona por no tener credenciales de prueba a mano en esta sesión — la lógica de RLS para candidato (`candidato_email`/`candidato_id`) es la misma ya verificada en `/autorizaciones`, así que el riesgo es bajo, pero queda pendiente una verificación visual con cuenta de persona.
+
+## Clasificación de riesgo por consulta (2026-08-17)
+
+El usuario pidió revisar la plataforma competidora HunterX (https://app.hunterx.com.co) en busca de ideas — se encontró que cada fuente/hallazgo se etiqueta con un nivel de riesgo (Alto/Medio/Informativo) y se promociona como feature de cada plan ("Clasificación clara de riesgo"). El usuario eligió priorizar esa idea, con dos decisiones tomadas antes de construir:
+
+1. **Sin integración real con el proveedor de fuentes todavía**, la clasificación no puede ser automática — se eligió construir el modelo de datos y la UI de todos modos, cargada **a mano desde `/admin`** mientras tanto, en vez de esperar a tener la API real o solo documentarlo como roadmap.
+2. **Un nivel de riesgo general por consulta** (bajo/medio/alto), no un desglose de múltiples hallazgos por fuente como hace HunterX — más simple de construir y de mostrar, ampliable después si hace falta.
+
+**Modelo de datos** — 3 columnas nuevas en `consultas` (sin nueva policy de RLS: las políticas de `select` existentes ya cubren estas columnas por ser la misma fila, y solo la Service Role Key puede escribir, igual que `estado`):
+```sql
+alter table public.consultas
+  add column nivel_riesgo text check (nivel_riesgo in ('bajo', 'medio', 'alto')),
+  add column nivel_riesgo_notas text,
+  add column nivel_riesgo_actualizado_at timestamptz;
+```
+
+**Admin** — nueva pestaña "Riesgo de consultas" en `/admin` (grupo "Usuarios y pagos", junto a Usuarios y Pagos): `RiesgoConsultasManager.tsx` + `GET`/`POST /api/admin/riesgo-consultas` (mismo patrón `requireAdmin` + Service Role Key que el resto de endpoints de admin). Lista las consultas ya **autorizadas** (antes de eso no hay nada que clasificar), con filtro "Sin clasificar / Ya clasificados / Todas", un selector bajo/medio/alto y un campo de notas opcional por fila. El endpoint solo actualiza filas con `estado = "autorizada"`, por seguridad.
+
+**Empresa** — el nivel se muestra como badge de color (verde/ámbar/rojo, "Sin clasificar" en gris si aún no se cargó) en la tabla "Consultas enviadas" de `/empresas/consultas` y en la tabla "Actividad reciente" de `/dashboard`, ambas solo para filas con `estado = "autorizada"`. El Dashboard de empresa suma un quinto stat, "Riesgo alto", resaltado en rojo si es mayor a 0.
+
+Verificado en producción: se insertó una consulta de prueba ya autorizada directo por SQL (para no depender del flujo completo de invitación + autorización), se confirmó que aparecía como "Sin clasificar" en `/empresas/consultas` y en el Dashboard, que el endpoint `/api/admin/riesgo-consultas` responde `403` sin token (confirmando que el deploy quedó bien), y se limpió la fila de prueba después. **No se probó la clasificación en sí desde la UI de admin** porque la sesión de este navegador no tiene una cuenta de administrador logueada en esta sesión (solo la cuenta de empresa de prueba) — verificado por revisión de código en su lugar, mismo patrón `requireAdmin` ya probado en otros endpoints de admin.
 
 ## Despliegue
 
