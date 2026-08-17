@@ -62,8 +62,9 @@ Basada en `Manual_Identidad_Visual_Colombia_Contrata` (carpeta `Colombia Contrat
 | `/solicitar/confirmacion` | Página de retorno tras el pago en Wompi | Lee el estado de la `solicitud` por su referencia y lo muestra (pagado/pendiente/fallido) |
 | `/empresas/planes` | Comprar un plan de empresa (mensual o anual) | **Conectado de verdad** — crea una fila en `pagos_empresa` y redirige al checkout de Wompi; solo para cuentas `account_type = "empresa"` con perfil completo (ver [Planes de empresa: compra con pago mensual o anual](#planes-de-empresa-compra-con-pago-mensual-o-anual-2026-08-16)) |
 | `/empresas/planes/confirmacion` | Página de retorno tras el pago en Wompi (empresas) | Misma `ConfirmacionContent.tsx` que `/solicitar/confirmacion`, distingue la tabla a consultar por el prefijo de la referencia |
-| `/empresas/consultas` | Invitar un candidato (individual) y ver las consultas enviadas, con su nivel de riesgo si ya fue clasificado | **Conectado de verdad** — crea filas en `consultas`, muestra créditos disponibles; solo para cuentas `account_type = "empresa"` |
+| `/empresas/consultas` | Invitar un candidato (individual) y ver las consultas enviadas, con su nivel de riesgo si ya fue clasificado | **Conectado de verdad** — crea filas en `consultas`, muestra créditos disponibles; para cuentas `account_type = "empresa"` o `"empresa_miembro"` (ver [Roles dentro de la cuenta empresa](#roles-dentro-de-la-cuenta-empresa-2026-08-17)) |
 | `/empresas/consultas/masiva` | Invitar varios candidatos a la vez desde un CSV | **Conectado de verdad** — parser de CSV propio con vista previa antes de confirmar (ver [Consultas de candidatos](#consultas-de-candidatos-individual-y-masiva--consumo-de-créditos-2026-08-17)) |
+| `/empresas/equipo` | El Administrador de la empresa invita miembros de equipo (Analista/Auxiliar/otro Administrador), con contraseña temporal | **Conectado de verdad** — crea la cuenta vía Admin API de Supabase; solo visible/usable para el Administrador (ver [Roles dentro de la cuenta empresa](#roles-dentro-de-la-cuenta-empresa-2026-08-17)) |
 | `/autorizaciones` | El candidato ve y responde las solicitudes de verificación que le llegaron | **Conectado de verdad** — checkbox de Habeas Data obligatorio antes de autorizar; descuenta 1 crédito de la empresa al autorizar |
 | `/terminos` | Términos y Condiciones | Borrador, falta revisión legal — **editable desde `/admin` → Páginas** (ver [Términos y Privacidad como páginas editables](#términos-y-privacidad-como-páginas-editables)) |
 | `/privacidad` | Política de Tratamiento de Datos Personales (Ley 1581) | Borrador, falta revisión legal — **editable desde `/admin` → Páginas** (mismo mecanismo que `/terminos`) |
@@ -118,6 +119,8 @@ src/
     empresas/planes/confirmacion/page.tsx # página de retorno tras el pago en Wompi (empresas)
     empresas/consultas/page.tsx        # invitar un candidato (individual) + lista de consultas enviadas
     empresas/consultas/masiva/page.tsx # carga masiva de candidatos por CSV
+    empresas/equipo/page.tsx           # el Administrador de la empresa invita/gestiona miembros de equipo
+    api/empresa/equipo/route.ts        # Route Handler: lista/crea/edita miembros de equipo (solo Administrador de esa empresa)
     autorizaciones/page.tsx            # el candidato ve y autoriza/rechaza las consultas dirigidas a él
     api/consultas/crear/route.ts       # Route Handler: valida y crea 1 o varias consultas (no descuenta crédito)
     api/consultas/autorizar/route.ts   # Route Handler: el candidato autoriza/rechaza; descuenta crédito solo al autorizar
@@ -153,6 +156,7 @@ src/
     UsuariosManager.tsx     # admin: lista de usuarios + activar/desactivar cuentas
     PagosManager.tsx        # admin: lista combinada de pagos (personas + empresas) + marcar como pagado a mano
     RiesgoConsultasManager.tsx # admin: asigna a mano el nivel de riesgo (bajo/medio/alto) a consultas ya autorizadas
+    EquipoEmpresaContent.tsx # el Administrador de la empresa crea miembros de equipo (contraseña temporal) y edita rol/acceso
     AdminGate.tsx           # bloquea /admin a menos que la sesión tenga app_metadata.role === "admin"
     AdminTabs.tsx            # menú lateral agrupado del panel admin (Identidad / grupo Página principal / grupo Planes y documentos / Administradores)
     AdminSettingsForm.tsx  # identidad del portal — lee/guarda en configuracion_portal, sube logo/favicon a Storage
@@ -173,6 +177,7 @@ src/
     colombia.ts             # departamentos + ciudades por departamento (para /perfil)
     wompi.ts                # getWompiKeys/buildWompiCheckoutUrl, compartido por /api/solicitudes/crear y /api/pagos-empresa/crear
     creditos.ts              # creditosDisponibles(db, empresaId) — suma pagos_empresa vigentes menos consultas ya autorizadas
+    empresaContext.ts        # resolverContextoEmpresa(db, userId) — resuelve la empresa efectiva y el rol de quien llama (dueño o miembro de equipo)
   types/
     preline.d.ts          # tipado de window.HSStaticMethods
 public/
@@ -939,6 +944,45 @@ alter table public.consultas
 **Empresa** — el nivel se muestra como badge de color (verde/ámbar/rojo, "Sin clasificar" en gris si aún no se cargó) en la tabla "Consultas enviadas" de `/empresas/consultas` y en la tabla "Actividad reciente" de `/dashboard`, ambas solo para filas con `estado = "autorizada"`. El Dashboard de empresa suma un quinto stat, "Riesgo alto", resaltado en rojo si es mayor a 0.
 
 Verificado en producción: se insertó una consulta de prueba ya autorizada directo por SQL (para no depender del flujo completo de invitación + autorización), se confirmó que aparecía como "Sin clasificar" en `/empresas/consultas` y en el Dashboard, que el endpoint `/api/admin/riesgo-consultas` responde `403` sin token (confirmando que el deploy quedó bien), y se limpió la fila de prueba después. **No se probó la clasificación en sí desde la UI de admin** porque la sesión de este navegador no tiene una cuenta de administrador logueada en esta sesión (solo la cuenta de empresa de prueba) — verificado por revisión de código en su lugar, mismo patrón `requireAdmin` ya probado en otros endpoints de admin.
+
+## Roles dentro de la cuenta empresa (2026-08-17)
+
+Segunda idea tomada de la revisión de HunterX: esa plataforma permite varios usuarios (Administrador/Analista/Auxiliar) dentro de una misma cuenta de empresa. El usuario eligió priorizar esto también, con dos decisiones antes de construir:
+
+1. **Permisos de dos niveles**, no tres: Administrador (dueño de la cuenta, o un miembro con ese rol) puede comprar planes, ver pagos y gestionar el equipo. Analista y Auxiliar tienen exactamente los mismos permisos entre sí — solo pueden crear y ver consultas (individual y masiva) — sin acceso a planes, pagos ni administración de usuarios.
+2. **Alta de miembros con contraseña temporal**, no invitación por correo: el Administrador define nombre, correo, contraseña y rol de una vez; la cuenta queda creada y confirmada al instante. Debe compartir la contraseña con esa persona por fuera del sitio (ej. WhatsApp). Se eligió así para no depender del flujo de correo de Supabase para esto.
+
+**Modelo de datos** — la cuenta "dueña" (la que se registró originalmente como empresa) no cambia. Los miembros de equipo son cuentas de Auth nuevas con su propio login, distinguidas por un `account_type` nuevo:
+```sql
+alter table public.profiles
+  drop constraint profiles_account_type_check,
+  add constraint profiles_account_type_check check (account_type in ('persona', 'empresa', 'empresa_miembro'));
+
+alter table public.profiles
+  add column empresa_id_padre uuid references auth.users(id) on delete cascade,
+  add column rol_empresa text check (rol_empresa in ('administrador', 'analista', 'auxiliar'));
+```
+Un miembro de equipo reutiliza las columnas `primer_nombre`/`primer_apellido` que ya existían para personas (no se agregó una columna de nombre aparte) — su `razon_social` y demás campos de empresa quedan `null`, ya que la empresa "real" es la que apunta `empresa_id_padre`.
+
+**`src/lib/empresaContext.ts`** (nuevo) — punto único para resolver la "empresa efectiva" de quien está llamando: `resolverContextoEmpresa(db, userId)` devuelve `{ empresaId, rol, esAdministrador, razonSocial }`. Si el usuario es la cuenta dueña (`account_type = "empresa"`), `empresaId` es su propio id y el rol siempre es administrador. Si es un miembro (`account_type = "empresa_miembro"`), `empresaId` es `empresa_id_padre` y el rol es el que tenga asignado. Reutilizado por `/api/consultas/crear`, `/api/pagos-empresa/crear` y el nuevo `/api/empresa/equipo`, para no repetir esta lógica en cada endpoint.
+
+**`/api/empresa/equipo`** (nuevo, `EquipoEmpresaContent.tsx` en `/empresas/equipo`) — protegido con `requireAdministradorEmpresa` (mismo patrón que los endpoints de `/admin`, pero verificando `esAdministrador` de la empresa que llama en vez de `app_metadata.role`):
+- `GET`: lista la cuenta dueña (marcada como "cuenta principal") más los miembros (`profiles.empresa_id_padre = empresaId`), cruzando con `auth.admin.listUsers` para correo y estado activo/baneado.
+- `POST`: crea la cuenta con `auth.admin.createUser({ email, password, email_confirm: true })` y la fila en `profiles`; si falla guardar el perfil, borra el usuario de Auth recién creado para no dejarlo huérfano.
+- `PATCH`: cambia `rol_empresa` o activa/desactiva el acceso (mismo mecanismo `ban_duration` que `UsuariosManager.tsx` del admin del sitio). Nunca permite tocar la cuenta dueña (`userId === empresaId`), y confirma que el miembro pertenece a la empresa de quien llama antes de dejar editarlo.
+
+**RLS actualizada** en `consultas` (select + insert) y `pagos_empresa` (select) para que un miembro de equipo pueda leer/crear filas de su empresa, no solo las que tienen `empresa_id = auth.uid()`:
+```sql
+create policy "Empresas can view own consultas" on public.consultas for select using (
+  auth.uid() = empresa_id
+  or exists (select 1 from public.profiles where profiles.id = auth.uid() and profiles.empresa_id_padre = consultas.empresa_id)
+);
+```
+(mismo patrón para el insert de `consultas` y el select de `pagos_empresa`; el insert de `pagos_empresa` sigue sin policy pública a propósito — solo `/api/pagos-empresa/crear`, con Service Role Key, puede crear pagos, y ese endpoint ahora exige `esAdministrador`).
+
+**Componentes existentes actualizados** para resolver la empresa efectiva en vez de asumir `auth.uid() === empresa_id`: `EmpresaConsultasContent.tsx` (lee `empresa_id_padre` del propio perfil, oculta "Comprar más créditos" si no es administrador), `CargaMasivaContent.tsx` (el gate de acceso ahora acepta `account_type` empresa o empresa_miembro), `DashboardContent.tsx` (misma resolución + nuevo botón "Gestionar equipo" solo para administradores), `EmpresaPlanesContent.tsx` (bloquea con un mensaje a Analista/Auxiliar en vez de mostrar el checkout), `Header.tsx` (el menú de "Consultas" ahora también aparece para `empresa_miembro`), `ProfileForm.tsx` (un miembro de equipo ve una tarjeta simple de solo lectura en vez del formulario de datos de empresa, para no arriesgar que un guardado accidental le cambie el `account_type`).
+
+Verificado en producción con la cuenta de empresa de prueba: se creó un miembro de prueba (Carlos Prueba, rol Analista) desde `/empresas/equipo`, apareció correctamente en la lista con su rol editable y botón "Desactivar", y por SQL se confirmó que `rol_empresa = 'analista'` y `empresa_id_padre` apunta correctamente a la cuenta dueña. El Dashboard de la cuenta dueña mostró el nuevo botón "Gestionar equipo". No se probó iniciar sesión como el miembro de prueba en esta sesión (para no perder el contexto de sesión de la cuenta dueña que ya estaba autenticada) — la fila de prueba se borró después (`delete from auth.users ...`, cascada a `profiles`).
 
 ## Despliegue
 
