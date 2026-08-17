@@ -96,45 +96,55 @@ export async function consultarVerificacionCompleta(
     };
   }
 
-  let data: Record<string, unknown>;
+  let body: { exitoso?: boolean; mensaje?: string | null; data?: Record<string, unknown> };
   try {
-    data = await response.json();
+    body = await response.json();
   } catch {
     return { ok: false, error: "La respuesta del proveedor de verificación no se pudo interpretar." };
   }
 
-  // El formato exacto de la respuesta no viene documentado con un ejemplo
-  // real todavía — se intenta extraer el semáforo y los soportes en PDF
-  // con los nombres de campo más probables, pero siempre se guarda el
-  // JSON completo (raw) aparte para no perder nada si estos nombres no
-  // coinciden exactamente una vez se vea una respuesta real.
-  const resultado = data?.resultado as Record<string, unknown> | undefined;
-  const semaforoRaw =
-    (data?.semaforo as string | undefined) ??
-    (resultado?.semaforo as string | undefined) ??
-    (data?.resultadoGeneral as string | undefined);
-  const semaforo = normalizarSemaforo(semaforoRaw);
+  if (body.exitoso === false) {
+    return { ok: false, error: body.mensaje || "El proveedor de verificación devolvió un error." };
+  }
 
-  const pdfsRaw = data?.soportesPdf ?? data?.soportes_pdf ?? null;
+  // Estructura real confirmada con una consulta de prueba real el
+  // 2026-08-17 (la colección de Postman del proveedor no traía un
+  // ejemplo): todo viene envuelto en { exitoso, mensaje, data: {...} }.
+  // Dentro de "data", el riesgo es un número (data.nivelRiesgo), no un
+  // texto "semaforo" como sugería la descripción del endpoint — el
+  // significado exacto de cada valor (0/1/2...) todavía no está
+  // confirmado con el proveedor, se usa el mapeo más razonable
+  // (0=verde/bajo, 1=amarillo/medio, 2 o más=rojo/alto) hasta poder
+  // confirmarlo con más consultas reales o con Solverio directamente.
+  const data = body.data ?? {};
+  const nivelRiesgoRaw = data.nivelRiesgo;
+  const semaforo = normalizarNivelRiesgo(nivelRiesgoRaw);
+
+  const pdfsRaw = data.soportesPdf;
   const pdfs =
     pdfsRaw && typeof pdfsRaw === "object" ? (pdfsRaw as Record<string, string>) : null;
 
   // Los PDF en base64 ya se extraen aparte (y se suben a Storage) — no
   // tiene sentido duplicarlos dentro del JSON que se guarda en la base de
-  // datos, podrían pesar varios MB.
-  const rawSinPdfs = { ...data };
-  delete rawSinPdfs.soportesPdf;
-  delete rawSinPdfs.soportes_pdf;
+  // datos, podrían pesar varios MB (en la prueba real, más de 700 KB).
+  const dataSinPdfs = { ...data };
+  delete dataSinPdfs.soportesPdf;
 
-  return { ok: true, semaforo, raw: rawSinPdfs, pdfs };
+  return { ok: true, semaforo, raw: { ...body, data: dataSinPdfs }, pdfs };
 }
 
-function normalizarSemaforo(valor: string | undefined): "verde" | "amarillo" | "rojo" | null {
-  if (!valor) return null;
-  const v = valor.toLowerCase();
-  if (v.includes("verde") || v === "green") return "verde";
-  if (v.includes("amarillo") || v === "yellow") return "amarillo";
-  if (v.includes("rojo") || v === "red") return "rojo";
+function normalizarNivelRiesgo(valor: unknown): "verde" | "amarillo" | "rojo" | null {
+  if (typeof valor === "number") {
+    if (valor <= 0) return "verde";
+    if (valor === 1) return "amarillo";
+    return "rojo";
+  }
+  if (typeof valor === "string") {
+    const v = valor.toLowerCase();
+    if (v.includes("verde") || v === "green" || v === "bajo") return "verde";
+    if (v.includes("amarillo") || v === "yellow" || v === "medio") return "amarillo";
+    if (v.includes("rojo") || v === "red" || v === "alto") return "rojo";
+  }
   return null;
 }
 

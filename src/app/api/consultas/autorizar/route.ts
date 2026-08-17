@@ -1,7 +1,14 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { creditosDisponibles } from "@/lib/creditos";
 import { getSolverioConfig, consultarVerificacionCompleta, semaforoANivelRiesgo } from "@/lib/solverio";
+
+// La verificación real con Solverio puede tardar más de un minuto (una
+// prueba real tardó 68.9s, dominada por una sola fuente lenta) — se
+// dispara con after() después de responder al candidato en vez de
+// hacerlo esperar, y se sube este límite lo más alto que permite Vercel
+// para darle a ese trabajo en segundo plano más margen para completarse.
+export const maxDuration = 60;
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -103,12 +110,16 @@ export async function POST(request: NextRequest) {
     })
     .eq("id", consultaId);
 
-  // La consulta ya quedó autorizada y el crédito descontado aunque la
-  // verificación con el proveedor falle a partir de aquí — nunca se
-  // pierde la autorización del candidato por un problema del lado de
-  // Solverio (fuentes caídas, plan sin habilitar, etc.).
-  const resultado = await ejecutarVerificacion(db, consulta);
-  await guardarResultadoVerificacion(db, consultaId, resultado);
+  // La autorización ya quedó guardada y el crédito descontado — el
+  // candidato no debe esperar a que Solverio responda (una consulta real
+  // tardó 68.9s). La verificación se dispara con after(), que sigue
+  // corriendo después de que esta respuesta ya se envió, sin bloquear.
+  // Si falla por cualquier motivo, la autorización del candidato nunca
+  // se pierde — solo queda resultado_error en la fila.
+  after(async () => {
+    const resultado = await ejecutarVerificacion(db, consulta);
+    await guardarResultadoVerificacion(db, consultaId, resultado);
+  });
 
   return NextResponse.json({ success: true });
 }

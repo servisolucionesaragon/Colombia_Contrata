@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { supabase } from "@/lib/supabase";
+import ConsultaManualAdmin from "@/components/ConsultaManualAdmin";
 
 type Estado = {
   baseUrl: string;
@@ -138,6 +139,8 @@ export default function FuentesConfigManager() {
           {estado.apiKeyConfigurada ? "Configurado" : "Falta la API key"}
         </span>
       </div>
+
+      {estado.apiKeyConfigurada && <ConsultaManualAdmin />}
     </div>
   );
 }

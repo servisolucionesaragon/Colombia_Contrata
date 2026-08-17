@@ -19,6 +19,7 @@ type Consulta = {
   nivel_riesgo: NivelRiesgo | null;
   resultado_pdfs: Record<string, string> | null;
   resultado_error: string | null;
+  resultado_obtenido_at: string | null;
   created_at: string;
 };
 
@@ -74,7 +75,7 @@ export default function EmpresaConsultasContent() {
         supabase
           .from("consultas")
           .select(
-            "id, candidato_primer_nombre, candidato_primer_apellido, candidato_email, candidato_tipo_documento, candidato_numero_documento, estado, nivel_riesgo, resultado_pdfs, resultado_error, created_at"
+            "id, candidato_primer_nombre, candidato_primer_apellido, candidato_email, candidato_tipo_documento, candidato_numero_documento, estado, nivel_riesgo, resultado_pdfs, resultado_error, resultado_obtenido_at, created_at"
           )
           .eq("empresa_id", userId)
           .order("created_at", { ascending: false })
@@ -343,10 +344,12 @@ export default function EmpresaConsultasContent() {
                       <EstadoBadge estado={c.estado} />
                     </td>
                     <td className="py-3 pr-4">
-                      {c.estado === "autorizada" ? (
-                        <RiesgoBadge nivel={c.nivel_riesgo} />
-                      ) : (
+                      {c.estado !== "autorizada" ? (
                         <span className="text-gray-300 dark:text-gray-600">—</span>
+                      ) : !c.nivel_riesgo && !c.resultado_error && !c.resultado_obtenido_at ? (
+                        <span className="text-xs text-gray-400 dark:text-gray-500">Verificando...</span>
+                      ) : (
+                        <RiesgoBadge nivel={c.nivel_riesgo} />
                       )}
                     </td>
                     <td className="py-3">
@@ -373,6 +376,7 @@ const FUENTE_LABEL: Record<string, string> = {
   procuraduria: "Procuraduría",
   contraloria: "Contraloría",
   ramaJudicial: "Rama Judicial",
+  rnmc: "Medidas correctivas",
 };
 
 function DocumentosPdf({
