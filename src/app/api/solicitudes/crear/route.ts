@@ -105,14 +105,20 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const publicKey = process.env.NEXT_PUBLIC_WOMPI_PUBLIC_KEY;
-  const integritySecret = process.env.WOMPI_INTEGRITY_SECRET;
+  const { data: wompiConfig } = await db
+    .from("configuracion_wompi")
+    .select("public_key, integrity_secret")
+    .eq("id", 1)
+    .maybeSingle();
+
+  const publicKey = wompiConfig?.public_key;
+  const integritySecret = wompiConfig?.integrity_secret;
 
   // La solicitud ya quedó registrada como "pendiente" aunque todavía no
   // haya llaves de Wompi configuradas — así no se pierde el pedido del
-  // usuario. En cuanto se agreguen NEXT_PUBLIC_WOMPI_PUBLIC_KEY y
-  // WOMPI_INTEGRITY_SECRET en Vercel, este mismo endpoint empieza a
-  // devolver checkoutUrl sin más cambios de código.
+  // usuario. En cuanto el admin las guarde desde /admin → Pagos (Wompi),
+  // este mismo endpoint empieza a devolver checkoutUrl sin más cambios de
+  // código ni redeploy.
   if (!publicKey || !integritySecret) {
     return NextResponse.json({ reference, pagoDisponible: false });
   }

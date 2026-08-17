@@ -10,7 +10,17 @@ const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 // el algoritmo de checksum sigue la documentación de docs.wompi.co, pero
 // hay que confirmarlo con un evento real en cuanto haya sandbox.
 export async function POST(request: NextRequest) {
-  const eventsSecret = process.env.WOMPI_EVENTS_SECRET;
+  const db = createClient(supabaseUrl, serviceRoleKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+
+  const { data: wompiConfig } = await db
+    .from("configuracion_wompi")
+    .select("events_secret")
+    .eq("id", 1)
+    .maybeSingle();
+
+  const eventsSecret = wompiConfig?.events_secret;
   if (!eventsSecret) {
     return NextResponse.json({ error: "Webhook no configurado" }, { status: 503 });
   }
@@ -52,10 +62,6 @@ export async function POST(request: NextRequest) {
       : transaction.status === "DECLINED" || transaction.status === "ERROR"
         ? "fallido"
         : "pendiente";
-
-  const db = createClient(supabaseUrl, serviceRoleKey, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
 
   // TODO: cuando exista la integración con el proveedor de fuentes, este
   // es el lugar para disparar la generación de los documentos al pasar a

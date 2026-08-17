@@ -10,6 +10,7 @@ const tabs = [
   { id: "personas", label: "Planes de personas" },
   { id: "planes", label: "Planes de empresa" },
   { id: "documentos", label: "Documentos disponibles" },
+  { id: "pagos", label: "Pagos (Wompi)" },
   { id: "admins", label: "Administradores" },
 ] as const;
 
@@ -39,6 +40,7 @@ const nav: NavEntry[] = [
       { id: "documentos", label: "Documentos disponibles" },
     ],
   },
+  { type: "item", id: "pagos", label: "Pagos (Wompi)" },
   { type: "item", id: "admins", label: "Administradores" },
 ];
 
@@ -50,6 +52,7 @@ export default function AdminTabs({
   personas,
   planes,
   documentos,
+  pagos,
   admins,
 }: {
   identidad: ReactNode;
@@ -59,10 +62,11 @@ export default function AdminTabs({
   personas: ReactNode;
   planes: ReactNode;
   documentos: ReactNode;
+  pagos: ReactNode;
   admins: ReactNode;
 }) {
   const [active, setActive] = useState<TabId>("identidad");
-  const content = { identidad, landing, bloques, paginas, personas, planes, documentos, admins }[active];
+  const content = { identidad, landing, bloques, paginas, personas, planes, documentos, pagos, admins }[active];
 
   return (
     <div className="flex flex-col sm:flex-row gap-6 sm:items-start">
