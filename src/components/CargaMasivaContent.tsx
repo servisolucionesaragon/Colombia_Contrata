@@ -160,8 +160,8 @@ export default function CargaMasivaContent() {
         <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
           El archivo debe tener columnas <code>nombre</code>,{" "}
           <code>documento</code> (opcional) y <code>correo</code>. Si lo
-          exportas desde Excel o Google Sheets, guárdalo como "CSV (delimitado
-          por comas)".
+          exportas desde Excel o Google Sheets, guárdalo como “CSV (delimitado
+          por comas)”.
         </p>
         <input
           ref={fileInputRef}
