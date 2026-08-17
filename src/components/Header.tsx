@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import ThemeToggle from "@/components/ThemeToggle";
+import InstallPwaBanner from "@/components/InstallPwaBanner";
 
 // Con "/" delante a propósito: son secciones de la página principal por
 // ancla, y estos enlaces se muestran en TODAS las páginas del sitio (no
@@ -595,6 +596,7 @@ export default function Header() {
       <div className="w-1/4 bg-brand-blue" />
       <div className="w-1/4 bg-brand-red" />
     </div>
+    <InstallPwaBanner />
     </>
   );
 }

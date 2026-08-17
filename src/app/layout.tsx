@@ -56,7 +56,7 @@ export async function generateMetadata(): Promise<Metadata> {
     ],
     icons: {
       icon: data?.favicon_url || "/icono.png",
-      apple: "/apple-touch-icon.png",
+      apple: data?.favicon_url || "/apple-touch-icon.png",
     },
     appleWebApp: {
       capable: true,
