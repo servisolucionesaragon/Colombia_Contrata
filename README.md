@@ -27,15 +27,9 @@ Copiar a `.env.local` (no se sube a git):
 NEXT_PUBLIC_SUPABASE_URL=https://zjbijmieiyumpqwyqhfm.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon key del proyecto en Supabase>
 SUPABASE_SERVICE_ROLE_KEY=<service_role key del proyecto en Supabase>
-
-# Pasarela de pagos (Wompi) — ver "Solicitud de documentos y pago con
-# Wompi" más abajo. Sin estas tres, /solicitar sigue funcionando (registra
-# la solicitud) pero muestra "los pagos estarán disponibles pronto" en vez
-# de redirigir al checkout.
-NEXT_PUBLIC_WOMPI_PUBLIC_KEY=<llave pública de Wompi>
-WOMPI_INTEGRITY_SECRET=<secreto de integridad de Wompi, solo servidor>
-WOMPI_EVENTS_SECRET=<secreto de eventos/webhook de Wompi, solo servidor>
 ```
+
+Las llaves de Wompi **no** son variables de entorno — se configuran desde `/admin` → **Pagos (Wompi)** y se guardan en la tabla `configuracion_wompi`, precisamente para poder activarlas sin pasar por Vercel ni hacer un redeploy. Ver [Solicitud de documentos y pago con Wompi](#solicitud-de-documentos-y-pago-con-wompi).
 
 En Vercel están configuradas en **Project Settings → Environment Variables**. `SUPABASE_SERVICE_ROLE_KEY` **no** lleva `NEXT_PUBLIC_` a propósito — solo la usan los Route Handlers en el servidor (ej. `src/app/api/admin/roles/route.ts`), nunca debe llegar al navegador.
 
@@ -117,6 +111,7 @@ src/
     api/admin/roles/route.ts # Route Handler: dar/quitar admin por correo, usa la Service Role Key (solo servidor)
     api/solicitudes/crear/route.ts # Route Handler: valida perfil/documentos, crea la solicitud, arma la URL del checkout de Wompi (o devuelve pagoDisponible:false si faltan las llaves)
     api/webhooks/wompi/route.ts    # Route Handler: recibe la confirmación de pago de Wompi y actualiza el estado de la solicitud
+    api/admin/wompi-config/route.ts # Route Handler: guarda/consulta las llaves de Wompi en configuracion_wompi (admin-only, nunca devuelve los secretos ya guardados)
   components/
     Header.tsx / Footer.tsx # Header es client component: lee sesión + tabla profiles, muestra menú de usuario (avatar, Inicio/Historial/Perfil/Cerrar sesión) y el ThemeToggle. Footer es server component async: lee configuracion_portal y muestra íconos de redes sociales configuradas
     SocialIcons.tsx         # íconos SVG de Facebook/Instagram/X/LinkedIn/TikTok/WhatsApp, usados por Footer.tsx y WhatsAppButton.tsx
@@ -129,6 +124,7 @@ src/
     HistorialContent.tsx    # contenido de /historial (gate de sesión + estado vacío)
     SolicitarContent.tsx    # checklist de documentos + total + llamada a /api/solicitudes/crear + redirección al checkout de Wompi
     ConfirmacionContent.tsx # lee el estado de la solicitud por su referencia (?reference=) y lo muestra tras volver de Wompi
+    WompiConfigManager.tsx  # admin: guarda las llaves de Wompi (formulario "write-only" para los secretos, ver Solicitud de documentos y pago con Wompi)
     AdminGate.tsx           # bloquea /admin a menos que la sesión tenga app_metadata.role === "admin"
     AdminTabs.tsx            # menú lateral agrupado del panel admin (Identidad / grupo Página principal / grupo Planes y documentos / Administradores)
     AdminSettingsForm.tsx  # identidad del portal — lee/guarda en configuracion_portal, sube logo/favicon a Storage
@@ -537,6 +533,24 @@ create policy "Users can insert own solicitudes"
 -- No hay policy de "update" pública a propósito: el estado solo lo cambia
 -- el webhook de Wompi (src/app/api/webhooks/wompi/route.ts), que usa la
 -- Service Role Key y por lo tanto ignora RLS.
+
+-- Llaves de Wompi, editables desde /admin -> Pagos (Wompi). Sin ninguna
+-- policy de select/insert/update: con RLS activado y sin policies,
+-- Postgres deniega todo por defecto para anon/authenticated. Solo la
+-- Service Role Key (server-side) puede leerla o escribirla, siempre a
+-- través de /api/admin/wompi-config (verifica que quien llama sea admin).
+create table public.configuracion_wompi (
+  id int primary key default 1,
+  public_key text,
+  integrity_secret text,
+  events_secret text,
+  updated_at timestamptz not null default now(),
+  constraint configuracion_wompi_singleton check (id = 1)
+);
+
+insert into public.configuracion_wompi (id) values (1);
+
+alter table public.configuracion_wompi enable row level security;
 ```
 
 </details>
@@ -556,6 +570,7 @@ create policy "Users can insert own solicitudes"
   - **Planes de personas** (`ConfiguracionPersonaManager.tsx`) — título/descripción/precio-desde/CTA de la tarjeta "Persona independiente" en `/`.
   - **Planes de empresa** (`PlanesEmpresaManager.tsx`) — crear/editar/eliminar planes; incluye la opción de asignar un plan a una sola empresa (privado).
   - **Documentos disponibles** (`PreciosDocumentosManager.tsx`) — lista de documentos para personas naturales (sin precio).
+- **Pagos (Wompi)** (`WompiConfigManager.tsx`) — llave pública y secretos de integridad/eventos de Wompi (`configuracion_wompi`). Ver [Solicitud de documentos y pago con Wompi](#solicitud-de-documentos-y-pago-con-wompi).
 - **Administradores** (`AdminRolesManager.tsx`) — dar/quitar acceso de administrador escribiendo el correo de una cuenta ya registrada.
 
 ⚠️ **Gotcha de UI**: con 7 secciones, las pestañas horizontales (aunque el contenedor ya se había agrandado de `max-w-4xl` a `max-w-6xl` en una sesión anterior) volvieron a necesitar scroll horizontal. Se resolvió cambiando a un menú lateral (`sm:w-60`, sticky) agrupado por categoría, y ensanchando el contenedor a `max-w-7xl`. Si se agregan más secciones en el futuro, agruparlas dentro de un grupo existente o crear uno nuevo en el array `nav` de `AdminTabs.tsx` — el menú lateral crece verticalmente sin límite práctico, a diferencia de las pestañas horizontales.
@@ -669,16 +684,24 @@ Primer flujo de compra real del sitio (2026-08-09), para personas naturales. El 
 
 **Modelo de precio**: confirmado con el usuario — es un **precio fijo por solicitud** (`configuracion_persona.precio_desde`), sin importar cuántos ni cuáles documentos se elijan en el checklist. Por eso `precios_documentos.precio` sigue sin usarse (ver nota en la sección de Base de datos): el checklist es solo para que el usuario indique qué necesita, no para calcular el total.
 
+**Llaves configurables desde `/admin` → Pagos (Wompi)** (agregado el mismo día, a pedido del usuario "agreguemos un módulo en admin para la integración de Wompi"): en vez de vivir como variables de entorno en Vercel, las tres llaves se guardan en una tabla `configuracion_wompi` (fila única) editable desde `WompiConfigManager.tsx`. Esto evita depender de Vercel (y del bug de copiar/pegar de esta máquina, ver gotcha de `SUPABASE_SERVICE_ROLE_KEY`) y permite activar los pagos **sin redeploy** en cuanto el usuario tenga sus llaves reales:
+- La tabla tiene RLS activado **sin ninguna policy** de select/insert/update para `anon`/`authenticated` — con RLS así, Postgres deniega todo por defecto, así que solo la Service Role Key (usada server-side) puede leerla o escribirla. El propio admin nunca la lee directo desde el navegador con `supabase-js`.
+- `GET /api/admin/wompi-config` y `POST /api/admin/wompi-config` son los únicos puntos de acceso, protegidos con el mismo patrón `requireAdmin` de `/api/admin/roles.ts` (token Bearer verificado contra Supabase + `app_metadata.role === "admin"`).
+- La llave pública **sí se devuelve completa** al formulario (no es secreta, Wompi la diseñó para usarse en el navegador). Los dos secretos **nunca se devuelven** — el `GET` solo informa si están configurados o no (`integritySecretConfigurado`/`eventsSecretConfigurado`), y el formulario los muestra como campos de contraseña vacíos con la pista "ya hay uno guardado, déjalo en blanco para no cambiarlo". Dejar un campo vacío al guardar significa "no tocar ese valor", no "borrarlo".
+- Un banner verde/ámbar en la parte de arriba del formulario indica si las tres llaves están completas ("el checkout de Wompi está activo") o si falta alguna ("los pagos estarán disponibles pronto").
+
 **Flujo**:
 1. `/solicitar` (`SolicitarContent.tsx`, client component) exige sesión y `account_type = "persona"`; si el perfil no tiene nombre/apellido/tipo y número de documento completos, el botón de pago falla con un mensaje que enlaza a `/perfil` para completarlos (Wompi necesita esos datos para el `legal-id`/`legal-id-type` del comprador).
 2. Al confirmar, el cliente llama `POST /api/solicitudes/crear` con los IDs de documentos elegidos y el token de sesión (`Authorization: Bearer <access_token>`, mismo patrón de autenticación que `/api/admin/roles`).
 3. El endpoint valida todo server-side (perfil completo, documentos activos, precio configurado), **inserta la fila en `solicitudes` con `estado = "pendiente"` antes de saber si el pago va a poder iniciarse** — así el pedido del usuario nunca se pierde, incluso sin llaves de Wompi.
-4. Si `NEXT_PUBLIC_WOMPI_PUBLIC_KEY` y `WOMPI_INTEGRITY_SECRET` están configuradas, calcula la firma de integridad (`SHA-256(referencia + monto_en_centavos + "COP" + secreto)`) y arma la URL del checkout hospedado de Wompi (`https://checkout.wompi.co/p/?public-key=...&reference=...&signature:integrity=...&redirect-url=...`); el cliente redirige ahí con `window.location.href`.
-5. Si las llaves no están configuradas, el endpoint devuelve `{ pagoDisponible: false }` y la UI muestra "Tu solicitud quedó registrada. Los pagos en línea estarán disponibles muy pronto..." en vez de romperse — **este es el estado actual en producción**, verificado end-to-end el 2026-08-09 (se creó una solicitud real de prueba, se confirmó en la base de datos, y se borró).
-6. `POST /api/webhooks/wompi` es el endpoint que Wompi debe llamar cuando cambie el estado de una transacción (se configura en el dashboard de Wompi una vez haya cuenta activa). Verifica el checksum del evento con `WOMPI_EVENTS_SECRET` y actualiza `solicitudes.estado` a `"pagado"` o `"fallido"` buscando por `wompi_referencia`.
+4. Lee `configuracion_wompi` con la Service Role Key. Si `public_key` e `integrity_secret` están configurados, calcula la firma de integridad (`SHA-256(referencia + monto_en_centavos + "COP" + secreto)`) y arma la URL del checkout hospedado de Wompi (`https://checkout.wompi.co/p/?public-key=...&reference=...&signature:integrity=...&redirect-url=...`); el cliente redirige ahí con `window.location.href`.
+5. Si las llaves no están configuradas, el endpoint devuelve `{ pagoDisponible: false }` y la UI muestra "Tu solicitud quedó registrada. Los pagos en línea estarán disponibles muy pronto..." en vez de romperse.
+6. `POST /api/webhooks/wompi` es el endpoint que Wompi debe llamar cuando cambie el estado de una transacción (URL a configurar en el dashboard de Wompi: `https://colombiacontrata.com/api/webhooks/wompi`, visible también como nota al pie del formulario en `/admin`). Verifica el checksum del evento con `events_secret` (leído de `configuracion_wompi`) y actualiza `solicitudes.estado` a `"pagado"` o `"fallido"` buscando por `wompi_referencia`.
 7. `/solicitar/confirmacion?reference=<ref>` (adonde Wompi redirige al comprador) lee el estado de esa solicitud directamente de Supabase (protegido por RLS: cada usuario solo ve las suyas) y muestra pagado/pendiente/fallido.
 
-⚠️ **Nada de esto se ha probado contra Wompi real** — ni el checkout, ni la firma de integridad, ni el checksum del webhook. Los tres se escribieron siguiendo la documentación pública de Wompi (docs.wompi.co) de memoria, sin poder verificarlos contra una respuesta real porque la cuenta del usuario seguía en validación. **En cuanto haya llaves de sandbox**, lo primero que hay que hacer es una transacción de prueba de punta a punta y comparar contra la documentación oficial — especialmente el nombre exacto de los parámetros del checkout hospedado y el algoritmo de checksum del webhook, que son los puntos de mayor incertidumbre.
+Todo el flujo (checklist → registro de la solicitud → redirección → fallback sin llaves → guardado de llaves desde `/admin`) se verificó end-to-end en producción el 2026-08-09, incluyendo **una prueba real contra el checkout de Wompi**: se guardaron llaves de prueba inventadas (`pub_test_...`) desde el nuevo formulario de admin, y `/solicitar` sí redirigió a `checkout.wompi.co` mostrando el banner "MODO DE PRUEBAS" — Wompi llegó a procesar la URL (rechazó la llave por no ser una cuenta real, con el error esperado "No se pudo cargar la información del undefined"), lo que confirma que **el formato de los parámetros del checkout (`public-key`, `currency`, `amount-in-cents`, `reference`, `signature:integrity`, `redirect-url`) es correcto**. Los datos de prueba (solicitud + llaves falsas) se borraron después de verificar.
+
+⚠️ **Lo que sigue sin probarse**: la firma de integridad nunca se validó contra una cuenta Wompi real (la prueba de arriba solo confirmó el formato de la URL, no que el checksum sea válido), y el checksum del webhook tampoco se ha probado contra un evento real de Wompi — ambos se escribieron siguiendo la documentación pública de docs.wompi.co de memoria. **En cuanto el usuario tenga llaves de sandbox reales** (guardándolas desde `/admin` → Pagos (Wompi), sin tocar código), lo primero es hacer una transacción de prueba de punta a punta y confirmar que el pago se aprueba y que el webhook actualiza el estado correctamente.
 
 **Lo que falta para que esto genere un documento de verdad**: hoy, aunque el pago se apruebe, no pasa nada más — no existe todavía la integración con el proveedor de fuentes (contraloría, policía, procuraduría, etc.) que generaría los PDFs. El webhook tiene un comentario `TODO` marcando dónde debería dispararse esa generación una vez exista esa pieza. `/historial` tampoco se conectó todavía a `solicitudes` (sigue mostrando el placeholder "Aún no tienes solicitudes") — es un cambio pequeño y natural de hacer ahora que la tabla ya tiene datos reales, pero se dejó fuera de esta sesión para no ampliar el alcance.
 
@@ -703,7 +726,7 @@ Los botones "Solicitar mis documentos" del hero y de la tarjeta "Persona indepen
 ## Roadmap / pendientes
 
 - [x] Construir `/solicitar` (checklist de documentos para personas) — ver [Solicitud de documentos y pago con Wompi](#solicitud-de-documentos-y-pago-con-wompi). Falta `/empresas`.
-- [ ] **Activar el pago real de Wompi**: agregar `NEXT_PUBLIC_WOMPI_PUBLIC_KEY`, `WOMPI_INTEGRITY_SECRET` y `WOMPI_EVENTS_SECRET` en Vercel en cuanto el usuario termine la validación de su cuenta Wompi, y probar una transacción de sandbox de punta a punta (el checkout y el webhook nunca se han probado contra Wompi real, solo se verificó el fallback sin llaves).
+- [ ] **Activar el pago real de Wompi**: guardar las tres llaves reales desde `/admin` → Pagos (Wompi) en cuanto el usuario termine la validación de su cuenta, y probar una transacción de sandbox de punta a punta — se confirmó que el formato del checkout es correcto (ver [Solicitud de documentos y pago con Wompi](#solicitud-de-documentos-y-pago-con-wompi)), pero la firma de integridad y el checksum del webhook siguen sin validarse contra una cuenta real.
 - [ ] Terminar de conectar `nombre_portal` y `eslogan` de `configuracion_portal` al resto del front — `nombre_portal` ya se usa en el copyright del footer, pero el `<title>` de las páginas, el texto "Colombia Contrata" del Header/Footer y el `eslogan` siguen fijos en el código (logo, favicon, color primario, correo de contacto y texto legal del footer ya están conectados — ver sección de tablas).
 - [ ] Registrar la IP en la trazabilidad de consentimiento de Habeas Data (requiere un endpoint de servidor/Route Handler, ya que `supabase.auth.signUp` corre en el cliente).
 - [ ] Flujo de compra/consumo de créditos de `planes_empresa` (checkout, descuento de créditos al consultar, invitación de candidatos, historial real en `/historial`) — hoy los planes solo se muestran y administran, no se pueden comprar ni consumir todavía. El flujo de `/solicitar` para personas puede servir de plantilla (misma estructura: crear registro pendiente → checkout Wompi → webhook actualiza estado).
