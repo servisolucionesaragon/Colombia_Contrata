@@ -124,6 +124,9 @@ src/
     empresas/consultas/masiva/page.tsx # carga masiva de candidatos por CSV
     empresas/equipo/page.tsx           # el Administrador de la empresa invita/gestiona miembros de equipo
     api/empresa/equipo/route.ts        # Route Handler: lista/crea/edita miembros de equipo (solo Administrador de esa empresa)
+    api/admin/fuentes-config/route.ts  # Route Handler: guarda/consulta el endpoint base y la API key de Solverio (admin-only)
+    api/admin/consulta-manual/route.ts # Route Handler: consulta manual de admin contra Solverio, sin descontar créditos de ninguna empresa
+    api/consultas/[id]/pdf/route.ts    # Route Handler: genera una URL firmada de 5 min para descargar un PDF de soporte de una consulta
     autorizaciones/page.tsx            # el candidato ve y autoriza/rechaza las consultas dirigidas a él
     api/consultas/crear/route.ts       # Route Handler: valida y crea 1 o varias consultas (no descuenta crédito)
     api/consultas/autorizar/route.ts   # Route Handler: el candidato autoriza/rechaza; descuenta crédito solo al autorizar
@@ -161,6 +164,8 @@ src/
     PagosManager.tsx        # admin: lista combinada de pagos (personas + empresas) + marcar como pagado a mano
     RiesgoConsultasManager.tsx # admin: asigna a mano el nivel de riesgo (bajo/medio/alto) a consultas ya autorizadas
     EquipoEmpresaContent.tsx # el Administrador de la empresa crea miembros de equipo (contraseña temporal) y edita rol/acceso
+    FuentesConfigManager.tsx # admin: endpoint base y API key de Solverio (más el módulo de Consulta manual embebido)
+    ConsultaManualAdmin.tsx  # admin: corre una verificación directa contra Solverio sin pasar por ninguna empresa
     AdminGate.tsx           # bloquea /admin a menos que la sesión tenga app_metadata.role === "admin"
     AdminTabs.tsx            # menú lateral agrupado del panel admin (Identidad / grupo Página principal / grupo Planes y documentos / grupo Usuarios y pagos / Administradores); en móvil colapsa detrás de un botón tipo hamburguesa
     AdminSettingsForm.tsx  # identidad del portal — lee/guarda en configuracion_portal, sube logo/favicon a Storage
@@ -182,6 +187,7 @@ src/
     wompi.ts                # getWompiKeys/buildWompiCheckoutUrl, compartido por /api/solicitudes/crear y /api/pagos-empresa/crear
     creditos.ts              # creditosDisponibles(db, empresaId) — suma pagos_empresa vigentes menos consultas ya autorizadas
     empresaContext.ts        # resolverContextoEmpresa(db, userId) — resuelve la empresa efectiva y el rol de quien llama (dueño o miembro de equipo)
+    solverio.ts               # getSolverioConfig/consultarVerificacionCompleta — integración real con el proveedor de fuentes
   types/
     preline.d.ts          # tipado de window.HSStaticMethods
 public/
@@ -1039,6 +1045,57 @@ Verificado en producción: `/manifest.webmanifest` responde `200` con `Content-T
 
 Verificado: la detección de plataforma se probó con user agents reales de iPhone Safari, iPad Safari, iPhone Chrome, Mac desktop, Android Chrome y Windows desktop — todos clasificados correctamente. El ícono dinámico se confirmó en producción (`/manifest.webmanifest` y el `<link rel="apple-touch-icon">` de la home ya apuntan a la URL de Storage del favicon configurado, no a los archivos estáticos). **No se pudo disparar el evento `beforeinstallprompt` real en el navegador automatizado de esta sesión** (Chrome exige señales de interacción del usuario a lo largo del tiempo para decidir mostrarlo, algo que una carga de página automatizada no genera) — se verificó el diseño visual del banner insertándolo manualmente por JS para una captura de pantalla, y la lógica de detección con casos de prueba reales, pero la prueba real del botón "Instalar" queda pendiente de un dispositivo/navegador real.
 
+## Integración real con el proveedor de fuentes (Solverio Verify, 2026-08-17)
+
+Hasta este punto, autorizar una consulta solo cambiaba el estado en la base de datos — no existía ningún proveedor real conectado. El usuario contrató **Solverio Verify** (`https://simpleverifybe-production.up.railway.app`) y compartió su colección de Postman con la llave de producción. Por ahora se conecta un solo endpoint: `GET /api/enterprise/verificacion/completa` (plan Enterprise — consulta 10+ fuentes en paralelo y devuelve, además del resultado, los PDF oficiales de las fuentes que los tienen; cuesta 1 crédito por consulta, se factura por contrato).
+
+**Decisiones tomadas con el usuario antes de construir**:
+1. Guardar los PDF oficiales para descarga (no solo el semáforo) — es justo la razón de usar la versión "enterprise" del endpoint en vez de la gratuita.
+2. Primer intento: llamada síncrona (el candidato espera mientras se consulta) — **revertido tras la primera prueba real** (ver más abajo).
+
+**Modelo de datos**:
+```sql
+create table public.configuracion_solverio (
+  id int primary key default 1,
+  base_url text not null default 'https://simpleverifybe-production.up.railway.app',
+  api_key text,
+  updated_at timestamptz not null default now(),
+  constraint configuracion_solverio_singleton check (id = 1)
+);
+alter table public.configuracion_solverio enable row level security;
+-- Sin ninguna policy — deniega todo por defecto para anon/authenticated,
+-- mismo patrón que configuracion_wompi: solo la Service Role Key la lee/escribe.
+
+alter table public.consultas
+  add column resultado_semaforo text check (resultado_semaforo in ('verde', 'amarillo', 'rojo')),
+  add column resultado_json jsonb,
+  add column resultado_pdfs jsonb,
+  add column resultado_obtenido_at timestamptz,
+  add column resultado_error text;
+```
+Bucket de Storage nuevo, `verificaciones-pdf` (**privado**, sin ninguna policy pública) — los PDF de soporte se decodifican de base64 y se suben ahí (`{consultaId}/{fuente}.pdf`); `resultado_pdfs` solo guarda las rutas, nunca el base64 (un PDF puede pesar cientos de KB, y la respuesta completa con los 6 llegó a pesar ~780 KB). La descarga real usa una URL firmada de 5 minutos generada bajo demanda (`/api/consultas/[id]/pdf`, verifica que quien pide sea la empresa dueña de esa consulta vía `resolverContextoEmpresa`), nunca una URL fija.
+
+**`src/lib/solverio.ts`**: arma la URL con los parámetros del candidato (mapea nuestro `tipo_documento` a los códigos de Solverio: CC=1, CE=5, PPT=10 — **Pasaporte (PA) no tiene código en la API del proveedor**, así que se rechaza antes de llamar en vez de mandar un tipo incorrecto) y llama con el header `X-Api-Key`.
+
+⚠️ **La colección de Postman del proveedor no traía un ejemplo de respuesta real** (`"response": []` vacío en todos los endpoints) — el primer intento de parsing se escribió con nombres de campo razonables pero adivinados. Se corrigió con una consulta de prueba real (un crédito real consumido, con permiso explícito del usuario) el mismo día:
+- La respuesta real viene envuelta en `{ exitoso, mensaje, data: {...} }`, no plana.
+- El riesgo es `data.nivelRiesgo`, un **número** (0/1/2...), no un texto "semaforo" como sugería la descripción del endpoint — el mapeo exacto de cada valor a verde/amarillo/rojo sigue siendo la mejor suposición razonable (0=verde, 1=amarillo, 2+=rojo) hasta confirmarlo con más consultas reales o con el proveedor directamente.
+- `soportesPdf` vive dentro de `data`, con las claves `registraduria`, `policia`, `procuraduria`, `contraloria`, `ramaJudicial` y `rnmc` (Registro Nacional de Medidas Correctivas — no estaba mencionado en la descripción del endpoint). Los 6 son base64 puro de un PDF válido, sin prefijo `data:`.
+
+⚠️ **La llamada real tardó 68.9 segundos** — la fuente "policía" sola se llevó 67.9 de esos segundos (las demás fueron rápidas). Esto tumbó la primera decisión de diseño (síncrono): una función de Vercel en el plan gratuito no aguanta eso. Se cambió `/api/consultas/autorizar` para que:
+- Responda al candidato de inmediato (estado `autorizada` + crédito descontado, sin esperar a Solverio).
+- Dispare la verificación real con `after()` de Next.js (corre después de que la respuesta ya se envió, sin bloquear al candidato), con `export const maxDuration = 60` en ese endpoint para darle al trabajo en segundo plano más margen.
+- Si la verificación falla por cualquier motivo (plan no habilitado → 403, fuente caída, timeout, sin configurar), la autorización del candidato y el descuento de crédito **nunca se pierden** — solo queda `resultado_error` en la fila. La pantalla de admin "Riesgo de consultas" construida antes de esta integración sigue funcionando como respaldo manual para esos casos.
+- El semáforo real ahora clasifica `nivel_riesgo` automáticamente (bajo/medio/alto) en el momento en que llega el resultado, reemplazando la necesidad de clasificar a mano salvo cuando la verificación automática falló.
+
+`EmpresaConsultasContent.tsx` muestra "Verificando..." en la columna de riesgo mientras el resultado todavía no llegó (en vez de "Sin clasificar", que ahora significa que sí se intentó pero no se pudo clasificar), y una columna nueva "Documentos" con un enlace de descarga por cada PDF disponible (pide la URL firmada en el momento del clic).
+
+**Consulta manual de administrador** (`/admin` → Fuentes → "Consulta manual", `ConsultaManualAdmin.tsx` + `/api/admin/consulta-manual`, a pedido explícito del usuario "para no depender de saldos disponibles"): corre una verificación directa contra Solverio sin pasar por la tabla `consultas` ni descontar créditos de ninguna empresa — pensada para probar la integración o resolver un caso puntual. Los PDF se descargan directo en el navegador (se arma un `Blob` desde el base64 de la respuesta) sin subirlos a Storage, ya que esta consulta no queda asociada a ningún registro permanente.
+
+**Módulo "Fuentes" en `/admin`** (nuevo, agrupado junto a "Pagos (Wompi)"): `FuentesConfigManager.tsx` + `/api/admin/fuentes-config`, mismo patrón write-only que Wompi para la API key (nunca se devuelve al navegador, solo si está configurada o no). El usuario pidió explícitamente que en el futuro se pueda activar/desactivar fuentes individuales desde aquí — todavía no construido, solo el endpoint base y la API key por ahora.
+
+Verificado de punta a punta en producción con una consulta real (candidato real, `estado='autorizada'`, 1 crédito de Solverio consumido con permiso explícito del usuario): la respuesta llegó completa (`exitoso: true`, `estadoConsulta: "completa"`, 14 de 14 fuentes con soporte disponibles, 6 PDF válidos). Pendiente de verificar en producción específicamente el flujo `after()` (el fix se probó contra la API real vía `curl` directo, no todavía a través del endpoint `/api/consultas/autorizar` desplegado, ya que eso requeriría una segunda cuenta de candidato con sesión propia) y confirmar el mapeo exacto de `nivelRiesgo` con más consultas reales.
+
 ## Roadmap / pendientes
 
 - [x] Construir `/solicitar` (checklist de documentos para personas) — ver [Solicitud de documentos y pago con Wompi](#solicitud-de-documentos-y-pago-con-wompi). Falta `/empresas`.
@@ -1049,12 +1106,15 @@ Verificado: la detección de plataforma se probó con user agents reales de iPho
 - [x] Consumo real de créditos vía consultas individuales/masivas (`/empresas/consultas`, `/empresas/consultas/masiva`, `/autorizaciones`) — ver [Consultas de candidatos](#consultas-de-candidatos-individual-y-masiva--consumo-de-créditos-2026-08-17). Probado de punta a punta el 2026-08-17. Falta: **enviar la invitación por correo** al candidato (hoy solo la ve si entra a `/autorizaciones` por su cuenta) y la integración con el proveedor de fuentes para que "autorizada" genere un documento real.
 - [ ] Crear cuentas de persona/empresa desde `/admin` (el usuario decidió dejar esto fuera de alcance por ahora — solo se construyó "asignar administradores", que ya está listo).
 - [ ] Storage con URLs firmadas para la expiración de 10 días de los documentos de personas.
-- [ ] Integración con la API del proveedor de fuentes (contraloría, policía, procuraduría, etc.) — aún no contratada. Es el paso que falta para que una `solicitud` en estado "pagado" o una `consulta` en estado "autorizada" realmente genere los documentos/antecedentes.
+- [x] Integración con la API del proveedor de fuentes (Solverio Verify) para **consultas de empresa** — ver [Integración real con el proveedor de fuentes](#integración-real-con-el-proveedor-de-fuentes-solverio-verify-2026-08-17). Falta: confirmar el mapeo exacto de `nivelRiesgo` con más consultas reales, y la misma integración para **solicitudes de persona** (`/solicitar`) sigue sin conectar — hoy solo genera documentos reales el flujo de empresa/candidato.
 - [ ] Generación y empaquetado de PDFs + expiración de 10 días.
 - [ ] Conectar `/historial` a las tablas `solicitudes`, `pagos_empresa` y `consultas` reales (hoy sigue siendo el placeholder "Aún no tienes solicitudes" aunque las tres tablas ya existen y ya se están creando filas reales).
 - [ ] Enviar por correo la invitación de `/empresas/consultas` al candidato (vía la API de Resend, no solo el SMTP que usa Supabase Auth) — hoy el candidato solo se entera si entra a `/autorizaciones` por su cuenta.
 - [ ] Revisión legal de `/terminos` y `/privacidad` + completar datos legales de la empresa.
 - [ ] Traducir y activar el resto de plantillas de "Security" en Supabase si se llegan a necesitar (MFA, cambio de contraseña, cambio de teléfono — "Change Email Address" ya está lista).
 - [x] Verificar el sitio en Google Search Console y enviar el sitemap (`https://colombiacontrata.com/sitemap.xml`) — hecho por el usuario el 2026-08-17, el mismo día que se construyó el soporte técnico (ver [PWA y SEO](#pwa-instalable-en-móviltablet-y-seo-2026-08-17)).
+- [ ] Verificar en producción, a través de la UI real de `/autorizaciones` (con una segunda cuenta de candidato), que el flujo `after()` de `/api/consultas/autorizar` efectivamente completa la verificación en segundo plano — se probó la llamada a Solverio directo por `curl`, pero no todavía disparada desde el endpoint desplegado.
+- [ ] Manejar candidatos con tipo de documento **Pasaporte (PA)** — Solverio no tiene código para ese tipo, hoy la verificación automática simplemente no se intenta y queda como `resultado_error`.
+- [ ] Activar/desactivar fuentes individuales desde `/admin` → Fuentes (pedido explícito del usuario) — hoy ese módulo solo tiene el endpoint base y la API key.
 - [ ] **Diferenciar permisos entre Analista y Auxiliar** dentro de la cuenta empresa (ver [Roles dentro de la cuenta empresa](#roles-dentro-de-la-cuenta-empresa-2026-08-17)) — hoy tienen exactamente los mismos permisos (crear/ver consultas, sin acceso a planes/pagos/equipo); `rol_empresa` ya distingue "analista" de "auxiliar" en la base de datos y en la UI, pero ningún permiso depende todavía de esa diferencia. Pendiente por definir con el usuario — ideas sobre la mesa: Auxiliar sin carga masiva (solo individual), o Auxiliar solo viendo las consultas que él mismo invitó en vez del historial completo de la empresa.
 - [ ] **Plantilla descargable de tratamiento de datos (Habeas Data)** — idea de HunterX (2026-08-17), que pone un enlace "Descargar modelo tratamiento de datos" en el flujo de crear una consulta; nosotros hoy solo tenemos el checkbox de autorización en `/empresas/consultas` y `/empresas/consultas/masiva`. Cambio chico (subir un PDF/documento a Storage + un enlace en esas dos páginas), sin dependencias externas. El usuario pidió dejarlo pendiente por ahora, no priorizado.
