@@ -27,6 +27,14 @@ Copiar a `.env.local` (no se sube a git):
 NEXT_PUBLIC_SUPABASE_URL=https://zjbijmieiyumpqwyqhfm.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon key del proyecto en Supabase>
 SUPABASE_SERVICE_ROLE_KEY=<service_role key del proyecto en Supabase>
+
+# Pasarela de pagos (Wompi) — ver "Solicitud de documentos y pago con
+# Wompi" más abajo. Sin estas tres, /solicitar sigue funcionando (registra
+# la solicitud) pero muestra "los pagos estarán disponibles pronto" en vez
+# de redirigir al checkout.
+NEXT_PUBLIC_WOMPI_PUBLIC_KEY=<llave pública de Wompi>
+WOMPI_INTEGRITY_SECRET=<secreto de integridad de Wompi, solo servidor>
+WOMPI_EVENTS_SECRET=<secreto de eventos/webhook de Wompi, solo servidor>
 ```
 
 En Vercel están configuradas en **Project Settings → Environment Variables**. `SUPABASE_SERVICE_ROLE_KEY` **no** lleva `NEXT_PUBLIC_` a propósito — solo la usan los Route Handlers en el servidor (ej. `src/app/api/admin/roles/route.ts`), nunca debe llegar al navegador.
@@ -55,6 +63,8 @@ Basada en `Manual_Identidad_Visual_Colombia_Contrata` (carpeta `Colombia Contrat
 | `/registro` | Alta de cuenta (correo + contraseña + toggle Persona natural / Empresa + consentimiento Habeas Data) | **Conectado a Supabase Auth real** — crea la cuenta y envía correo de verificación |
 | `/login` | Inicio de sesión (correo + contraseña) | **Conectado a Supabase Auth real** vía `supabase.auth.signInWithPassword` |
 | `/perfil` | Datos ampliados post-confirmación (persona: nombre/documento/fechas/género/ubicación; empresa: razón social/NIT/representante/sector/ubicación) + sección "Seguridad de la cuenta" (cambiar contraseña y correo) | **Conectado de verdad** — lee y guarda (`upsert`) en la tabla `profiles` de Supabase, precarga los datos si ya existían; cambio de contraseña/correo vía `supabase.auth.updateUser` |
+| `/solicitar` | Checklist de documentos para personas naturales + pago | **Conectado de verdad** — crea una fila en `solicitudes` y redirige al checkout de Wompi (ver [Solicitud de documentos y pago con Wompi](#solicitud-de-documentos-y-pago-con-wompi)); solo para cuentas `account_type = "persona"` con perfil completo |
+| `/solicitar/confirmacion` | Página de retorno tras el pago en Wompi | Lee el estado de la `solicitud` por su referencia y lo muestra (pagado/pendiente/fallido) |
 | `/terminos` | Términos y Condiciones | Borrador, falta revisión legal — **editable desde `/admin` → Páginas** (ver [Términos y Privacidad como páginas editables](#términos-y-privacidad-como-páginas-editables)) |
 | `/privacidad` | Política de Tratamiento de Datos Personales (Ley 1581) | Borrador, falta revisión legal — **editable desde `/admin` → Páginas** (mismo mecanismo que `/terminos`) |
 | `/admin` | Back office con pestañas: Identidad del portal, Planes de personas, Planes de empresa, Documentos disponibles, Administradores | **Protegido con autenticación real** (solo cuentas con `app_metadata.role = "admin"`, ver [Panel de administración](#panel-de-administración)) — **todo se guarda de verdad**, incluyendo subida de logo/favicon a Storage y dar/quitar acceso admin por correo |
@@ -98,11 +108,15 @@ src/
     registro/page.tsx     # alta de cuenta
     login/page.tsx         # inicio de sesión
     perfil/page.tsx        # completar datos post-registro
-    historial/page.tsx     # placeholder de historial de solicitudes (protegido por sesión)
+    historial/page.tsx     # placeholder de historial de solicitudes (protegido por sesión) — pendiente conectar a la tabla solicitudes, ver Roadmap
     terminos/page.tsx     # términos y condiciones — lee titulo/contenido de la tabla paginas (slug "terminos"), con fallback hardcodeado si no hay fila
     privacidad/page.tsx   # política de datos personales — mismo mecanismo, slug "privacidad"
+    solicitar/page.tsx           # checklist de documentos (personas) + creación de la solicitud
+    solicitar/confirmacion/page.tsx # página de retorno tras el pago en Wompi
     admin/page.tsx        # back office (protegido por AdminGate)
     api/admin/roles/route.ts # Route Handler: dar/quitar admin por correo, usa la Service Role Key (solo servidor)
+    api/solicitudes/crear/route.ts # Route Handler: valida perfil/documentos, crea la solicitud, arma la URL del checkout de Wompi (o devuelve pagoDisponible:false si faltan las llaves)
+    api/webhooks/wompi/route.ts    # Route Handler: recibe la confirmación de pago de Wompi y actualiza el estado de la solicitud
   components/
     Header.tsx / Footer.tsx # Header es client component: lee sesión + tabla profiles, muestra menú de usuario (avatar, Inicio/Historial/Perfil/Cerrar sesión) y el ThemeToggle. Footer es server component async: lee configuracion_portal y muestra íconos de redes sociales configuradas
     SocialIcons.tsx         # íconos SVG de Facebook/Instagram/X/LinkedIn/TikTok/WhatsApp, usados por Footer.tsx y WhatsAppButton.tsx
@@ -113,6 +127,8 @@ src/
     ProfileForm.tsx        # lee y guarda (upsert) en la tabla profiles según persona/empresa
     AccountSecurityForm.tsx # cambio de contraseña/correo vía supabase.auth.updateUser, en /perfil
     HistorialContent.tsx    # contenido de /historial (gate de sesión + estado vacío)
+    SolicitarContent.tsx    # checklist de documentos + total + llamada a /api/solicitudes/crear + redirección al checkout de Wompi
+    ConfirmacionContent.tsx # lee el estado de la solicitud por su referencia (?reference=) y lo muestra tras volver de Wompi
     AdminGate.tsx           # bloquea /admin a menos que la sesión tenga app_metadata.role === "admin"
     AdminTabs.tsx            # menú lateral agrupado del panel admin (Identidad / grupo Página principal / grupo Planes y documentos / Administradores)
     AdminSettingsForm.tsx  # identidad del portal — lee/guarda en configuracion_portal, sube logo/favicon a Storage
@@ -493,6 +509,34 @@ create policy "Admins can delete paginas"
 create policy "Admins can delete portal-assets"
   on storage.objects for delete
   using (bucket_id = 'portal-assets' and (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin');
+
+-- Solicitudes de documentos (personas) + pago con Wompi, ver
+-- "Solicitud de documentos y pago con Wompi" más abajo.
+create table public.solicitudes (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  documentos jsonb not null,
+  monto numeric not null,
+  estado text not null default 'pendiente' check (estado in ('pendiente', 'pagado', 'fallido')),
+  wompi_referencia text not null unique,
+  wompi_transaction_id text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.solicitudes enable row level security;
+
+create policy "Users can view own solicitudes"
+  on public.solicitudes for select
+  using (auth.uid() = user_id);
+
+create policy "Users can insert own solicitudes"
+  on public.solicitudes for insert
+  with check (auth.uid() = user_id);
+
+-- No hay policy de "update" pública a propósito: el estado solo lo cambia
+-- el webhook de Wompi (src/app/api/webhooks/wompi/route.ts), que usa la
+-- Service Role Key y por lo tanto ignora RLS.
 ```
 
 </details>
@@ -619,6 +663,27 @@ El sitio soporta tema claro/oscuro con un toggle (ícono sol/luna) en el Header,
 - **Si se cambia el diseño de la imagen**: basta con reemplazar `public/og-image.png` por un archivo del mismo nombre (idealmente mismas dimensiones) y hacer commit/push — no requiere tocar `layout.tsx`.
 - **Pendiente**: título/descripción/imagen de Open Graph están fijos en código, no editables desde `/admin` — si se quiere que el admin los pueda cambiar (por ejemplo subir otra imagen de campaña), habría que agregar columnas a `configuracion_portal` y leerlas en `generateMetadata()`, similar a como ya se hace con `favicon_url`.
 
+## Solicitud de documentos y pago con Wompi
+
+Primer flujo de compra real del sitio (2026-08-09), para personas naturales. El usuario eligió **Wompi** sobre PayU/Bold por tarifas (2,99% + IVA + $600 en tarjeta, la más baja de las tres comparadas) e integración más directa por API; decidió empezar a construirlo aunque **su cuenta de Wompi todavía está en proceso de validación y no tiene llaves ni de sandbox** — por eso todo el flujo se armó con un *fallback* explícito para cuando las llaves no existen, en vez de esperar a tenerlas.
+
+**Modelo de precio**: confirmado con el usuario — es un **precio fijo por solicitud** (`configuracion_persona.precio_desde`), sin importar cuántos ni cuáles documentos se elijan en el checklist. Por eso `precios_documentos.precio` sigue sin usarse (ver nota en la sección de Base de datos): el checklist es solo para que el usuario indique qué necesita, no para calcular el total.
+
+**Flujo**:
+1. `/solicitar` (`SolicitarContent.tsx`, client component) exige sesión y `account_type = "persona"`; si el perfil no tiene nombre/apellido/tipo y número de documento completos, el botón de pago falla con un mensaje que enlaza a `/perfil` para completarlos (Wompi necesita esos datos para el `legal-id`/`legal-id-type` del comprador).
+2. Al confirmar, el cliente llama `POST /api/solicitudes/crear` con los IDs de documentos elegidos y el token de sesión (`Authorization: Bearer <access_token>`, mismo patrón de autenticación que `/api/admin/roles`).
+3. El endpoint valida todo server-side (perfil completo, documentos activos, precio configurado), **inserta la fila en `solicitudes` con `estado = "pendiente"` antes de saber si el pago va a poder iniciarse** — así el pedido del usuario nunca se pierde, incluso sin llaves de Wompi.
+4. Si `NEXT_PUBLIC_WOMPI_PUBLIC_KEY` y `WOMPI_INTEGRITY_SECRET` están configuradas, calcula la firma de integridad (`SHA-256(referencia + monto_en_centavos + "COP" + secreto)`) y arma la URL del checkout hospedado de Wompi (`https://checkout.wompi.co/p/?public-key=...&reference=...&signature:integrity=...&redirect-url=...`); el cliente redirige ahí con `window.location.href`.
+5. Si las llaves no están configuradas, el endpoint devuelve `{ pagoDisponible: false }` y la UI muestra "Tu solicitud quedó registrada. Los pagos en línea estarán disponibles muy pronto..." en vez de romperse — **este es el estado actual en producción**, verificado end-to-end el 2026-08-09 (se creó una solicitud real de prueba, se confirmó en la base de datos, y se borró).
+6. `POST /api/webhooks/wompi` es el endpoint que Wompi debe llamar cuando cambie el estado de una transacción (se configura en el dashboard de Wompi una vez haya cuenta activa). Verifica el checksum del evento con `WOMPI_EVENTS_SECRET` y actualiza `solicitudes.estado` a `"pagado"` o `"fallido"` buscando por `wompi_referencia`.
+7. `/solicitar/confirmacion?reference=<ref>` (adonde Wompi redirige al comprador) lee el estado de esa solicitud directamente de Supabase (protegido por RLS: cada usuario solo ve las suyas) y muestra pagado/pendiente/fallido.
+
+⚠️ **Nada de esto se ha probado contra Wompi real** — ni el checkout, ni la firma de integridad, ni el checksum del webhook. Los tres se escribieron siguiendo la documentación pública de Wompi (docs.wompi.co) de memoria, sin poder verificarlos contra una respuesta real porque la cuenta del usuario seguía en validación. **En cuanto haya llaves de sandbox**, lo primero que hay que hacer es una transacción de prueba de punta a punta y comparar contra la documentación oficial — especialmente el nombre exacto de los parámetros del checkout hospedado y el algoritmo de checksum del webhook, que son los puntos de mayor incertidumbre.
+
+**Lo que falta para que esto genere un documento de verdad**: hoy, aunque el pago se apruebe, no pasa nada más — no existe todavía la integración con el proveedor de fuentes (contraloría, policía, procuraduría, etc.) que generaría los PDFs. El webhook tiene un comentario `TODO` marcando dónde debería dispararse esa generación una vez exista esa pieza. `/historial` tampoco se conectó todavía a `solicitudes` (sigue mostrando el placeholder "Aún no tienes solicitudes") — es un cambio pequeño y natural de hacer ahora que la tabla ya tiene datos reales, pero se dejó fuera de esta sesión para no ampliar el alcance.
+
+Los botones "Solicitar mis documentos" del hero y de la tarjeta "Persona independiente" en `/` ahora apuntan a `/solicitar` en vez de `/registro` — si el visitante no tiene sesión, `/solicitar` lo manda a `/login` (no se perdió ningún caso, antes iban directo a crear cuenta).
+
 ## Despliegue
 
 - **Hosting**: [Vercel](https://vercel.com), proyecto `servisoluciones-aragon/colombia-contrata`, conectado al repo de GitHub — cada push a `main` despliega automáticamente a producción.
@@ -637,14 +702,15 @@ El sitio soporta tema claro/oscuro con un toggle (ícono sol/luna) en el Header,
 
 ## Roadmap / pendientes
 
-- [ ] Construir `/solicitar` (checklist de documentos) y `/empresas`.
+- [x] Construir `/solicitar` (checklist de documentos para personas) — ver [Solicitud de documentos y pago con Wompi](#solicitud-de-documentos-y-pago-con-wompi). Falta `/empresas`.
+- [ ] **Activar el pago real de Wompi**: agregar `NEXT_PUBLIC_WOMPI_PUBLIC_KEY`, `WOMPI_INTEGRITY_SECRET` y `WOMPI_EVENTS_SECRET` en Vercel en cuanto el usuario termine la validación de su cuenta Wompi, y probar una transacción de sandbox de punta a punta (el checkout y el webhook nunca se han probado contra Wompi real, solo se verificó el fallback sin llaves).
 - [ ] Terminar de conectar `nombre_portal` y `eslogan` de `configuracion_portal` al resto del front — `nombre_portal` ya se usa en el copyright del footer, pero el `<title>` de las páginas, el texto "Colombia Contrata" del Header/Footer y el `eslogan` siguen fijos en el código (logo, favicon, color primario, correo de contacto y texto legal del footer ya están conectados — ver sección de tablas).
 - [ ] Registrar la IP en la trazabilidad de consentimiento de Habeas Data (requiere un endpoint de servidor/Route Handler, ya que `supabase.auth.signUp` corre en el cliente).
-- [ ] Flujo de compra/consumo de créditos de `planes_empresa` (checkout, descuento de créditos al consultar, invitación de candidatos, historial real en `/historial`) — hoy los planes solo se muestran y administran, no se pueden comprar ni consumir todavía.
+- [ ] Flujo de compra/consumo de créditos de `planes_empresa` (checkout, descuento de créditos al consultar, invitación de candidatos, historial real en `/historial`) — hoy los planes solo se muestran y administran, no se pueden comprar ni consumir todavía. El flujo de `/solicitar` para personas puede servir de plantilla (misma estructura: crear registro pendiente → checkout Wompi → webhook actualiza estado).
 - [ ] Crear cuentas de persona/empresa desde `/admin` (el usuario decidió dejar esto fuera de alcance por ahora — solo se construyó "asignar administradores", que ya está listo).
 - [ ] Storage con URLs firmadas para la expiración de 10 días de los documentos de personas.
-- [ ] Integración con la API del proveedor de fuentes (contraloría, policía, procuraduría, etc.) — aún no contratada.
-- [ ] Pasarela de pagos (Wompi / PayU).
+- [ ] Integración con la API del proveedor de fuentes (contraloría, policía, procuraduría, etc.) — aún no contratada. Es el paso que falta para que una `solicitud` en estado "pagado" realmente genere los documentos.
 - [ ] Generación y empaquetado de PDFs + expiración de 10 días.
+- [ ] Conectar `/historial` a la tabla `solicitudes` real (hoy sigue siendo el placeholder "Aún no tienes solicitudes" aunque la tabla ya existe y ya se están creando filas reales desde `/solicitar`).
 - [ ] Revisión legal de `/terminos` y `/privacidad` + completar datos legales de la empresa.
 - [ ] Traducir y activar el resto de plantillas de "Security" en Supabase si se llegan a necesitar (MFA, cambio de contraseña, cambio de teléfono — "Change Email Address" ya está lista).
