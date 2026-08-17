@@ -7,10 +7,16 @@ import { supabase } from "@/lib/supabase";
 
 type Estado = "cargando" | "pagado" | "pendiente" | "fallido" | "no-encontrado";
 
+// La misma página de confirmación sirve para /solicitar (personas,
+// referencia "SOL-...") y /empresas/planes (empresas, "EMP-..."): el
+// prefijo de la referencia dice en qué tabla buscar el pago.
 export default function ConfirmacionContent() {
   const searchParams = useSearchParams();
   const reference = searchParams.get("reference");
   const [estado, setEstado] = useState<Estado>("cargando");
+  const esEmpresa = reference?.startsWith("EMP-") ?? false;
+  const tabla = esEmpresa ? "pagos_empresa" : "solicitudes";
+  const volverA = esEmpresa ? "/empresas/planes" : "/solicitar";
 
   useEffect(() => {
     if (!reference) {
@@ -19,7 +25,7 @@ export default function ConfirmacionContent() {
     }
 
     supabase
-      .from("solicitudes")
+      .from(tabla)
       .select("estado")
       .eq("wompi_referencia", reference)
       .maybeSingle()
@@ -29,7 +35,7 @@ export default function ConfirmacionContent() {
         else if (data.estado === "fallido") setEstado("fallido");
         else setEstado("pendiente");
       });
-  }, [reference]);
+  }, [reference, tabla]);
 
   if (estado === "cargando") {
     return (
@@ -43,7 +49,7 @@ export default function ConfirmacionContent() {
     return (
       <div className="text-center">
         <p className="text-sm text-gray-600 dark:text-gray-400">
-          No encontramos esta solicitud. Si acabas de pagar, escríbenos a
+          No encontramos este pago. Si acabas de pagar, escríbenos a
           soporte con el número de referencia de tu transacción.
         </p>
         <Link
@@ -77,8 +83,9 @@ export default function ConfirmacionContent() {
           ¡Pago confirmado!
         </h2>
         <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-          Te notificaremos por correo cuando tus documentos estén listos
-          para descargar.
+          {esEmpresa
+            ? "Tu plan ya está activo."
+            : "Te notificaremos por correo cuando tus documentos estén listos para descargar."}
         </p>
         <Link
           href="/historial"
@@ -94,11 +101,10 @@ export default function ConfirmacionContent() {
     return (
       <div className="text-center">
         <p className="text-sm text-red-600 dark:text-red-400">
-          El pago no se pudo completar. Puedes intentarlo de nuevo desde
-          "Solicitar documentos".
+          El pago no se pudo completar. Puedes intentarlo de nuevo.
         </p>
         <Link
-          href="/solicitar"
+          href={volverA}
           className="mt-4 inline-block text-sm font-semibold text-brand-blue hover:text-brand-blue-dark"
         >
           Intentar de nuevo

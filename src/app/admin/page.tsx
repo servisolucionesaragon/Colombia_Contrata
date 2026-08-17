@@ -10,6 +10,8 @@ import PlanesEmpresaManager from "@/components/PlanesEmpresaManager";
 import PreciosDocumentosManager from "@/components/PreciosDocumentosManager";
 import AdminRolesManager from "@/components/AdminRolesManager";
 import WompiConfigManager from "@/components/WompiConfigManager";
+import UsuariosManager from "@/components/UsuariosManager";
+import PagosManager from "@/components/PagosManager";
 import AdminTabs from "@/components/AdminTabs";
 
 export const metadata: Metadata = {
@@ -72,6 +74,16 @@ export default function AdminPage() {
               documentos={
                 <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 sm:p-8">
                   <PreciosDocumentosManager />
+                </div>
+              }
+              usuarios={
+                <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 sm:p-8">
+                  <UsuariosManager />
+                </div>
+              }
+              pagosClientes={
+                <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 sm:p-8">
+                  <PagosManager />
                 </div>
               }
               pagos={

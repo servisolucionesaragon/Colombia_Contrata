@@ -71,6 +71,40 @@ export async function POST(request: NextRequest) {
         ? "fallido"
         : "pendiente";
 
+  const reference = transaction.reference as string;
+
+  // El prefijo de la referencia (asignado al crearla) dice a qué tabla
+  // pertenece: "SOL-" para solicitudes de documentos (personas), "EMP-"
+  // para pagos de planes de empresa.
+  if (reference?.startsWith("EMP-")) {
+    const updatePayload: Record<string, unknown> = {
+      estado: nuevoEstado,
+      wompi_transaction_id: transaction.id,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (nuevoEstado === "pagado") {
+      const { data: pago } = await db
+        .from("pagos_empresa")
+        .select("periodo")
+        .eq("wompi_referencia", reference)
+        .maybeSingle();
+
+      const inicio = new Date();
+      const vencimiento = new Date(inicio);
+      if (pago?.periodo === "anual") {
+        vencimiento.setFullYear(vencimiento.getFullYear() + 1);
+      } else {
+        vencimiento.setMonth(vencimiento.getMonth() + 1);
+      }
+      updatePayload.fecha_inicio = inicio.toISOString();
+      updatePayload.fecha_vencimiento = vencimiento.toISOString();
+    }
+
+    await db.from("pagos_empresa").update(updatePayload).eq("wompi_referencia", reference);
+    return NextResponse.json({ received: true });
+  }
+
   // TODO: cuando exista la integración con el proveedor de fuentes, este
   // es el lugar para disparar la generación de los documentos al pasar a
   // estado "pagado".
@@ -81,7 +115,7 @@ export async function POST(request: NextRequest) {
       wompi_transaction_id: transaction.id,
       updated_at: new Date().toISOString(),
     })
-    .eq("wompi_referencia", transaction.reference);
+    .eq("wompi_referencia", reference);
 
   return NextResponse.json({ received: true });
 }

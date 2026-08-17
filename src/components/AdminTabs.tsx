@@ -10,6 +10,8 @@ const tabs = [
   { id: "personas", label: "Planes de personas" },
   { id: "planes", label: "Planes de empresa" },
   { id: "documentos", label: "Documentos disponibles" },
+  { id: "usuarios", label: "Usuarios" },
+  { id: "pagosClientes", label: "Pagos" },
   { id: "pagos", label: "Pagos (Wompi)" },
   { id: "admins", label: "Administradores" },
 ] as const;
@@ -40,6 +42,14 @@ const nav: NavEntry[] = [
       { id: "documentos", label: "Documentos disponibles" },
     ],
   },
+  {
+    type: "group",
+    label: "Usuarios y pagos",
+    items: [
+      { id: "usuarios", label: "Usuarios" },
+      { id: "pagosClientes", label: "Pagos" },
+    ],
+  },
   { type: "item", id: "pagos", label: "Pagos (Wompi)" },
   { type: "item", id: "admins", label: "Administradores" },
 ];
@@ -52,6 +62,8 @@ export default function AdminTabs({
   personas,
   planes,
   documentos,
+  usuarios,
+  pagosClientes,
   pagos,
   admins,
 }: {
@@ -62,11 +74,25 @@ export default function AdminTabs({
   personas: ReactNode;
   planes: ReactNode;
   documentos: ReactNode;
+  usuarios: ReactNode;
+  pagosClientes: ReactNode;
   pagos: ReactNode;
   admins: ReactNode;
 }) {
   const [active, setActive] = useState<TabId>("identidad");
-  const content = { identidad, landing, bloques, paginas, personas, planes, documentos, pagos, admins }[active];
+  const content = {
+    identidad,
+    landing,
+    bloques,
+    paginas,
+    personas,
+    planes,
+    documentos,
+    usuarios,
+    pagosClientes,
+    pagos,
+    admins,
+  }[active];
 
   return (
     <div className="flex flex-col sm:flex-row gap-6 sm:items-start">
