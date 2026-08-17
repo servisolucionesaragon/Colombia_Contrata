@@ -984,6 +984,8 @@ create policy "Empresas can view own consultas" on public.consultas for select u
 
 Verificado en producción con la cuenta de empresa de prueba: se creó un miembro de prueba (Carlos Prueba, rol Analista) desde `/empresas/equipo`, apareció correctamente en la lista con su rol editable y botón "Desactivar", y por SQL se confirmó que `rol_empresa = 'analista'` y `empresa_id_padre` apunta correctamente a la cuenta dueña. El Dashboard de la cuenta dueña mostró el nuevo botón "Gestionar equipo". No se probó iniciar sesión como el miembro de prueba en esta sesión (para no perder el contexto de sesión de la cuenta dueña que ya estaba autenticada) — la fila de prueba se borró después (`delete from auth.users ...`, cascada a `profiles`).
 
+A pedido del usuario, "Gestionar equipo" también se agregó al **menú desplegable de usuario** en `Header.tsx` (no solo como acceso rápido del Dashboard) — visible solo si `esAdministradorEmpresa` (la cuenta dueña, o un miembro con `rol_empresa = "administrador"`), calculado leyendo `rol_empresa` en el mismo query de perfil que ya se hacía para el nombre a mostrar.
+
 ## Despliegue
 
 - **Hosting**: [Vercel](https://vercel.com), proyecto `servisoluciones-aragon/colombia-contrata`, conectado al repo de GitHub — cada push a `main` despliega automáticamente a producción.
