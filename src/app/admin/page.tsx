@@ -18,6 +18,15 @@ import AdminTabs from "@/components/AdminTabs";
 export const metadata: Metadata = {
   title: "Configuración del portal — Admin",
   robots: { index: false, follow: false },
+  // Manifest propio (no el de la raíz) para poder instalar /admin como
+  // una app aparte, con su propio nombre y "scope" — ver
+  // src/app/admin/manifest.webmanifest/route.ts.
+  manifest: "/admin/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    title: "CC Admin",
+    statusBarStyle: "default",
+  },
 };
 
 export default function AdminPage() {
