@@ -175,20 +175,12 @@ export default function EmpresaConsultasContent() {
               {creditos ?? 0}
             </p>
           </div>
-          <div className="flex items-center gap-x-3">
-            <Link
-              href="/empresas/planes"
-              className="text-sm font-semibold text-brand-blue hover:text-brand-blue-dark"
-            >
-              Comprar más créditos
-            </Link>
-            <Link
-              href="/empresas/consultas/masiva"
-              className="inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-brand-blue text-brand-blue hover:bg-brand-blue/10 px-4 py-2"
-            >
-              Carga masiva (CSV)
-            </Link>
-          </div>
+          <Link
+            href="/empresas/planes"
+            className="text-sm font-semibold text-brand-blue hover:text-brand-blue-dark"
+          >
+            Comprar más créditos
+          </Link>
         </div>
         <p className="mt-2 text-xs text-gray-400 dark:text-gray-500">
           Invitar a un candidato es gratis — el crédito solo se descuenta

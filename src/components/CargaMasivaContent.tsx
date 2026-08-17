@@ -33,18 +33,48 @@ function normalizarFecha(v: string): string {
   return v;
 }
 
-// Parser de CSV simple (sin librería): separa por coma, respeta comillas
-// dobles básicas. No pretende cubrir todos los casos raros de CSV, pero
-// alcanza para un archivo exportado desde Excel o Google Sheets.
+// Parser de CSV simple (sin librería), pero que sí respeta comillas: una
+// celda entre comillas puede contener comas sin que se interprete como
+// separador (ej. un encabezado como "Tipo de documento (CC, CE, PT,
+// PA)" exportado desde Excel llega entre comillas justamente por la
+// coma que tiene adentro). Un split ingenuo por "," rompía esa celda en
+// varias, desalineando todas las columnas siguientes.
+function parseCSVLinea(linea: string): string[] {
+  const celdas: string[] = [];
+  let actual = "";
+  let entreComillas = false;
+
+  for (let i = 0; i < linea.length; i++) {
+    const char = linea[i];
+    if (entreComillas) {
+      if (char === '"') {
+        if (linea[i + 1] === '"') {
+          actual += '"';
+          i++;
+        } else {
+          entreComillas = false;
+        }
+      } else {
+        actual += char;
+      }
+    } else if (char === '"') {
+      entreComillas = true;
+    } else if (char === ",") {
+      celdas.push(actual.trim());
+      actual = "";
+    } else {
+      actual += char;
+    }
+  }
+  celdas.push(actual.trim());
+  return celdas;
+}
+
 function parseCSV(texto: string): string[][] {
   return texto
     .split(/\r\n|\n|\r/)
     .filter((linea) => linea.trim().length > 0)
-    .map((linea) =>
-      linea
-        .split(",")
-        .map((celda) => celda.trim().replace(/^"|"$/g, ""))
-    );
+    .map(parseCSVLinea);
 }
 
 const COLUMNAS: { clave: keyof Omit<Fila, "valido" | "motivo">; encabezados: string[] }[] = [
@@ -243,12 +273,17 @@ export default function CargaMasivaContent() {
           fecha de expedición (opcional, formato DD/MM/AAAA).
         </p>
         <a
-          href="/plantilla-candidatos.csv"
+          href="/plantilla-candidatos.xlsx"
           download
           className="mt-3 inline-flex items-center gap-x-2 text-sm font-semibold text-brand-blue hover:text-brand-blue-dark"
         >
-          Descargar plantilla de ejemplo (CSV)
+          Descargar plantilla de ejemplo (Excel)
         </a>
+        <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
+          Complétala en Excel y, antes de subirla acá, guárdala como
+          &quot;CSV (delimitado por comas)&quot; — este formulario solo
+          acepta archivos .csv.
+        </p>
         <input
           ref={fileInputRef}
           type="file"
