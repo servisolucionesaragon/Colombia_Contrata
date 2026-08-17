@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Montserrat } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
@@ -32,6 +32,10 @@ const TITLE = "Colombia Contrata";
 const DESCRIPTION =
   "Todos los documentos requeridos para contratación pública en un solo lugar.";
 
+export const viewport: Viewport = {
+  themeColor: "#1d4ed8",
+};
+
 export async function generateMetadata(): Promise<Metadata> {
   const { data } = await supabase
     .from("configuracion_portal")
@@ -43,8 +47,21 @@ export async function generateMetadata(): Promise<Metadata> {
     metadataBase: new URL("https://colombiacontrata.com"),
     title: TITLE,
     description: DESCRIPTION,
+    keywords: [
+      "contratación pública Colombia",
+      "antecedentes contratación pública",
+      "certificados contratación pública",
+      "verificación de antecedentes",
+      "Habeas Data empresas",
+    ],
     icons: {
       icon: data?.favicon_url || "/icono.png",
+      apple: "/apple-touch-icon.png",
+    },
+    appleWebApp: {
+      capable: true,
+      title: TITLE,
+      statusBarStyle: "default",
     },
     openGraph: {
       title: TITLE,
@@ -71,6 +88,16 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
+const ORGANIZATION_JSON_LD = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  name: TITLE,
+  url: "https://colombiacontrata.com",
+  logo: "https://colombiacontrata.com/logo.png",
+  description: DESCRIPTION,
+  areaServed: "CO",
+};
+
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
@@ -81,6 +108,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full flex flex-col">
         <Script id="theme-init" strategy="beforeInteractive">
           {THEME_INIT_SCRIPT}
+        </Script>
+        <Script id="organization-json-ld" type="application/ld+json" strategy="beforeInteractive">
+          {JSON.stringify(ORGANIZATION_JSON_LD)}
         </Script>
         {children}
         <WhatsAppButton />
