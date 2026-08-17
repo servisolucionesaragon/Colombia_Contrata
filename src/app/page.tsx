@@ -86,7 +86,7 @@ export default async function Home() {
             </p>
             <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
               <a
-                href="/registro"
+                href="/solicitar"
                 className="inline-flex items-center gap-x-2 text-sm font-bold rounded-xl border border-transparent bg-brand-blue text-white hover:bg-brand-blue-dark hover:-translate-y-0.5 hover:shadow-lg hover:shadow-brand-blue/25 transition-all px-7 py-3.5"
               >
                 {c.hero_cta_primario_label}

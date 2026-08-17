@@ -51,7 +51,7 @@ export default function PlanPersonaCard() {
           </p>
         )}
         <a
-          href="/registro"
+          href="/solicitar"
           className="inline-flex items-center gap-x-2 text-sm font-bold rounded-xl border border-transparent bg-brand-blue text-white hover:bg-brand-blue-dark hover:-translate-y-0.5 hover:shadow-lg hover:shadow-brand-blue/25 transition-all px-5 py-2.5"
         >
           {config.cta_label}
