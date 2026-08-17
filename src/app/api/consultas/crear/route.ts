@@ -83,18 +83,15 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { error, count } = await db
-    .from("consultas")
-    .insert(
-      filas.map((f) => ({
-        empresa_id: user.id,
-        candidato_nombre: f.nombre || null,
-        candidato_documento: f.documento || null,
-        candidato_email: f.email,
-        lote_referencia: typeof loteReferencia === "string" ? loteReferencia : null,
-      }))
-    )
-    .select("id", { count: "exact" });
+  const { error } = await db.from("consultas").insert(
+    filas.map((f) => ({
+      empresa_id: user.id,
+      candidato_nombre: f.nombre || null,
+      candidato_documento: f.documento || null,
+      candidato_email: f.email,
+      lote_referencia: typeof loteReferencia === "string" ? loteReferencia : null,
+    }))
+  );
 
   if (error) {
     return NextResponse.json(
@@ -103,5 +100,5 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  return NextResponse.json({ success: true, creadas: count ?? filas.length });
+  return NextResponse.json({ success: true, creadas: filas.length });
 }
