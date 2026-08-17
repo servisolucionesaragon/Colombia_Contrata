@@ -102,7 +102,10 @@ Dado lo lento que es esto, **el flujo de trabajo real de esta sesión fue: edita
 ```
 src/
   app/
-    layout.tsx          # layout raíz, fuente Montserrat, inicializa Preline, script de tema sin parpadeo
+    layout.tsx          # layout raíz, fuente Montserrat, inicializa Preline, script de tema sin parpadeo, viewport/theme-color, meta appleWebApp, JSON-LD de Organization
+    manifest.ts          # manifest de PWA (name, theme_color, íconos any/maskable) — se sirve en /manifest.webmanifest
+    robots.ts             # bloquea rutas privadas, referencia el sitemap — se sirve en /robots.txt
+    sitemap.ts            # enumera rutas públicas + páginas activas de la tabla "paginas" — se sirve en /sitemap.xml
     page.tsx             # landing page
     globals.css          # Tailwind v4 (@theme con colores de marca, @custom-variant dark) + @source hacia preline/dist
     icon.png              # favicon (Next.js lo detecta automáticamente)
@@ -1002,6 +1005,28 @@ A pedido del usuario, "Gestionar equipo" también se agregó al **menú desplega
 
   Vercel muestra "Valid Configuration" en los tres dominios (apex, www y el `.vercel.app`) y el sitio carga con certificado SSL válido en https://colombiacontrata.com.
 
+## PWA (instalable en móvil/tablet) y SEO (2026-08-17)
+
+El usuario pidió dos cosas explícitamente "muy importantes": (1) que el sitio se pueda "descargar" desde un dispositivo móvil o tablet como si fuera una app (con ícono propio), y (2) que tenga SEO para que los buscadores, especialmente Google, muestren información del sitio.
+
+**PWA** — usa las convenciones nativas de archivos de Next.js App Router (sin ninguna librería nueva, mismo criterio de siempre):
+- `src/app/manifest.ts` → se sirve automáticamente en `/manifest.webmanifest` y Next.js agrega el `<link rel="manifest">` solo. `name`/`short_name` = "Colombia Contrata", `display: "standalone"`, `theme_color: "#1d4ed8"`, `background_color: "#ffffff"`.
+- Íconos nuevos generados con Python/Pillow (herramienta externa, no dependencia del proyecto) a partir del isotipo existente (`public/icono.png`, 538×463, no cuadrado):
+  - `public/icon-192.png` / `public/icon-512.png` — `purpose: "any"`, fondo transparente, logo centrado con relleno.
+  - `public/icon-maskable-512.png` — `purpose: "maskable"`, fondo **blanco** (no navy — se probó con fondo navy primero y el documento del isotipo, que tiene relleno oscuro, se volvía casi invisible; blanco es el fondo con el que el isotipo se diseñó originalmente) y el logo reducido a ~62% para dejar el margen de seguridad que exige el estándar maskable.
+  - `public/apple-touch-icon.png` (180×180, mismo tratamiento de fondo blanco, sin canal alfa) — iOS no soporta bien la transparencia en el ícono de pantalla de inicio.
+- `src/app/layout.tsx`: `export const viewport: Viewport = { themeColor: "#1d4ed8" }`, `metadata.icons.apple`, y `metadata.appleWebApp: { capable: true, title, statusBarStyle: "default" }` (genera las meta tags `apple-mobile-web-app-*` que Safari/iOS necesita para "Agregar a inicio", ya que iOS no sigue completamente el manifest estándar).
+- **Sin service worker**: los criterios de instalabilidad actuales de Chrome/Android ya no exigen uno para el prompt de instalación (manifest + íconos + HTTPS alcanza), y agregar uno sin una estrategia de caché real solo suma complejidad de invalidación sin beneficio — se dejó fuera a propósito. Si más adelante se quiere soporte offline real, es un cambio aparte.
+
+**SEO**:
+- `src/app/robots.ts` → sirve `/robots.txt`, permite todo excepto las rutas privadas (`/admin`, `/dashboard`, `/perfil`, `/historial`, `/login`, `/autorizaciones`, `/solicitar`, `/empresas/consultas`, `/empresas/equipo`, `/empresas/planes`, `/api/`), y referencia el sitemap.
+- `src/app/sitemap.ts` → sirve `/sitemap.xml` dinámicamente: `/`, `/registro`, `/terminos`, `/privacidad`, más cada fila activa de la tabla `paginas` (excluyendo los slugs reservados `terminos`/`privacidad`, que ya tienen su propia ruta fija — mismo patrón de exclusión que ya usa `Header.tsx`).
+- `layout.tsx` agregó `metadata.keywords` (términos relacionados con contratación pública/antecedentes/Habeas Data) y un `<script type="application/ld+json">` (vía `next/script`, patrón oficial de Next.js para JSON-LD) con `@type: "Organization"` — ayuda a que Google entienda de qué trata el sitio para resultados enriquecidos.
+- **No se tocó** el `title`/`description` por página (ya estaban bien puestos, cada página arma su propio título completo tipo "X — Colombia Contrata" como string plano — **a propósito no se agregó un `title.template` en el layout raíz**, porque hubiera duplicado el sufijo en las ~20 páginas que ya lo incluyen manualmente).
+- **Pendiente del propio usuario, no se puede hacer desde aquí**: verificar el sitio en Google Search Console (requiere acceso a su cuenta de Google) y enviar el sitemap ahí manualmente — eso es lo que realmente hace que Google empiece a indexar activamente, más allá de que el sitio ya sea técnicamente rastreable.
+
+Verificado en producción: `/manifest.webmanifest` responde `200` con `Content-Type: application/manifest+json` y el JSON correcto; `/robots.txt` y `/sitemap.xml` responden `200` con el contenido esperado (el sitemap ya incluye `/paginas/nosotros`, la única página activa hoy); la home en HTML servido trae `<meta name="theme-color">`, `<link rel="manifest">`, `<link rel="apple-touch-icon">` y las meta `apple-mobile-web-app-*`. No se pudo verificar visualmente el prompt real de "Agregar a pantalla de inicio" en un dispositivo físico Android/iOS desde este entorno — verificado por cumplimiento de los criterios técnicos documentados de instalabilidad en su lugar.
+
 ## Roadmap / pendientes
 
 - [x] Construir `/solicitar` (checklist de documentos para personas) — ver [Solicitud de documentos y pago con Wompi](#solicitud-de-documentos-y-pago-con-wompi). Falta `/empresas`.
@@ -1018,5 +1043,6 @@ A pedido del usuario, "Gestionar equipo" también se agregó al **menú desplega
 - [ ] Enviar por correo la invitación de `/empresas/consultas` al candidato (vía la API de Resend, no solo el SMTP que usa Supabase Auth) — hoy el candidato solo se entera si entra a `/autorizaciones` por su cuenta.
 - [ ] Revisión legal de `/terminos` y `/privacidad` + completar datos legales de la empresa.
 - [ ] Traducir y activar el resto de plantillas de "Security" en Supabase si se llegan a necesitar (MFA, cambio de contraseña, cambio de teléfono — "Change Email Address" ya está lista).
+- [ ] **Verificar el sitio en Google Search Console y enviar el sitemap** (`https://colombiacontrata.com/sitemap.xml`) — requiere que el usuario entre con su propia cuenta de Google, no se puede hacer desde este entorno. El sitio ya es técnicamente rastreable (`robots.txt`/`sitemap.xml`/JSON-LD listos, ver [PWA y SEO](#pwa-instalable-en-móviltablet-y-seo-2026-08-17)), pero verificarlo en Search Console es lo que acelera que Google lo indexe activamente.
 - [ ] **Diferenciar permisos entre Analista y Auxiliar** dentro de la cuenta empresa (ver [Roles dentro de la cuenta empresa](#roles-dentro-de-la-cuenta-empresa-2026-08-17)) — hoy tienen exactamente los mismos permisos (crear/ver consultas, sin acceso a planes/pagos/equipo); `rol_empresa` ya distingue "analista" de "auxiliar" en la base de datos y en la UI, pero ningún permiso depende todavía de esa diferencia. Pendiente por definir con el usuario — ideas sobre la mesa: Auxiliar sin carga masiva (solo individual), o Auxiliar solo viendo las consultas que él mismo invitó en vez del historial completo de la empresa.
 - [ ] **Plantilla descargable de tratamiento de datos (Habeas Data)** — idea de HunterX (2026-08-17), que pone un enlace "Descargar modelo tratamiento de datos" en el flujo de crear una consulta; nosotros hoy solo tenemos el checkbox de autorización en `/empresas/consultas` y `/empresas/consultas/masiva`. Cambio chico (subir un PDF/documento a Storage + un enlace en esas dos páginas), sin dependencias externas. El usuario pidió dejarlo pendiente por ahora, no priorizado.
