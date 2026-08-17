@@ -14,6 +14,7 @@ const tabs = [
   { id: "pagosClientes", label: "Pagos" },
   { id: "riesgo", label: "Riesgo de consultas" },
   { id: "pagos", label: "Pagos (Wompi)" },
+  { id: "fuentes", label: "Fuentes" },
   { id: "admins", label: "Administradores" },
 ] as const;
 
@@ -53,6 +54,7 @@ const nav: NavEntry[] = [
     ],
   },
   { type: "item", id: "pagos", label: "Pagos (Wompi)" },
+  { type: "item", id: "fuentes", label: "Fuentes" },
   { type: "item", id: "admins", label: "Administradores" },
 ];
 
@@ -68,6 +70,7 @@ export default function AdminTabs({
   pagosClientes,
   riesgo,
   pagos,
+  fuentes,
   admins,
 }: {
   identidad: ReactNode;
@@ -81,6 +84,7 @@ export default function AdminTabs({
   pagosClientes: ReactNode;
   riesgo: ReactNode;
   pagos: ReactNode;
+  fuentes: ReactNode;
   admins: ReactNode;
 }) {
   const [active, setActive] = useState<TabId>("identidad");
@@ -97,6 +101,7 @@ export default function AdminTabs({
     pagosClientes,
     riesgo,
     pagos,
+    fuentes,
     admins,
   }[active];
 

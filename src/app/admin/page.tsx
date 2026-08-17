@@ -13,6 +13,7 @@ import WompiConfigManager from "@/components/WompiConfigManager";
 import UsuariosManager from "@/components/UsuariosManager";
 import PagosManager from "@/components/PagosManager";
 import RiesgoConsultasManager from "@/components/RiesgoConsultasManager";
+import FuentesConfigManager from "@/components/FuentesConfigManager";
 import AdminTabs from "@/components/AdminTabs";
 
 export const metadata: Metadata = {
@@ -104,6 +105,11 @@ export default function AdminPage() {
               pagos={
                 <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 sm:p-8">
                   <WompiConfigManager />
+                </div>
+              }
+              fuentes={
+                <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 sm:p-8">
+                  <FuentesConfigManager />
                 </div>
               }
               admins={

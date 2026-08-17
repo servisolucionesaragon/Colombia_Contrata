@@ -17,6 +17,8 @@ type Consulta = {
   candidato_numero_documento: string;
   estado: "pendiente" | "autorizada" | "rechazada";
   nivel_riesgo: NivelRiesgo | null;
+  resultado_pdfs: Record<string, string> | null;
+  resultado_error: string | null;
   created_at: string;
 };
 
@@ -72,7 +74,7 @@ export default function EmpresaConsultasContent() {
         supabase
           .from("consultas")
           .select(
-            "id, candidato_primer_nombre, candidato_primer_apellido, candidato_email, candidato_tipo_documento, candidato_numero_documento, estado, nivel_riesgo, created_at"
+            "id, candidato_primer_nombre, candidato_primer_apellido, candidato_email, candidato_tipo_documento, candidato_numero_documento, estado, nivel_riesgo, resultado_pdfs, resultado_error, created_at"
           )
           .eq("empresa_id", userId)
           .order("created_at", { ascending: false })
@@ -315,7 +317,8 @@ export default function EmpresaConsultasContent() {
                   <th className="py-2 pr-4">Correo</th>
                   <th className="py-2 pr-4">Fecha</th>
                   <th className="py-2 pr-4">Estado</th>
-                  <th className="py-2">Riesgo</th>
+                  <th className="py-2 pr-4">Riesgo</th>
+                  <th className="py-2">Documentos</th>
                 </tr>
               </thead>
               <tbody>
@@ -339,9 +342,16 @@ export default function EmpresaConsultasContent() {
                     <td className="py-3 pr-4">
                       <EstadoBadge estado={c.estado} />
                     </td>
-                    <td className="py-3">
+                    <td className="py-3 pr-4">
                       {c.estado === "autorizada" ? (
                         <RiesgoBadge nivel={c.nivel_riesgo} />
+                      ) : (
+                        <span className="text-gray-300 dark:text-gray-600">—</span>
+                      )}
+                    </td>
+                    <td className="py-3">
+                      {c.estado === "autorizada" ? (
+                        <DocumentosPdf consultaId={c.id} pdfs={c.resultado_pdfs} error={c.resultado_error} />
                       ) : (
                         <span className="text-gray-300 dark:text-gray-600">—</span>
                       )}
@@ -355,6 +365,62 @@ export default function EmpresaConsultasContent() {
       </div>
     </div>
   );
+}
+
+const FUENTE_LABEL: Record<string, string> = {
+  registraduria: "Registraduría",
+  policia: "Policía",
+  procuraduria: "Procuraduría",
+  contraloria: "Contraloría",
+  ramaJudicial: "Rama Judicial",
+};
+
+function DocumentosPdf({
+  consultaId,
+  pdfs,
+  error,
+}: {
+  consultaId: string;
+  pdfs: Record<string, string> | null;
+  error: string | null;
+}) {
+  const [descargando, setDescargando] = useState<string | null>(null);
+
+  const descargar = async (fuente: string) => {
+    setDescargando(fuente);
+    const res = await fetch(
+      `/api/consultas/${consultaId}/pdf?fuente=${encodeURIComponent(fuente)}`,
+      { headers: await authHeader() }
+    );
+    setDescargando(null);
+    if (!res.ok) return;
+    const { url } = await res.json();
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
+  if (pdfs && Object.keys(pdfs).length > 0) {
+    return (
+      <div className="flex flex-wrap gap-2">
+        {Object.keys(pdfs).map((fuente) => (
+          <button
+            key={fuente}
+            type="button"
+            disabled={descargando === fuente}
+            onClick={() => descargar(fuente)}
+            className="text-xs font-medium text-brand-blue hover:text-brand-blue-dark underline disabled:opacity-50"
+          >
+            {descargando === fuente ? "Abriendo..." : FUENTE_LABEL[fuente] ?? fuente}
+          </button>
+        ))}
+      </div>
+    );
+  }
+
+  if (error) {
+    return <span className="text-xs text-gray-400 dark:text-gray-500">No disponible</span>;
+  }
+
+  return <span className="text-xs text-gray-400 dark:text-gray-500">—</span>;
 }
 
 function RiesgoBadge({ nivel }: { nivel: NivelRiesgo | null }) {
