@@ -61,6 +61,9 @@ Basada en `Manual_Identidad_Visual_Colombia_Contrata` (carpeta `Colombia Contrat
 | `/solicitar/confirmacion` | Página de retorno tras el pago en Wompi | Lee el estado de la `solicitud` por su referencia y lo muestra (pagado/pendiente/fallido) |
 | `/empresas/planes` | Comprar un plan de empresa (mensual o anual) | **Conectado de verdad** — crea una fila en `pagos_empresa` y redirige al checkout de Wompi; solo para cuentas `account_type = "empresa"` con perfil completo (ver [Planes de empresa: compra con pago mensual o anual](#planes-de-empresa-compra-con-pago-mensual-o-anual-2026-08-16)) |
 | `/empresas/planes/confirmacion` | Página de retorno tras el pago en Wompi (empresas) | Misma `ConfirmacionContent.tsx` que `/solicitar/confirmacion`, distingue la tabla a consultar por el prefijo de la referencia |
+| `/empresas/consultas` | Invitar un candidato (individual) y ver las consultas enviadas | **Conectado de verdad** — crea filas en `consultas`, muestra créditos disponibles; solo para cuentas `account_type = "empresa"` |
+| `/empresas/consultas/masiva` | Invitar varios candidatos a la vez desde un CSV | **Conectado de verdad** — parser de CSV propio con vista previa antes de confirmar (ver [Consultas de candidatos](#consultas-de-candidatos-individual-y-masiva--consumo-de-créditos-2026-08-17)) |
+| `/autorizaciones` | El candidato ve y responde las solicitudes de verificación que le llegaron | **Conectado de verdad** — checkbox de Habeas Data obligatorio antes de autorizar; descuenta 1 crédito de la empresa al autorizar |
 | `/terminos` | Términos y Condiciones | Borrador, falta revisión legal — **editable desde `/admin` → Páginas** (ver [Términos y Privacidad como páginas editables](#términos-y-privacidad-como-páginas-editables)) |
 | `/privacidad` | Política de Tratamiento de Datos Personales (Ley 1581) | Borrador, falta revisión legal — **editable desde `/admin` → Páginas** (mismo mecanismo que `/terminos`) |
 | `/admin` | Back office con pestañas: Identidad del portal, Planes de personas, Planes de empresa, Documentos disponibles, Administradores | **Protegido con autenticación real** (solo cuentas con `app_metadata.role = "admin"`, ver [Panel de administración](#panel-de-administración)) — **todo se guarda de verdad**, incluyendo subida de logo/favicon a Storage y dar/quitar acceso admin por correo |
@@ -111,6 +114,12 @@ src/
     solicitar/confirmacion/page.tsx # página de retorno tras el pago en Wompi
     empresas/planes/page.tsx           # comprar un plan de empresa (mensual/anual) + creación del pago
     empresas/planes/confirmacion/page.tsx # página de retorno tras el pago en Wompi (empresas)
+    empresas/consultas/page.tsx        # invitar un candidato (individual) + lista de consultas enviadas
+    empresas/consultas/masiva/page.tsx # carga masiva de candidatos por CSV
+    autorizaciones/page.tsx            # el candidato ve y autoriza/rechaza las consultas dirigidas a él
+    api/consultas/crear/route.ts       # Route Handler: valida y crea 1 o varias consultas (no descuenta crédito)
+    api/consultas/autorizar/route.ts   # Route Handler: el candidato autoriza/rechaza; descuenta crédito solo al autorizar
+    api/consultas/pendientes/route.ts  # Route Handler: lista las consultas dirigidas al candidato que llama, con el nombre de la empresa resuelto server-side
     admin/page.tsx        # back office (protegido por AdminGate)
     api/admin/roles/route.ts # Route Handler: dar/quitar admin por correo, usa la Service Role Key (solo servidor)
     api/solicitudes/crear/route.ts # Route Handler: valida perfil/documentos, crea la solicitud, arma la URL del checkout de Wompi (o devuelve pagoDisponible:false si faltan las llaves)
@@ -132,6 +141,9 @@ src/
     SolicitarContent.tsx    # checklist de documentos + total + llamada a /api/solicitudes/crear + redirección al checkout de Wompi
     ConfirmacionContent.tsx # lee el estado de la solicitud o pago por su referencia (?reference=, distingue SOL-/EMP- por prefijo) y lo muestra tras volver de Wompi
     EmpresaPlanesContent.tsx # checklist de planes de empresa + toggle mensual/anual + llamada a /api/pagos-empresa/crear
+    EmpresaConsultasContent.tsx # créditos disponibles + formulario de invitación individual (8 campos) + tabla de consultas enviadas
+    CargaMasivaContent.tsx  # parser de CSV propio (sin librería) con vista previa fila por fila antes de confirmar
+    AutorizacionesContent.tsx # el candidato ve las consultas dirigidas a él, checkbox de Habeas Data, autorizar/rechazar
     WompiConfigManager.tsx  # admin: guarda las llaves de Wompi (formulario "write-only" para los secretos, ver Solicitud de documentos y pago con Wompi)
     UsuariosManager.tsx     # admin: lista de usuarios + activar/desactivar cuentas
     PagosManager.tsx        # admin: lista combinada de pagos (personas + empresas) + marcar como pagado a mano
@@ -154,6 +166,7 @@ src/
     supabase.ts            # cliente de Supabase (createClient con las env vars NEXT_PUBLIC_*)
     colombia.ts             # departamentos + ciudades por departamento (para /perfil)
     wompi.ts                # getWompiKeys/buildWompiCheckoutUrl, compartido por /api/solicitudes/crear y /api/pagos-empresa/crear
+    creditos.ts              # creditosDisponibles(db, empresaId) — suma pagos_empresa vigentes menos consultas ya autorizadas
   types/
     preline.d.ts          # tipado de window.HSStaticMethods
 public/
@@ -774,7 +787,7 @@ El usuario pidió continuar la pasarela con "los planes para empresa (los cuales
 - **`/empresas/planes`** (`EmpresaPlanesContent.tsx`): exige sesión y `account_type = "empresa"`; si el perfil no tiene `razon_social`, pide completar `/perfil` primero. Lista los planes públicos (`empresa_id is null`) más los privados asignados a esa empresa (`empresa_id = auth.uid()`), con el mismo toggle mensual/anual que ya tenía `PlanesEmpresaPricing.tsx` en `/`. El botón "Comprar" llama `POST /api/pagos-empresa/crear` con `{ planId, periodo }`.
 - El endpoint valida el plan (activo, y si es privado que pertenezca a esa empresa), toma `precio_mensual` o `precio_anual` según el período elegido, inserta una fila en `pagos_empresa` (`estado = "pendiente"`) y arma el checkout de Wompi con `getWompiKeys`/`buildWompiCheckoutUrl` — mismo fallback `pagoDisponible:false` si no hay llaves configuradas.
 - Tabla `pagos_empresa`: guarda `plan_id`, `plan_nombre` y `creditos` **copiados en el momento de la compra** (no se leen del plan en vivo después) para que el historial no cambie si el admin edita o borra el plan más adelante. `periodo` es `"mensual"` o `"anual"`.
-- Al aprobarse el pago (webhook o marcado manual desde `/admin`), se calculan `fecha_inicio` (ahora) y `fecha_vencimiento` (+1 mes o +1 año según `periodo`) — es lo único parecido a una "suscripción": una fecha de vencimiento que hoy nadie revisa automáticamente. **No hay recordatorio de renovación ni bloqueo automático al vencer** — eso quedaría para cuando se construya el consumo real de créditos.
+- Al aprobarse el pago (webhook o marcado manual desde `/admin`), se calculan `fecha_inicio` (ahora) y `fecha_vencimiento` (+1 mes o +1 año según `periodo`) — es lo único parecido a una "suscripción": una fecha de vencimiento que hoy nadie revisa automáticamente. **No hay recordatorio de renovación ni bloqueo automático al vencer** — el cálculo de créditos disponibles sí respeta `fecha_vencimiento` (ver [Consultas de candidatos](#consultas-de-candidatos-individual-y-masiva--consumo-de-créditos-2026-08-17)), pero nadie avisa a la empresa cuando su plan está por vencer.
 - El webhook de Wompi (`/api/webhooks/wompi`) distingue personas de empresas por el **prefijo de la referencia**: `SOL-` → `solicitudes`, `EMP-` → `pagos_empresa`. Si algún día se necesita, ese es el punto donde agregar más tipos de pago.
 - Botones "Comprar"/CTA de empresa en `/` (`PlanesEmpresaPricing.tsx`) ahora apuntan a `/empresas/planes` en vez de `/registro`, mismo patrón que ya se hizo con los CTA de personas.
 
@@ -790,6 +803,89 @@ A pedido del usuario ("se requiere llevar el control de usuarios y pagos, y tamb
 Verificado en producción con datos reales: la lista de Usuarios muestra las cuentas reales del sitio (incluida la insignia "Admin" en las dos cuentas administradoras) con su tipo de cuenta y fecha de registro correctos; la lista de Pagos mostró correctamente varias solicitudes de prueba que habían quedado de sesiones anteriores (se limpiaron después de confirmar que se veían bien). No se probó el clic en "Desactivar"/"Marcar pagado" en el navegador automatizado por el mismo gotcha de siempre (`confirm()` no se puede confirmar en esta máquina) — verificado por revisión de código, mismo patrón que el resto del panel.
 
 Los botones "Solicitar mis documentos" del hero y de la tarjeta "Persona independiente" en `/` ahora apuntan a `/solicitar` en vez de `/registro` — si el visitante no tiene sesión, `/solicitar` lo manda a `/login` (no se perdió ningún caso, antes iban directo a crear cuenta).
+
+## Consultas de candidatos (individual y masiva) — consumo de créditos (2026-08-17)
+
+El usuario pidió continuar con "el consumo real de créditos" de los planes de empresa: "debido a que los planes de empresa son paquetes de consultas, la empresa podrá hacer consultas individual o masiva". Antes de construir se resolvieron dos decisiones de diseño con el usuario:
+
+1. **¿Cuándo se descuenta el crédito?** → **Solo cuando el candidato autoriza** (no al invitar). Invitar es gratis; si el candidato nunca responde, la empresa no pierde el crédito.
+2. **¿Cómo es la carga masiva?** → **Subiendo un archivo CSV** (el usuario dijo "Excel", pero como el proyecto evita agregar librerías npm nuevas por la lentitud de instalación en la unidad de red, se implementó un parser de CSV propio en JS — un CSV se abre y edita sin problema en Excel, así que cumple el mismo propósito sin la dependencia).
+
+Más adelante el usuario pidió campos específicos para el candidato (no solo "nombre" y "documento" libres): **primer/segundo nombre, primer/segundo apellido, correo electrónico del consultado, tipo de documento (Cédula de ciudadanía/Permiso por protección temporal/Cédula de extranjería/Pasaporte), número de identificación y fecha de expedición** — y pidió una plantilla de ejemplo en Excel para la carga masiva.
+
+**Modelo de datos** — tabla `consultas` (una fila por candidato invitado, sea individual o parte de una carga masiva):
+```sql
+create table public.consultas (
+  id uuid primary key default gen_random_uuid(),
+  empresa_id uuid not null references auth.users(id) on delete cascade,
+  candidato_id uuid references auth.users(id),
+  candidato_primer_nombre text not null,
+  candidato_segundo_nombre text,
+  candidato_primer_apellido text not null,
+  candidato_segundo_apellido text,
+  candidato_email text not null,
+  candidato_tipo_documento text not null check (candidato_tipo_documento in ('CC', 'PPT', 'CE', 'PA')),
+  candidato_numero_documento text not null,
+  candidato_fecha_expedicion date,
+  lote_referencia text,
+  estado text not null default 'pendiente' check (estado in ('pendiente', 'autorizada', 'rechazada')),
+  credito_descontado boolean not null default false,
+  fecha_invitacion timestamptz not null default now(),
+  fecha_respuesta timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.consultas enable row level security;
+
+create policy "Empresas can view own consultas"
+  on public.consultas for select using (auth.uid() = empresa_id);
+
+create policy "Empresas can insert own consultas"
+  on public.consultas for insert with check (auth.uid() = empresa_id);
+
+-- Permite que el candidato vea las consultas dirigidas a él ANTES de
+-- tener candidato_id vinculado (recién invitado, quizás ni siquiera
+-- tenía cuenta): se compara por su correo autenticado.
+create policy "Candidatos can view consultas addressed to them"
+  on public.consultas for select
+  using (candidato_email = auth.jwt() ->> 'email' or candidato_id = auth.uid());
+
+-- Sin policy de "update" pública: autorizar/rechazar y el descuento de
+-- crédito solo lo hace /api/consultas/autorizar (Service Role Key), para
+-- validar créditos disponibles de forma segura antes de aprobar.
+```
+
+**`src/lib/creditos.ts`**: los créditos disponibles de una empresa **no se guardan como un saldo aparte** — se calculan sumando los `creditos` de sus `pagos_empresa` vigentes (`estado = "pagado"` y no vencidos) y restando las `consultas` con `credito_descontado = true`. Evita mantener dos números sincronizados.
+
+**Flujo — empresa invita**:
+1. `/empresas/consultas` (`EmpresaConsultasContent.tsx`): exige sesión y `account_type = "empresa"`, muestra los créditos disponibles (calculados client-side con la misma lógica de `creditos.ts`, ya que la empresa puede leer sus propias `pagos_empresa`/`consultas` por RLS) y un formulario con los 8 campos del candidato.
+2. Al enviar, llama `POST /api/consultas/crear` con `{ candidatos: [...] }` — valida perfil completo, cada candidato (nombre/apellido/correo/tipo y número de documento obligatorios, fecha de expedición opcional pero con formato válido si se manda) e inserta una fila en `consultas` con `estado = "pendiente"`. **No descuenta crédito en este paso.**
+3. La tabla "Consultas enviadas" en la misma página lista lo enviado, con badge de estado.
+
+**Flujo — carga masiva**:
+- `/empresas/consultas/masiva` (`CargaMasivaContent.tsx`): parser de CSV escrito a mano (sin librería — separa por comas, agrupa comillas básicas), que **acepta variantes de encabezado** con o sin tildes ("correo electrónico del consultado" / "correo electronico del consultado" / "correo" / "email", etc.) y alias de tipo de documento en texto o código ("Cédula de ciudadanía" o "CC", ambos se guardan como `"CC"`). Muestra una vista previa fila por fila (válida/inválida con motivo) **antes** de confirmar, y llama al mismo `POST /api/consultas/crear` con el arreglo completo.
+- `public/plantilla-candidatos.csv`: plantilla descargable desde la propia página ("Descargar plantilla de ejemplo (CSV)"), con las 8 columnas y 2 filas de ejemplo. El usuario también recibió una versión en `.xlsx` real (generada una sola vez con Python/openpyxl, sin agregar la librería al proyecto) para abrir directamente en Excel — si la edita ahí, debe guardarla como "CSV (delimitado por comas)" antes de subirla, porque el input de archivo solo acepta `.csv`.
+
+**Flujo — candidato autoriza**:
+1. `/autorizaciones` (`AutorizacionesContent.tsx`, para personas): `GET /api/consultas/pendientes` devuelve las consultas dirigidas al correo o id del usuario que llama, con el nombre de la empresa resuelto server-side (el candidato no puede leer `profiles` de otra cuenta por RLS) y el nombre completo/documento que la empresa envió, para que el candidato confirme que son sus propios datos.
+2. Antes de habilitar "Autorizar" se exige un checkbox de **Habeas Data separado** (mismo patrón que `/registro`: nunca premarcado, texto explícito de para qué empresa y con qué fin).
+3. `POST /api/consultas/autorizar` con `{ consultaId, decision }`: si `rechazar`, solo cambia el estado. Si `autorizar`, calcula los créditos disponibles de la empresa con `creditosDisponibles()`; si hay al menos 1, marca `estado = "autorizada"`, `credito_descontado = true` y vincula `candidato_id`; si no hay créditos, devuelve un error y la consulta queda igual (el candidato puede reintentar más tarde, no queda en un estado intermedio).
+
+**Header dinámico según tipo de cuenta**: `Header.tsx` cambió `userMenuLinks` (constante fija) por `getUserMenuLinks(accountType)` (función) — el menú de usuario ahora muestra **"Consultas"** (→ `/empresas/consultas`) para cuentas de empresa o **"Autorizaciones"** (→ `/autorizaciones`) para personas, en ambos menús (escritorio y móvil).
+
+**No genera documentos reales todavía**: igual que con `/solicitar`, aprobar una consulta solo actualiza el estado en la base de datos — no existe todavía la integración con el proveedor de fuentes que generaría los antecedentes reales. Hay un comentario `TODO` en `/api/consultas/autorizar` marcando dónde conectarla cuando exista.
+
+**No se envían correos de notificación todavía**: cuando una empresa invita a un candidato, este no recibe ningún correo — solo lo verá si inicia sesión y entra a `/autorizaciones`. Enviar la invitación por correo (vía la API de Resend, no solo el SMTP que usa Supabase Auth) quedó fuera de esta ronda de trabajo, deliberadamente, para no ampliar el alcance.
+
+Verificado en producción de punta a punta con datos reales:
+- Invitación individual: formulario completo (con el gotcha ya conocido de que el input de fecha nativo no acepta texto tecleado en este navegador automatizado — se sorteó fijando `.value` por JS y disparando los eventos `input`/`change`) → `POST /api/consultas/crear` → fila creada en `consultas` con los 8 campos correctos, incluida `candidato_fecha_expedicion`.
+- Carga masiva: se subió la propia plantilla de ejemplo (inyectando el `File` por JS, ya que los inputs de archivo tampoco se pueden manejar con las herramientas de automatización normales) → las 2 filas de ejemplo se reconocieron como válidas con acentos y todo → "Se enviaron 2 invitaciones correctamente."
+- Ambos lotes de prueba se borraron de la base de datos después de confirmar que se veían bien.
+
+⚠️ **Gotcha de build — dos errores nuevos en este cambio, ambos corregidos antes del deploy final**:
+1. `.select("id", { count: "exact" })` encadenado después de `.insert(...)` no es válido en supabase-js — ese overload con opciones solo existe en el `.select()` inicial sobre `.from()`. Falló como `error TS2554: Expected 0-1 arguments, but got 2` en el build de Vercel. Se quitó el conteo por API y se usó `filas.length` directamente.
+2. Un `"CSV (delimitado por comas)"` escrito como texto plano dentro de JSX (no dentro de un string de JS) volvió a romper el build por comillas sin escapar — el mismo tipo de error ya documentado antes en este README. Se cambió a comillas tipográficas `“ ”`.
 
 ## Despliegue
 
@@ -813,11 +909,13 @@ Los botones "Solicitar mis documentos" del hero y de la tarjeta "Persona indepen
 - [ ] **Activar el pago real de Wompi**: guardar las tres llaves reales desde `/admin` → Pagos (Wompi) en cuanto el usuario termine la validación de su cuenta, y probar una transacción de sandbox de punta a punta — se confirmó que el formato del checkout es correcto (ver [Solicitud de documentos y pago con Wompi](#solicitud-de-documentos-y-pago-con-wompi)), pero la firma de integridad y el checksum del webhook siguen sin validarse contra una cuenta real.
 - [ ] Terminar de conectar `nombre_portal` y `eslogan` de `configuracion_portal` al resto del front — `nombre_portal` ya se usa en el copyright del footer, pero el `<title>` de las páginas, el texto "Colombia Contrata" del Header/Footer y el `eslogan` siguen fijos en el código (logo, favicon, color primario, correo de contacto y texto legal del footer ya están conectados — ver sección de tablas).
 - [ ] Registrar la IP en la trazabilidad de consentimiento de Habeas Data (requiere un endpoint de servidor/Route Handler, ya que `supabase.auth.signUp` corre en el cliente).
-- [x] Compra de planes de empresa (`/empresas/planes`, pago único mensual o anual) — ver [Planes de empresa: compra con pago mensual o anual](#planes-de-empresa-compra-con-pago-mensual-o-anual-2026-08-16). Probado de punta a punta con una cuenta de empresa real el 2026-08-17. Falta: **consumo real de créditos** (descontar al hacer una consulta individual o masiva — ver ítem de consultas más abajo), **cobro recurrente automático** (hoy es pago manual cada período, decisión explícita del usuario para no tener que tokenizar tarjetas), y conectar `/historial` para empresas.
+- [x] Compra de planes de empresa (`/empresas/planes`, pago único mensual o anual) — ver [Planes de empresa: compra con pago mensual o anual](#planes-de-empresa-compra-con-pago-mensual-o-anual-2026-08-16). Probado de punta a punta con una cuenta de empresa real el 2026-08-17. Falta: **cobro recurrente automático** (hoy es pago manual cada período, decisión explícita del usuario para no tener que tokenizar tarjetas) y conectar `/historial` para empresas.
+- [x] Consumo real de créditos vía consultas individuales/masivas (`/empresas/consultas`, `/empresas/consultas/masiva`, `/autorizaciones`) — ver [Consultas de candidatos](#consultas-de-candidatos-individual-y-masiva--consumo-de-créditos-2026-08-17). Probado de punta a punta el 2026-08-17. Falta: **enviar la invitación por correo** al candidato (hoy solo la ve si entra a `/autorizaciones` por su cuenta) y la integración con el proveedor de fuentes para que "autorizada" genere un documento real.
 - [ ] Crear cuentas de persona/empresa desde `/admin` (el usuario decidió dejar esto fuera de alcance por ahora — solo se construyó "asignar administradores", que ya está listo).
 - [ ] Storage con URLs firmadas para la expiración de 10 días de los documentos de personas.
-- [ ] Integración con la API del proveedor de fuentes (contraloría, policía, procuraduría, etc.) — aún no contratada. Es el paso que falta para que una `solicitud` en estado "pagado" realmente genere los documentos.
+- [ ] Integración con la API del proveedor de fuentes (contraloría, policía, procuraduría, etc.) — aún no contratada. Es el paso que falta para que una `solicitud` en estado "pagado" o una `consulta` en estado "autorizada" realmente genere los documentos/antecedentes.
 - [ ] Generación y empaquetado de PDFs + expiración de 10 días.
-- [ ] Conectar `/historial` a las tablas `solicitudes` y `pagos_empresa` reales (hoy sigue siendo el placeholder "Aún no tienes solicitudes" aunque ambas tablas ya existen y ya se están creando filas reales desde `/solicitar` y `/empresas/planes`).
+- [ ] Conectar `/historial` a las tablas `solicitudes`, `pagos_empresa` y `consultas` reales (hoy sigue siendo el placeholder "Aún no tienes solicitudes" aunque las tres tablas ya existen y ya se están creando filas reales).
+- [ ] Enviar por correo la invitación de `/empresas/consultas` al candidato (vía la API de Resend, no solo el SMTP que usa Supabase Auth) — hoy el candidato solo se entera si entra a `/autorizaciones` por su cuenta.
 - [ ] Revisión legal de `/terminos` y `/privacidad` + completar datos legales de la empresa.
 - [ ] Traducir y activar el resto de plantillas de "Security" en Supabase si se llegan a necesitar (MFA, cambio de contraseña, cambio de teléfono — "Change Email Address" ya está lista).
