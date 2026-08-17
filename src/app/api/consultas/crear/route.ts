@@ -1,6 +1,14 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import crypto from "crypto";
 import { resolverContextoEmpresa } from "@/lib/empresaContext";
+import { enviarCorreo } from "@/lib/resend";
+import { plantillaInvitacionConsulta } from "@/lib/emailPlantillas";
+
+// Una carga masiva puede tener hasta 500 candidatos — el envío de
+// correos (en after(), después de responder) puede tardar más que el
+// límite por defecto si se manda uno por uno.
+export const maxDuration = 180;
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -100,8 +108,15 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // El token se genera acá (no se vuelve a leer de la base después del
+  // insert) para no encadenar un select() extra solo para recuperarlo.
+  const filasConToken = filas.map((f) => ({
+    ...f,
+    tokenRespuesta: crypto.randomBytes(24).toString("hex"),
+  }));
+
   const { error } = await db.from("consultas").insert(
-    filas.map((f) => ({
+    filasConToken.map((f) => ({
       empresa_id: contexto.empresaId,
       candidato_primer_nombre: f.primerNombre,
       candidato_segundo_nombre: f.segundoNombre || null,
@@ -112,6 +127,7 @@ export async function POST(request: NextRequest) {
       candidato_numero_documento: f.numeroDocumento,
       candidato_fecha_expedicion: f.fechaExpedicion || null,
       lote_referencia: typeof loteReferencia === "string" ? loteReferencia : null,
+      token_respuesta: f.tokenRespuesta,
     }))
   );
 
@@ -122,5 +138,23 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  return NextResponse.json({ success: true, creadas: filas.length });
+  // El candidato no debe esperar a que salgan los correos (una carga
+  // masiva puede tener hasta 500) — se envían después de responder,
+  // sin bloquear. Si el envío de un correo falla, la consulta ya quedó
+  // registrada de todas formas.
+  after(async () => {
+    for (const f of filasConToken) {
+      await enviarCorreo(db, {
+        to: f.email,
+        subject: `${contexto.razonSocial} te invitó a Colombia Contrata`,
+        html: plantillaInvitacionConsulta({
+          candidatoNombre: `${f.primerNombre} ${f.primerApellido}`,
+          empresaNombre: contexto.razonSocial ?? "una empresa",
+          token: f.tokenRespuesta,
+        }),
+      });
+    }
+  });
+
+  return NextResponse.json({ success: true, creadas: filasConToken.length });
 }

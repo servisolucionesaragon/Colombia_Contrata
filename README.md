@@ -897,7 +897,7 @@ create policy "Candidatos can view consultas addressed to them"
 
 **No genera documentos reales todavía**: igual que con `/solicitar`, aprobar una consulta solo actualiza el estado en la base de datos — no existe todavía la integración con el proveedor de fuentes que generaría los antecedentes reales. Hay un comentario `TODO` en `/api/consultas/autorizar` marcando dónde conectarla cuando exista.
 
-**No se envían correos de notificación todavía**: cuando una empresa invita a un candidato, este no recibe ningún correo — solo lo verá si inicia sesión y entra a `/autorizaciones`. Enviar la invitación por correo (vía la API de Resend, no solo el SMTP que usa Supabase Auth) quedó fuera de esta ronda de trabajo, deliberadamente, para no ampliar el alcance.
+**Notificación por correo**: desde el 2026-08-17 el candidato sí recibe un correo al ser invitado, con botones de Autorizar/Rechazar — ver [Notificación por correo al invitar a un candidato](#notificación-por-correo-al-invitar-a-un-candidato-2026-08-17).
 
 Verificado en producción de punta a punta con datos reales:
 - Invitación individual: formulario completo (con el gotcha ya conocido de que el input de fecha nativo no acepta texto tecleado en este navegador automatizado — se sorteó fijando `.value` por JS y disparando los eventos `input`/`change`) → `POST /api/consultas/crear` → fila creada en `consultas` con los 8 campos correctos, incluida `candidato_fecha_expedicion`.
@@ -1096,6 +1096,37 @@ Bucket de Storage nuevo, `verificaciones-pdf` (**privado**, sin ninguna policy p
 
 Verificado de punta a punta en producción con una consulta real (candidato real, `estado='autorizada'`, 1 crédito de Solverio consumido con permiso explícito del usuario): la respuesta llegó completa (`exitoso: true`, `estadoConsulta: "completa"`, 14 de 14 fuentes con soporte disponibles, 6 PDF válidos). Pendiente de verificar en producción específicamente el flujo `after()` (el fix se probó contra la API real vía `curl` directo, no todavía a través del endpoint `/api/consultas/autorizar` desplegado, ya que eso requeriría una segunda cuenta de candidato con sesión propia) y confirmar el mapeo exacto de `nivelRiesgo` con más consultas reales.
 
+**Empresas administradoras del sitio, sin consumo de créditos** (2026-08-17, a pedido de "para poder probar bien... los perfiles empresa que sean designados como admin, tienen acceso a realizar consultas sin necesidad de recargar saldo"): `esEmpresaAdmin(db, empresaId)` en `src/lib/creditos.ts` revisa si la cuenta empresa tiene `app_metadata.role === "admin"` (la misma bandera de "Administradores" en `/admin`). La lógica compartida de autorizar/rechazar (`procesarDecisionConsulta`, ver más abajo) la usa para saltarse el bloqueo por créditos y no marcar `credito_descontado`, pensado para poder probar el flujo completo (incluida la llamada real a Solverio) sin tener que simular una compra de plan primero.
+
+## Notificación por correo al invitar a un candidato (2026-08-17)
+
+El usuario pidió que, al invitar a un candidato desde `/empresas/consultas` o la carga masiva, se le envíe un correo con **botones de Autorizar/Rechazar de un solo clic**. Antes de construir se le planteó el riesgo real: un enlace `GET` que ejecuta la acción directamente puede ser "precargado" por rastreadores de correo (Outlook, Gmail, filtros de seguridad corporativos), disparando una autorización por accidente sin que la persona la haya decidido. El usuario, ya informado del riesgo, eligió **mantener el clic único desde el correo**, aceptando que hiciera falta "una página de confirmación intermedia" como mitigación.
+
+**Diseño de seguridad**: los botones del correo llevan a `/consultas/responder?token=...&decision=autorizar|rechazar` (página pública, sin login) en vez de ejecutar la acción directamente. Esa página muestra el nombre del candidato/empresa, exige un checkbox de Habeas Data (mismo patrón que `/autorizaciones`) antes de habilitar "Confirmar" en el caso de autorizar, y solo ahí dispara un `POST`. Así un simple `GET` de precarga nunca cambia nada — hace falta un clic humano real dentro de la página. El token (`consultas.token_respuesta`, `crypto.randomBytes(24).toString("hex")`, columna `unique`) es aleatorio e irrepetible, y de un solo uso de forma natural: deja de servir en cuanto la consulta deja de estar en estado `pendiente`.
+
+**Lógica de autorizar/rechazar extraída a un helper compartido** (`src/lib/consultaDecision.ts`, `procesarDecisionConsulta`) para no duplicar la parte sensible (chequeo de créditos, bypass de admin, disparo de `after()` hacia Solverio) entre los dos flujos de autenticación, que se mantienen deliberadamente separados:
+- `POST /api/consultas/autorizar` — exige sesión iniciada (candidato con cuenta, ya usado por `/autorizaciones`).
+- `GET`/`POST /api/consultas/responder-token` — público, autentica por el token en vez de una sesión; el `GET` devuelve los datos para mostrar en la página (nombre del candidato, nombre de la empresa, estado), el `POST` ejecuta la decisión. Si el correo del candidato ya tiene una cuenta creada, se vincula `candidato_id` automáticamente (buscando por email con `auth.admin.listUsers()`), igual que si hubiera respondido con sesión iniciada.
+
+**Envío del correo**: `src/lib/resend.ts` (`enviarCorreo`) llama directo a la API HTTP de Resend (`https://api.resend.com/emails`) — **distinto** del SMTP que ya usa Supabase Auth para sus propios correos (confirmación, cambio de contraseña), que no sirve para mandar correos con contenido propio. Llaves en `configuracion_resend` (fila única, mismo patrón write-only/RLS-sin-policies que `configuracion_wompi`/`configuracion_solverio`: solo la Service Role Key la lee). La plantilla (`src/lib/emailPlantillas.ts`, `plantillaInvitacionConsulta`) es HTML con estilos inline (necesario para que se vea bien en clientes de correo) con los dos botones.
+
+```sql
+create table public.configuracion_resend (
+  id int primary key default 1,
+  api_key text,
+  remitente text not null default 'noreply@colombiacontrata.com',
+  updated_at timestamptz not null default now(),
+  constraint configuracion_resend_singleton check (id = 1)
+);
+alter table public.configuracion_resend enable row level security;
+
+alter table public.consultas add column token_respuesta text unique;
+```
+
+`POST /api/consultas/crear` genera el token por candidato en el momento del insert (evitando un `select()` extra después de insertar solo para recuperarlo) y, con `export const maxDuration = 180`, dispara el envío de los correos con `after()` — igual que con Solverio, el candidato no debe esperar a que salgan los correos, y una carga masiva puede tener hasta 500 candidatos.
+
+Falta verificar en producción con un correo real (no se hizo todavía en esta sesión): que el correo llegue con buen formato, que los dos botones lleven a la página correcta, y que autorizar desde ahí realmente dispare la verificación con Solverio.
+
 ## Roadmap / pendientes
 
 - [x] Construir `/solicitar` (checklist de documentos para personas) — ver [Solicitud de documentos y pago con Wompi](#solicitud-de-documentos-y-pago-con-wompi). Falta `/empresas`.
@@ -1103,13 +1134,13 @@ Verificado de punta a punta en producción con una consulta real (candidato real
 - [ ] Terminar de conectar `nombre_portal` y `eslogan` de `configuracion_portal` al resto del front — `nombre_portal` ya se usa en el copyright del footer, pero el `<title>` de las páginas, el texto "Colombia Contrata" del Header/Footer y el `eslogan` siguen fijos en el código (logo, favicon, color primario, correo de contacto y texto legal del footer ya están conectados — ver sección de tablas).
 - [ ] Registrar la IP en la trazabilidad de consentimiento de Habeas Data (requiere un endpoint de servidor/Route Handler, ya que `supabase.auth.signUp` corre en el cliente).
 - [x] Compra de planes de empresa (`/empresas/planes`, pago único mensual o anual) — ver [Planes de empresa: compra con pago mensual o anual](#planes-de-empresa-compra-con-pago-mensual-o-anual-2026-08-16). Probado de punta a punta con una cuenta de empresa real el 2026-08-17. Falta: **cobro recurrente automático** (hoy es pago manual cada período, decisión explícita del usuario para no tener que tokenizar tarjetas) y conectar `/historial` para empresas.
-- [x] Consumo real de créditos vía consultas individuales/masivas (`/empresas/consultas`, `/empresas/consultas/masiva`, `/autorizaciones`) — ver [Consultas de candidatos](#consultas-de-candidatos-individual-y-masiva--consumo-de-créditos-2026-08-17). Probado de punta a punta el 2026-08-17. Falta: **enviar la invitación por correo** al candidato (hoy solo la ve si entra a `/autorizaciones` por su cuenta) y la integración con el proveedor de fuentes para que "autorizada" genere un documento real.
+- [x] Consumo real de créditos vía consultas individuales/masivas (`/empresas/consultas`, `/empresas/consultas/masiva`, `/autorizaciones`) — ver [Consultas de candidatos](#consultas-de-candidatos-individual-y-masiva--consumo-de-créditos-2026-08-17). Probado de punta a punta el 2026-08-17.
 - [ ] Crear cuentas de persona/empresa desde `/admin` (el usuario decidió dejar esto fuera de alcance por ahora — solo se construyó "asignar administradores", que ya está listo).
 - [ ] Storage con URLs firmadas para la expiración de 10 días de los documentos de personas.
 - [x] Integración con la API del proveedor de fuentes (Solverio Verify) para **consultas de empresa** — ver [Integración real con el proveedor de fuentes](#integración-real-con-el-proveedor-de-fuentes-solverio-verify-2026-08-17). Falta: confirmar el mapeo exacto de `nivelRiesgo` con más consultas reales, y la misma integración para **solicitudes de persona** (`/solicitar`) sigue sin conectar — hoy solo genera documentos reales el flujo de empresa/candidato.
 - [ ] Generación y empaquetado de PDFs + expiración de 10 días.
 - [ ] Conectar `/historial` a las tablas `solicitudes`, `pagos_empresa` y `consultas` reales (hoy sigue siendo el placeholder "Aún no tienes solicitudes" aunque las tres tablas ya existen y ya se están creando filas reales).
-- [ ] Enviar por correo la invitación de `/empresas/consultas` al candidato (vía la API de Resend, no solo el SMTP que usa Supabase Auth) — hoy el candidato solo se entera si entra a `/autorizaciones` por su cuenta.
+- [x] Enviar por correo la invitación de `/empresas/consultas` al candidato, con botones de Autorizar/Rechazar de un clic — ver [Notificación por correo al invitar a un candidato](#notificación-por-correo-al-invitar-a-un-candidato-2026-08-17). Falta verificar en producción con un correo real (formato, enlaces, y que dispare Solverio de punta a punta).
 - [ ] Revisión legal de `/terminos` y `/privacidad` + completar datos legales de la empresa.
 - [ ] Traducir y activar el resto de plantillas de "Security" en Supabase si se llegan a necesitar (MFA, cambio de contraseña, cambio de teléfono — "Change Email Address" ya está lista).
 - [x] Verificar el sitio en Google Search Console y enviar el sitemap (`https://colombiacontrata.com/sitemap.xml`) — hecho por el usuario el 2026-08-17, el mismo día que se construyó el soporte técnico (ver [PWA y SEO](#pwa-instalable-en-móviltablet-y-seo-2026-08-17)).

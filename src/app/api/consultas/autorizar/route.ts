@@ -1,7 +1,6 @@
-import { NextRequest, NextResponse, after } from "next/server";
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { creditosDisponibles, esEmpresaAdmin } from "@/lib/creditos";
-import { getSolverioConfig, consultarVerificacionCompleta, semaforoANivelRiesgo } from "@/lib/solverio";
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
+import { procesarDecisionConsulta } from "@/lib/consultaDecision";
 
 // La verificación real con Solverio puede tardar más de un minuto (una
 // prueba real tardó 68.9s, dominada por una sola fuente lenta) — se
@@ -69,155 +68,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "No autorizado." }, { status: 403 });
   }
 
-  if (consulta.estado !== "pendiente") {
-    return NextResponse.json(
-      { error: "Esta consulta ya fue respondida." },
-      { status: 400 }
-    );
+  const resultado = await procesarDecisionConsulta(db, consulta, decision, user.id);
+  if (!resultado.ok) {
+    return NextResponse.json({ error: resultado.error }, { status: resultado.status });
   }
-
-  if (decision === "rechazar") {
-    await db
-      .from("consultas")
-      .update({
-        estado: "rechazada",
-        candidato_id: user.id,
-        fecha_respuesta: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", consultaId);
-    return NextResponse.json({ success: true });
-  }
-
-  // Una empresa que además es administradora del sitio puede autorizar
-  // sin depender de créditos comprados — pensado para poder probar el
-  // flujo real (incluida la verificación con Solverio) sin tener que
-  // simular un pago primero.
-  const esAdmin = await esEmpresaAdmin(db, consulta.empresa_id);
-
-  if (!esAdmin) {
-    const disponibles = await creditosDisponibles(db, consulta.empresa_id);
-    if (disponibles <= 0) {
-      return NextResponse.json(
-        {
-          error:
-            "La empresa que te invitó no tiene créditos disponibles en este momento. Intenta de nuevo más tarde.",
-        },
-        { status: 400 }
-      );
-    }
-  }
-
-  await db
-    .from("consultas")
-    .update({
-      estado: "autorizada",
-      candidato_id: user.id,
-      credito_descontado: !esAdmin,
-      fecha_respuesta: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", consultaId);
-
-  // La autorización ya quedó guardada y el crédito descontado — el
-  // candidato no debe esperar a que Solverio responda (una consulta real
-  // tardó 68.9s). La verificación se dispara con after(), que sigue
-  // corriendo después de que esta respuesta ya se envió, sin bloquear.
-  // Si falla por cualquier motivo, la autorización del candidato nunca
-  // se pierde — solo queda resultado_error en la fila.
-  after(async () => {
-    const resultado = await ejecutarVerificacion(db, consulta);
-    await guardarResultadoVerificacion(db, consultaId, resultado);
-  });
 
   return NextResponse.json({ success: true });
-}
-
-async function ejecutarVerificacion(
-  db: SupabaseClient,
-  consulta: {
-    candidato_primer_nombre: string;
-    candidato_segundo_nombre: string | null;
-    candidato_primer_apellido: string;
-    candidato_segundo_apellido: string | null;
-    candidato_tipo_documento: "CC" | "PPT" | "CE" | "PA";
-    candidato_numero_documento: string;
-    candidato_fecha_expedicion: string | null;
-  }
-) {
-  const config = await getSolverioConfig(db);
-  if (!config) {
-    return { ok: false as const, error: "La verificación automática de fuentes no está configurada." };
-  }
-
-  return consultarVerificacionCompleta(config, {
-    documento: consulta.candidato_numero_documento,
-    primerNombre: consulta.candidato_primer_nombre,
-    primerApellido: consulta.candidato_primer_apellido,
-    segundoNombre: consulta.candidato_segundo_nombre,
-    segundoApellido: consulta.candidato_segundo_apellido,
-    tipoDocumento: consulta.candidato_tipo_documento,
-    fechaExpedicion: consulta.candidato_fecha_expedicion,
-  });
-}
-
-async function guardarResultadoVerificacion(
-  db: SupabaseClient,
-  consultaId: string,
-  resultado: Awaited<ReturnType<typeof ejecutarVerificacion>>
-) {
-  if (!resultado.ok) {
-    await db
-      .from("consultas")
-      .update({ resultado_error: resultado.error, updated_at: new Date().toISOString() })
-      .eq("id", consultaId);
-    return;
-  }
-
-  const rutasPdf = await subirPdfsSoporte(db, consultaId, resultado.pdfs);
-
-  await db
-    .from("consultas")
-    .update({
-      resultado_semaforo: resultado.semaforo,
-      resultado_json: resultado.raw,
-      resultado_pdfs: rutasPdf,
-      resultado_obtenido_at: new Date().toISOString(),
-      resultado_error: null,
-      nivel_riesgo: semaforoANivelRiesgo(resultado.semaforo),
-      nivel_riesgo_actualizado_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", consultaId);
-}
-
-// Decodifica cada PDF en base64 que haya devuelto Solverio y lo sube al
-// bucket privado "verificaciones-pdf" — nunca se guarda el base64 en la
-// base de datos (podría pesar varios MB), solo la ruta de Storage. La
-// descarga real se hace después con una URL firmada de corta duración
-// (ver /api/consultas/[id]/pdf), nunca con una URL pública.
-async function subirPdfsSoporte(
-  db: SupabaseClient,
-  consultaId: string,
-  pdfs: Record<string, string> | null
-): Promise<Record<string, string> | null> {
-  if (!pdfs) return null;
-
-  const rutas: Record<string, string> = {};
-  for (const [fuente, base64] of Object.entries(pdfs)) {
-    if (typeof base64 !== "string" || !base64) continue;
-    try {
-      const buffer = Buffer.from(base64, "base64");
-      const ruta = `${consultaId}/${fuente}.pdf`;
-      const { error } = await db.storage
-        .from("verificaciones-pdf")
-        .upload(ruta, buffer, { contentType: "application/pdf", upsert: true });
-      if (!error) rutas[fuente] = ruta;
-    } catch {
-      // Un PDF individual mal formado no debe tumbar el resto de la
-      // verificación — simplemente se omite de rutas.
-    }
-  }
-
-  return Object.keys(rutas).length > 0 ? rutas : null;
 }
