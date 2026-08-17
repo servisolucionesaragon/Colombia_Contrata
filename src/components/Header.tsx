@@ -113,6 +113,26 @@ function IconUser(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+function IconUsers(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
+      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+    </svg>
+  );
+}
+
 function IconLogout(props: SVGProps<SVGSVGElement>) {
   return (
     <svg
@@ -132,7 +152,7 @@ function IconLogout(props: SVGProps<SVGSVGElement>) {
   );
 }
 
-function getUserMenuLinks(accountType: string | null) {
+function getUserMenuLinks(accountType: string | null, esAdministradorEmpresa: boolean) {
   const links = [
     { href: "/", label: "Inicio", icon: IconHome },
     { href: "/dashboard", label: "Dashboard", icon: IconDashboard },
@@ -140,6 +160,9 @@ function getUserMenuLinks(accountType: string | null) {
   ];
   if (accountType === "empresa" || accountType === "empresa_miembro") {
     links.push({ href: "/empresas/consultas", label: "Consultas", icon: IconShieldCheck });
+    if (esAdministradorEmpresa) {
+      links.push({ href: "/empresas/equipo", label: "Gestionar equipo", icon: IconUsers });
+    }
   } else {
     links.push({ href: "/autorizaciones", label: "Autorizaciones", icon: IconShieldCheck });
   }
@@ -179,6 +202,7 @@ export default function Header() {
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [accountType, setAccountType] = useState<string | null>(null);
+  const [esAdministradorEmpresa, setEsAdministradorEmpresa] = useState(false);
   const [initials, setInitials] = useState<string | null>(null);
   const [email, setEmail] = useState<string | null>(null);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
@@ -228,6 +252,7 @@ export default function Header() {
           setInitials(null);
           setEmail(null);
           setAccountType(null);
+          setEsAdministradorEmpresa(false);
         }
         return;
       }
@@ -242,10 +267,15 @@ export default function Header() {
       // completó /perfil — en ese caso mostramos el correo como respaldo.
       const { data: profile } = await supabase
         .from("profiles")
-        .select("primer_nombre, primer_apellido, razon_social")
+        .select("primer_nombre, primer_apellido, razon_social, rol_empresa")
         .eq("id", userId)
         .maybeSingle();
       if (!active) return;
+
+      setEsAdministradorEmpresa(
+        accountType === "empresa" ||
+          (accountType === "empresa_miembro" && profile?.rol_empresa === "administrador")
+      );
 
       const name =
         accountType === "empresa"
@@ -403,7 +433,7 @@ export default function Header() {
                     )}
                   </div>
                   <div className="py-1">
-                    {getUserMenuLinks(accountType).map((link) => (
+                    {getUserMenuLinks(accountType, esAdministradorEmpresa).map((link) => (
                       <Link
                         key={link.href}
                         href={link.href}
@@ -516,7 +546,7 @@ export default function Header() {
                   )}
                 </div>
               </div>
-              {getUserMenuLinks(accountType).map((link) => (
+              {getUserMenuLinks(accountType, esAdministradorEmpresa).map((link) => (
                 <Link
                   key={link.href}
                   href={link.href}

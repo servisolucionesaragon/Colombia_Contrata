@@ -158,7 +158,7 @@ src/
     RiesgoConsultasManager.tsx # admin: asigna a mano el nivel de riesgo (bajo/medio/alto) a consultas ya autorizadas
     EquipoEmpresaContent.tsx # el Administrador de la empresa crea miembros de equipo (contraseña temporal) y edita rol/acceso
     AdminGate.tsx           # bloquea /admin a menos que la sesión tenga app_metadata.role === "admin"
-    AdminTabs.tsx            # menú lateral agrupado del panel admin (Identidad / grupo Página principal / grupo Planes y documentos / Administradores)
+    AdminTabs.tsx            # menú lateral agrupado del panel admin (Identidad / grupo Página principal / grupo Planes y documentos / grupo Usuarios y pagos / Administradores); en móvil colapsa detrás de un botón tipo hamburguesa
     AdminSettingsForm.tsx  # identidad del portal — lee/guarda en configuracion_portal, sube logo/favicon a Storage
     LandingConfigManager.tsx # admin: textos y mostrar/ocultar secciones de la página principal (configuracion_landing)
     BloquesLandingManager.tsx # admin: agregar/editar/eliminar/reordenar bloques libres de texto+imagen+botón (bloques_landing)
@@ -638,7 +638,7 @@ alter table public.configuracion_wompi enable row level security;
 
 `/admin` está protegido por `AdminGate.tsx` (client component): revisa que la sesión tenga `user.app_metadata.role === "admin"`. Se usa `app_metadata` y no `user_metadata` a propósito — `user_metadata` lo puede editar el propio usuario desde el cliente (`supabase.auth.updateUser`), así que no sirve para permisos; `app_metadata` solo se puede modificar desde el backend de Supabase.
 
-`AdminTabs.tsx` organiza el panel como un **menú lateral agrupado** (no pestañas horizontales — con siete secciones ya no cabían sin scroll, ver gotcha abajo), todas con guardado real:
+`AdminTabs.tsx` organiza el panel como un **menú lateral agrupado** (no pestañas horizontales — con siete secciones ya no cabían sin scroll, ver gotcha abajo), todas con guardado real. **En móvil** (`sm:hidden`), con 12 secciones el menú ya no cabía expandido sobre el contenido sin obligar a un scroll largo — ahora colapsa detrás de un botón "☰ {sección actual}" que se cierra solo al elegir una opción; en escritorio sigue siendo el menú lateral fijo de siempre, sin cambios (2026-08-17).
 
 - **Identidad del portal** (`AdminSettingsForm.tsx`) — nombre, eslogan, color primario, logo y favicon (`configuracion_portal` + Storage).
 - Grupo **Página principal**:
