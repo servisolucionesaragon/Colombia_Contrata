@@ -57,6 +57,24 @@ function IconHistory(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+function IconShieldCheck(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" />
+      <path d="m9 12 2 2 4-4" />
+    </svg>
+  );
+}
+
 function IconUser(props: SVGProps<SVGSVGElement>) {
   return (
     <svg
@@ -94,11 +112,19 @@ function IconLogout(props: SVGProps<SVGSVGElement>) {
   );
 }
 
-const userMenuLinks = [
-  { href: "/", label: "Inicio", icon: IconHome },
-  { href: "/historial", label: "Historial", icon: IconHistory },
-  { href: "/perfil", label: "Perfil", icon: IconUser },
-];
+function getUserMenuLinks(accountType: string | null) {
+  const links = [
+    { href: "/", label: "Inicio", icon: IconHome },
+    { href: "/historial", label: "Historial", icon: IconHistory },
+  ];
+  if (accountType === "empresa") {
+    links.push({ href: "/empresas/consultas", label: "Consultas", icon: IconShieldCheck });
+  } else {
+    links.push({ href: "/autorizaciones", label: "Autorizaciones", icon: IconShieldCheck });
+  }
+  links.push({ href: "/perfil", label: "Perfil", icon: IconUser });
+  return links;
+}
 
 function getInitials(name: string): string {
   const words = name.trim().split(/\s+/).filter(Boolean);
@@ -131,6 +157,7 @@ export default function Header() {
   const router = useRouter();
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [displayName, setDisplayName] = useState<string | null>(null);
+  const [accountType, setAccountType] = useState<string | null>(null);
   const [initials, setInitials] = useState<string | null>(null);
   const [email, setEmail] = useState<string | null>(null);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
@@ -179,12 +206,14 @@ export default function Header() {
           setDisplayName(null);
           setInitials(null);
           setEmail(null);
+          setAccountType(null);
         }
         return;
       }
       if (active) {
         setIsSignedIn(true);
         setEmail(userEmail ?? null);
+        setAccountType(accountType ?? null);
       }
 
       // El nombre para mostrar vive en la tabla "profiles" (no en la
@@ -353,7 +382,7 @@ export default function Header() {
                     )}
                   </div>
                   <div className="py-1">
-                    {userMenuLinks.map((link) => (
+                    {getUserMenuLinks(accountType).map((link) => (
                       <Link
                         key={link.href}
                         href={link.href}
@@ -466,7 +495,7 @@ export default function Header() {
                   )}
                 </div>
               </div>
-              {userMenuLinks.map((link) => (
+              {getUserMenuLinks(accountType).map((link) => (
                 <Link
                   key={link.href}
                   href={link.href}
