@@ -6,6 +6,8 @@ import { supabase } from "@/lib/supabase";
 
 type Status = "loading" | "signed-out" | "no-empresa" | "ready";
 
+type NivelRiesgo = "bajo" | "medio" | "alto";
+
 type Consulta = {
   id: string;
   candidato_primer_nombre: string;
@@ -14,6 +16,7 @@ type Consulta = {
   candidato_tipo_documento: string;
   candidato_numero_documento: string;
   estado: "pendiente" | "autorizada" | "rechazada";
+  nivel_riesgo: NivelRiesgo | null;
   created_at: string;
 };
 
@@ -67,7 +70,7 @@ export default function EmpresaConsultasContent() {
         supabase
           .from("consultas")
           .select(
-            "id, candidato_primer_nombre, candidato_primer_apellido, candidato_email, candidato_tipo_documento, candidato_numero_documento, estado, created_at"
+            "id, candidato_primer_nombre, candidato_primer_apellido, candidato_email, candidato_tipo_documento, candidato_numero_documento, estado, nivel_riesgo, created_at"
           )
           .eq("empresa_id", userId)
           .order("created_at", { ascending: false })
@@ -297,7 +300,8 @@ export default function EmpresaConsultasContent() {
                   <th className="py-2 pr-4">Documento</th>
                   <th className="py-2 pr-4">Correo</th>
                   <th className="py-2 pr-4">Fecha</th>
-                  <th className="py-2">Estado</th>
+                  <th className="py-2 pr-4">Estado</th>
+                  <th className="py-2">Riesgo</th>
                 </tr>
               </thead>
               <tbody>
@@ -318,8 +322,15 @@ export default function EmpresaConsultasContent() {
                     <td className="py-3 pr-4 text-gray-600 dark:text-gray-400">
                       {new Date(c.created_at).toLocaleDateString("es-CO")}
                     </td>
-                    <td className="py-3">
+                    <td className="py-3 pr-4">
                       <EstadoBadge estado={c.estado} />
+                    </td>
+                    <td className="py-3">
+                      {c.estado === "autorizada" ? (
+                        <RiesgoBadge nivel={c.nivel_riesgo} />
+                      ) : (
+                        <span className="text-gray-300 dark:text-gray-600">—</span>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -329,6 +340,22 @@ export default function EmpresaConsultasContent() {
         )}
       </div>
     </div>
+  );
+}
+
+function RiesgoBadge({ nivel }: { nivel: NivelRiesgo | null }) {
+  if (!nivel) {
+    return <span className="text-xs text-gray-400 dark:text-gray-500">Sin clasificar</span>;
+  }
+  const estilos: Record<NivelRiesgo, string> = {
+    bajo: "bg-green-100 dark:bg-green-950 text-green-700 dark:text-green-400",
+    medio: "bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-400",
+    alto: "bg-red-100 dark:bg-red-950 text-red-700 dark:text-red-400",
+  };
+  return (
+    <span className={`text-xs font-medium rounded-full px-2.5 py-1 ${estilos[nivel]}`}>
+      {nivel}
+    </span>
   );
 }
 

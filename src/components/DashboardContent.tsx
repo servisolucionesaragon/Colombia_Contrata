@@ -8,12 +8,14 @@ type Status = "loading" | "signed-out" | "ready";
 type AccountType = "persona" | "empresa";
 type EstadoConsulta = "pendiente" | "autorizada" | "rechazada";
 type EstadoSolicitud = "pendiente" | "pagado" | "fallido";
+type NivelRiesgo = "bajo" | "medio" | "alto";
 
 type ConsultaEmpresa = {
   id: string;
   candidato_primer_nombre: string;
   candidato_primer_apellido: string;
   estado: EstadoConsulta;
+  nivel_riesgo: NivelRiesgo | null;
   created_at: string;
 };
 
@@ -73,7 +75,7 @@ export default function DashboardContent() {
             .eq("estado", "pagado"),
           supabase
             .from("consultas")
-            .select("id, candidato_primer_nombre, candidato_primer_apellido, estado, credito_descontado, created_at")
+            .select("id, candidato_primer_nombre, candidato_primer_apellido, estado, nivel_riesgo, credito_descontado, created_at")
             .eq("empresa_id", user.id)
             .order("created_at", { ascending: false })
             .limit(200),
@@ -147,6 +149,7 @@ function DashboardEmpresa({
   const pendientes = consultas.filter((c) => c.estado === "pendiente").length;
   const autorizadas = consultas.filter((c) => c.estado === "autorizada").length;
   const rechazadas = consultas.filter((c) => c.estado === "rechazada").length;
+  const riesgoAlto = consultas.filter((c) => c.nivel_riesgo === "alto").length;
 
   return (
     <div className="space-y-8">
@@ -156,11 +159,12 @@ function DashboardEmpresa({
         </p>
       )}
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
         <StatCard label="Créditos disponibles" value={creditos} />
         <StatCard label="Consultas enviadas" value={consultas.length} />
         <StatCard label="Pendientes" value={pendientes} accent="amber" />
         <StatCard label="Autorizadas" value={autorizadas} accent="green" />
+        <StatCard label="Riesgo alto" value={riesgoAlto} accent={riesgoAlto > 0 ? "red" : undefined} />
       </div>
 
       <div className="flex flex-wrap gap-3 justify-center">
@@ -190,7 +194,8 @@ function DashboardEmpresa({
                 <tr className="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500 border-b border-gray-200 dark:border-gray-700">
                   <th className="py-2 pr-4">Candidato</th>
                   <th className="py-2 pr-4">Fecha</th>
-                  <th className="py-2">Estado</th>
+                  <th className="py-2 pr-4">Estado</th>
+                  <th className="py-2">Riesgo</th>
                 </tr>
               </thead>
               <tbody>
@@ -202,8 +207,15 @@ function DashboardEmpresa({
                     <td className="py-3 pr-4 text-gray-600 dark:text-gray-400">
                       {new Date(c.created_at).toLocaleDateString("es-CO")}
                     </td>
-                    <td className="py-3">
+                    <td className="py-3 pr-4">
                       <EstadoBadge estado={c.estado} />
+                    </td>
+                    <td className="py-3">
+                      {c.estado === "autorizada" ? (
+                        <RiesgoBadge nivel={c.nivel_riesgo} />
+                      ) : (
+                        <span className="text-gray-300 dark:text-gray-600">—</span>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -340,19 +352,37 @@ function StatCard({
 }: {
   label: string;
   value: number;
-  accent?: "amber" | "green";
+  accent?: "amber" | "green" | "red";
 }) {
   const valueColor =
     accent === "amber"
       ? "text-amber-600 dark:text-amber-400"
       : accent === "green"
       ? "text-green-600 dark:text-green-400"
+      : accent === "red"
+      ? "text-red-600 dark:text-red-400"
       : "text-gray-900 dark:text-gray-100";
   return (
     <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4 text-center">
       <p className={`text-2xl sm:text-3xl font-bold ${valueColor}`}>{value}</p>
       <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{label}</p>
     </div>
+  );
+}
+
+function RiesgoBadge({ nivel }: { nivel: NivelRiesgo | null }) {
+  if (!nivel) {
+    return <span className="text-xs text-gray-400 dark:text-gray-500">Sin clasificar</span>;
+  }
+  const estilos: Record<NivelRiesgo, string> = {
+    bajo: "bg-green-100 dark:bg-green-950 text-green-700 dark:text-green-400",
+    medio: "bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-400",
+    alto: "bg-red-100 dark:bg-red-950 text-red-700 dark:text-red-400",
+  };
+  return (
+    <span className={`text-xs font-medium rounded-full px-2.5 py-1 ${estilos[nivel]}`}>
+      {nivel}
+    </span>
   );
 }
 
