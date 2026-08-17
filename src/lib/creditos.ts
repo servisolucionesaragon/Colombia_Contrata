@@ -30,3 +30,16 @@ export async function creditosDisponibles(
 
   return comprados - (consumidos ?? 0);
 }
+
+// Una cuenta de empresa que además tiene rol de administrador del sitio
+// (app_metadata.role === "admin", el mismo que da acceso a /admin) puede
+// autorizar consultas sin depender de tener créditos comprados — pensado
+// para poder probar el flujo real de punta a punta (incluida la
+// verificación con Solverio) sin tener que simular un pago primero. No
+// descuenta crédito real: no tiene sentido restarle saldo a una cuenta
+// que de todas formas no lo necesita para pasar el bloqueo.
+export async function esEmpresaAdmin(db: SupabaseClient, empresaId: string): Promise<boolean> {
+  const { data, error } = await db.auth.admin.getUserById(empresaId);
+  if (error || !data.user) return false;
+  return data.user.app_metadata?.role === "admin";
+}

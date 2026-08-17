@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { creditosDisponibles } from "@/lib/creditos";
+import { creditosDisponibles, esEmpresaAdmin } from "@/lib/creditos";
 import { getSolverioConfig, consultarVerificacionCompleta, semaforoANivelRiesgo } from "@/lib/solverio";
 
 // La verificación real con Solverio puede tardar más de un minuto (una
@@ -89,15 +89,23 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true });
   }
 
-  const disponibles = await creditosDisponibles(db, consulta.empresa_id);
-  if (disponibles <= 0) {
-    return NextResponse.json(
-      {
-        error:
-          "La empresa que te invitó no tiene créditos disponibles en este momento. Intenta de nuevo más tarde.",
-      },
-      { status: 400 }
-    );
+  // Una empresa que además es administradora del sitio puede autorizar
+  // sin depender de créditos comprados — pensado para poder probar el
+  // flujo real (incluida la verificación con Solverio) sin tener que
+  // simular un pago primero.
+  const esAdmin = await esEmpresaAdmin(db, consulta.empresa_id);
+
+  if (!esAdmin) {
+    const disponibles = await creditosDisponibles(db, consulta.empresa_id);
+    if (disponibles <= 0) {
+      return NextResponse.json(
+        {
+          error:
+            "La empresa que te invitó no tiene créditos disponibles en este momento. Intenta de nuevo más tarde.",
+        },
+        { status: 400 }
+      );
+    }
   }
 
   await db
@@ -105,7 +113,7 @@ export async function POST(request: NextRequest) {
     .update({
       estado: "autorizada",
       candidato_id: user.id,
-      credito_descontado: true,
+      credito_descontado: !esAdmin,
       fecha_respuesta: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
