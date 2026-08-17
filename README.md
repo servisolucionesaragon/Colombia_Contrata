@@ -534,16 +534,25 @@ create policy "Users can insert own solicitudes"
 -- el webhook de Wompi (src/app/api/webhooks/wompi/route.ts), que usa la
 -- Service Role Key y por lo tanto ignora RLS.
 
--- Llaves de Wompi, editables desde /admin -> Pagos (Wompi). Sin ninguna
--- policy de select/insert/update: con RLS activado y sin policies,
--- Postgres deniega todo por defecto para anon/authenticated. Solo la
--- Service Role Key (server-side) puede leerla o escribirla, siempre a
--- través de /api/admin/wompi-config (verifica que quien llama sea admin).
+-- Llaves de Wompi, editables desde /admin -> Pagos (Wompi), con Sandbox y
+-- Producción guardados por separado (Colombia Contrata no tiene un sitio
+-- de pruebas aparte) y "ambiente_activo" decidiendo cuál usan
+-- /api/solicitudes/crear y /api/webhooks/wompi. Sin ninguna policy de
+-- select/insert/update: con RLS activado y sin policies, Postgres
+-- deniega todo por defecto para anon/authenticated. Solo la Service Role
+-- Key (server-side) puede leerla o escribirla, siempre a través de
+-- /api/admin/wompi-config (verifica que quien llama sea admin).
 create table public.configuracion_wompi (
   id int primary key default 1,
-  public_key text,
-  integrity_secret text,
-  events_secret text,
+  ambiente_activo text not null default 'sandbox' check (ambiente_activo in ('sandbox', 'produccion')),
+  sandbox_base_url text not null default 'https://sandbox.wompi.co/v1',
+  sandbox_public_key text,
+  sandbox_integrity_secret text,
+  sandbox_events_secret text,
+  produccion_base_url text not null default 'https://production.wompi.co/v1',
+  produccion_public_key text,
+  produccion_integrity_secret text,
+  produccion_events_secret text,
   updated_at timestamptz not null default now(),
   constraint configuracion_wompi_singleton check (id = 1)
 );
@@ -684,11 +693,13 @@ Primer flujo de compra real del sitio (2026-08-09), para personas naturales. El 
 
 **Modelo de precio**: confirmado con el usuario — es un **precio fijo por solicitud** (`configuracion_persona.precio_desde`), sin importar cuántos ni cuáles documentos se elijan en el checklist. Por eso `precios_documentos.precio` sigue sin usarse (ver nota en la sección de Base de datos): el checklist es solo para que el usuario indique qué necesita, no para calcular el total.
 
-**Llaves configurables desde `/admin` → Pagos (Wompi)** (agregado el mismo día, a pedido del usuario "agreguemos un módulo en admin para la integración de Wompi"): en vez de vivir como variables de entorno en Vercel, las tres llaves se guardan en una tabla `configuracion_wompi` (fila única) editable desde `WompiConfigManager.tsx`. Esto evita depender de Vercel (y del bug de copiar/pegar de esta máquina, ver gotcha de `SUPABASE_SERVICE_ROLE_KEY`) y permite activar los pagos **sin redeploy** en cuanto el usuario tenga sus llaves reales:
+**Llaves configurables desde `/admin` → Pagos (Wompi)** (agregado el mismo día, a pedido del usuario "agreguemos un módulo en admin para la integración de Wompi"): en vez de vivir como variables de entorno en Vercel, las llaves se guardan en una tabla `configuracion_wompi` (fila única) editable desde `WompiConfigManager.tsx`. Esto evita depender de Vercel (y del bug de copiar/pegar de esta máquina, ver gotcha de `SUPABASE_SERVICE_ROLE_KEY`) y permite activar los pagos **sin redeploy** en cuanto el usuario tenga sus llaves reales:
 - La tabla tiene RLS activado **sin ninguna policy** de select/insert/update para `anon`/`authenticated` — con RLS así, Postgres deniega todo por defecto, así que solo la Service Role Key (usada server-side) puede leerla o escribirla. El propio admin nunca la lee directo desde el navegador con `supabase-js`.
 - `GET /api/admin/wompi-config` y `POST /api/admin/wompi-config` son los únicos puntos de acceso, protegidos con el mismo patrón `requireAdmin` de `/api/admin/roles.ts` (token Bearer verificado contra Supabase + `app_metadata.role === "admin"`).
-- La llave pública **sí se devuelve completa** al formulario (no es secreta, Wompi la diseñó para usarse en el navegador). Los dos secretos **nunca se devuelven** — el `GET` solo informa si están configurados o no (`integritySecretConfigurado`/`eventsSecretConfigurado`), y el formulario los muestra como campos de contraseña vacíos con la pista "ya hay uno guardado, déjalo en blanco para no cambiarlo". Dejar un campo vacío al guardar significa "no tocar ese valor", no "borrarlo".
-- Un banner verde/ámbar en la parte de arriba del formulario indica si las tres llaves están completas ("el checkout de Wompi está activo") o si falta alguna ("los pagos estarán disponibles pronto").
+- La llave pública y la URL base de cada ambiente **sí se devuelven completas** al formulario (no son secretas). Los dos secretos de cada ambiente **nunca se devuelven** — el `GET` solo informa si están configurados o no, y el formulario los muestra como campos de contraseña vacíos con la pista "ya hay uno guardado, déjalo en blanco para no cambiarlo". Dejar un campo vacío al guardar significa "no tocar ese valor", no "borrarlo".
+- Un banner verde/ámbar por sección indica si las tres llaves de ese ambiente están completas o falta alguna.
+
+**Sandbox y Producción por separado, con interruptor** (mismo día, a pedido del usuario "en admin debería estar mapeado los 2 ambientes... ya que no existe una sesión de pruebas de la plataforma"): como Colombia Contrata no tiene un despliegue de staging aparte — es un solo sitio en producción —, la tabla `configuracion_wompi` guarda **las 4 credenciales de cada ambiente por separado** (`sandbox_base_url`/`sandbox_public_key`/`sandbox_integrity_secret`/`sandbox_events_secret` y su equivalente `produccion_*`), más una columna `ambiente_activo` (`"sandbox"` o `"produccion"`) que decide cuál usan `/api/solicitudes/crear` y `/api/webhooks/wompi`. Así se pueden guardar y conservar las llaves de los dos ambientes a la vez, y cambiar cuál está "en vivo" con un interruptor en `/admin` sin perder la configuración del otro. Las URLs base (`https://sandbox.wompi.co/v1` y `https://production.wompi.co/v1`, confirmadas contra [docs.wompi.co/docs/colombia/ambientes-y-llaves](https://docs.wompi.co/docs/colombia/ambientes-y-llaves/)) vienen precargadas por defecto — hoy el código no las usa todavía (no se llama la API REST de Wompi directamente, solo el checkout hospedado y el webhook), pero quedan guardadas y editables para cuando haga falta consultar el estado de una transacción por API. El interruptor pide confirmación (`window.confirm`) antes de pasar a Producción, porque desde ese momento los pagos son reales.
 
 **Flujo**:
 1. `/solicitar` (`SolicitarContent.tsx`, client component) exige sesión y `account_type = "persona"`; si el perfil no tiene nombre/apellido/tipo y número de documento completos, el botón de pago falla con un mensaje que enlaza a `/perfil` para completarlos (Wompi necesita esos datos para el `legal-id`/`legal-id-type` del comprador).
