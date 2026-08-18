@@ -10,6 +10,7 @@ type Info = {
   candidatoNombre: string;
   empresaNombre: string;
   estado: string;
+  documentosRequeridos: { id: string; documento: string }[];
 };
 
 export default function ResponderConsultaContent() {
@@ -113,6 +114,19 @@ export default function ResponderConsultaContent() {
         <span className="font-semibold text-gray-900 dark:text-gray-100">{info.candidatoNombre}</span>{" "}
         a verificar sus antecedentes en Colombia Contrata.
       </p>
+
+      {info.documentosRequeridos.length > 0 && (
+        <div className="rounded-lg bg-gray-50 dark:bg-gray-800/60 px-3 py-2.5">
+          <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+            Documentos solicitados
+          </p>
+          <ul className="mt-1 text-xs text-gray-600 dark:text-gray-400 list-disc list-inside space-y-0.5">
+            {info.documentosRequeridos.map((d) => (
+              <li key={d.id}>{d.documento}</li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div className="flex justify-center gap-x-2">
         <button

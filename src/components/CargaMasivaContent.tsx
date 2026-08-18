@@ -6,6 +6,8 @@ import { supabase } from "@/lib/supabase";
 
 type Status = "loading" | "signed-out" | "no-empresa" | "ready";
 
+type Documento = { id: string; documento: string };
+
 type Fila = {
   primerNombre: string;
   segundoNombre: string;
@@ -110,6 +112,8 @@ export default function CargaMasivaContent() {
   const [status, setStatus] = useState<Status>("loading");
   const [filas, setFilas] = useState<Fila[]>([]);
   const [nombreArchivo, setNombreArchivo] = useState<string | null>(null);
+  const [documentos, setDocumentos] = useState<Documento[]>([]);
+  const [documentosSeleccionados, setDocumentosSeleccionados] = useState<string[]>([]);
   const [enviando, setEnviando] = useState(false);
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -129,9 +133,23 @@ export default function CargaMasivaContent() {
         .maybeSingle();
       const esEmpresa =
         profile?.account_type === "empresa" || profile?.account_type === "empresa_miembro";
+      if (esEmpresa) {
+        const { data: docs } = await supabase
+          .from("precios_documentos")
+          .select("id, documento")
+          .eq("activo", true)
+          .order("documento", { ascending: true });
+        setDocumentos((docs as Documento[]) ?? []);
+      }
       setStatus(esEmpresa ? "ready" : "no-empresa");
     })();
   }, []);
+
+  const toggleDocumento = (id: string) => {
+    setDocumentosSeleccionados((prev) =>
+      prev.includes(id) ? prev.filter((d) => d !== id) : [...prev, id]
+    );
+  };
 
   const handleFile = async (file: File) => {
     setError(null);
@@ -214,7 +232,7 @@ export default function CargaMasivaContent() {
   const validas = filas.filter((f) => f.valido);
 
   const confirmarCarga = async () => {
-    if (validas.length === 0) return;
+    if (validas.length === 0 || documentosSeleccionados.length === 0) return;
     setEnviando(true);
     setError(null);
     setMensaje(null);
@@ -233,6 +251,7 @@ export default function CargaMasivaContent() {
         loteReferencia: nombreArchivo
           ? `${nombreArchivo} — ${new Date().toLocaleString("es-CO")}`
           : undefined,
+        documentoIds: documentosSeleccionados,
       }),
     });
     const result = await res.json();
@@ -246,6 +265,7 @@ export default function CargaMasivaContent() {
     setMensaje(`Se enviaron ${result.creadas} invitaciones correctamente.`);
     setFilas([]);
     setNombreArchivo(null);
+    setDocumentosSeleccionados([]);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -263,6 +283,39 @@ export default function CargaMasivaContent() {
 
   return (
     <div className="space-y-6">
+      <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-6">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+          Documentos requeridos
+        </h2>
+        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+          Se aplican a todos los candidatos de esta carga.
+        </p>
+        {documentos.length === 0 ? (
+          <p className="mt-3 text-sm text-gray-400 dark:text-gray-500">
+            Aún no hay documentos disponibles.
+          </p>
+        ) : (
+          <div className="mt-3 grid sm:grid-cols-2 gap-2">
+            {documentos.map((doc) => (
+              <label
+                key={doc.id}
+                className="flex items-center gap-x-2.5 rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2 cursor-pointer hover:border-brand-blue"
+              >
+                <input
+                  type="checkbox"
+                  checked={documentosSeleccionados.includes(doc.id)}
+                  onChange={() => toggleDocumento(doc.id)}
+                  className="size-4 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700 text-brand-blue focus:ring-brand-blue"
+                />
+                <span className="text-sm text-gray-700 dark:text-gray-300">
+                  {doc.documento}
+                </span>
+              </label>
+            ))}
+          </div>
+        )}
+      </div>
+
       <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-6">
         <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
           Sube un archivo CSV
@@ -321,13 +374,18 @@ export default function CargaMasivaContent() {
             </p>
             <button
               type="button"
-              disabled={validas.length === 0 || enviando}
+              disabled={validas.length === 0 || documentosSeleccionados.length === 0 || enviando}
               onClick={confirmarCarga}
               className="inline-flex items-center gap-x-2 text-sm font-bold rounded-xl border border-transparent bg-brand-blue text-white hover:bg-brand-blue-dark disabled:opacity-60 disabled:cursor-not-allowed px-6 py-2.5"
             >
               {enviando ? "Enviando..." : `Confirmar carga (${validas.length})`}
             </button>
           </div>
+          {documentosSeleccionados.length === 0 && (
+            <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
+              Selecciona al menos un documento requerido arriba antes de confirmar.
+            </p>
+          )}
 
           <div className="mt-4 max-h-96 overflow-y-auto overflow-x-auto">
             <table className="w-full text-sm">

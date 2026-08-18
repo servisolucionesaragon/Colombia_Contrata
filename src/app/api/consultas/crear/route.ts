@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Debes iniciar sesión." }, { status: 401 });
   }
 
-  const { candidatos, loteReferencia } = await request.json();
+  const { candidatos, loteReferencia, documentoIds } = await request.json();
   if (!Array.isArray(candidatos) || candidatos.length === 0) {
     return NextResponse.json({ error: "Agrega al menos un candidato." }, { status: 400 });
   }
@@ -54,8 +54,27 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     );
   }
+  if (!Array.isArray(documentoIds) || documentoIds.length === 0) {
+    return NextResponse.json(
+      { error: "Selecciona al menos un documento requerido." },
+      { status: 400 }
+    );
+  }
 
   const db = adminClient();
+
+  const { data: documentosRequeridos } = await db
+    .from("precios_documentos")
+    .select("id, documento")
+    .in("id", documentoIds)
+    .eq("activo", true);
+
+  if (!documentosRequeridos || documentosRequeridos.length !== documentoIds.length) {
+    return NextResponse.json(
+      { error: "Alguno de los documentos seleccionados ya no está disponible." },
+      { status: 400 }
+    );
+  }
 
   const contexto = await resolverContextoEmpresa(db, user.id);
   if (!contexto) {
@@ -128,6 +147,7 @@ export async function POST(request: NextRequest) {
       candidato_fecha_expedicion: f.fechaExpedicion || null,
       lote_referencia: typeof loteReferencia === "string" ? loteReferencia : null,
       token_respuesta: f.tokenRespuesta,
+      documentos_requeridos: documentosRequeridos,
     }))
   );
 
@@ -151,6 +171,7 @@ export async function POST(request: NextRequest) {
           candidatoNombre: `${f.primerNombre} ${f.primerApellido}`,
           empresaNombre: contexto.razonSocial ?? "una empresa",
           token: f.tokenRespuesta,
+          documentos: documentosRequeridos.map((d) => d.documento),
         }),
       });
     }

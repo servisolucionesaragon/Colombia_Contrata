@@ -9,6 +9,8 @@ type Status = "loading" | "signed-out" | "no-empresa" | "ready";
 
 type NivelRiesgo = "bajo" | "medio" | "alto";
 
+type Documento = { id: string; documento: string };
+
 type Consulta = {
   id: string;
   candidato_primer_nombre: string;
@@ -54,6 +56,8 @@ export default function EmpresaConsultasContent() {
   const [creditos, setCreditos] = useState<number | null>(null);
   const [consultas, setConsultas] = useState<Consulta[]>([]);
   const [form, setForm] = useState(formVacio);
+  const [documentos, setDocumentos] = useState<Documento[]>([]);
+  const [documentosSeleccionados, setDocumentosSeleccionados] = useState<string[]>([]);
   const [enviando, setEnviando] = useState(false);
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -121,6 +125,12 @@ export default function EmpresaConsultasContent() {
       setEsAdministrador(
         profile?.account_type === "empresa" || profile?.rol_empresa === "administrador"
       );
+      const { data: docs } = await supabase
+        .from("precios_documentos")
+        .select("id, documento")
+        .eq("activo", true)
+        .order("documento", { ascending: true });
+      setDocumentos((docs as Documento[]) ?? []);
       await cargar(empresaId);
       setStatus("ready");
     })();
@@ -136,7 +146,7 @@ export default function EmpresaConsultasContent() {
     const res = await fetch("/api/consultas/crear", {
       method: "POST",
       headers: { "Content-Type": "application/json", ...(await authHeader()) },
-      body: JSON.stringify({ candidatos: [form] }),
+      body: JSON.stringify({ candidatos: [form], documentoIds: documentosSeleccionados }),
     });
     const result = await res.json();
 
@@ -149,8 +159,15 @@ export default function EmpresaConsultasContent() {
 
     setMensaje('Invitación enviada. Aparecerá aquí como "pendiente" hasta que el candidato autorice.');
     setForm(formVacio);
+    setDocumentosSeleccionados([]);
 
     if (empresaId) await cargar(empresaId);
+  };
+
+  const toggleDocumento = (id: string) => {
+    setDocumentosSeleccionados((prev) =>
+      prev.includes(id) ? prev.filter((d) => d !== id) : [...prev, id]
+    );
   };
 
   const set = (campo: keyof typeof formVacio) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
@@ -279,9 +296,38 @@ export default function EmpresaConsultasContent() {
               className={inputClass}
             />
           </div>
+          <div className="sm:col-span-2">
+            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-2">
+              Documentos requeridos
+            </label>
+            {documentos.length === 0 ? (
+              <p className="text-sm text-gray-400 dark:text-gray-500">
+                Aún no hay documentos disponibles.
+              </p>
+            ) : (
+              <div className="grid sm:grid-cols-2 gap-2">
+                {documentos.map((doc) => (
+                  <label
+                    key={doc.id}
+                    className="flex items-center gap-x-2.5 rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2 cursor-pointer hover:border-brand-blue"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={documentosSeleccionados.includes(doc.id)}
+                      onChange={() => toggleDocumento(doc.id)}
+                      className="size-4 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700 text-brand-blue focus:ring-brand-blue"
+                    />
+                    <span className="text-sm text-gray-700 dark:text-gray-300">
+                      {doc.documento}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
           <button
             type="submit"
-            disabled={enviando}
+            disabled={enviando || documentosSeleccionados.length === 0}
             className="sm:col-span-2 inline-flex items-center justify-center gap-x-2 text-sm font-bold rounded-xl border border-transparent bg-brand-blue text-white hover:bg-brand-blue-dark disabled:opacity-60 disabled:cursor-not-allowed px-6 py-3 mt-1"
           >
             {enviando ? "Enviando..." : "Invitar candidato"}

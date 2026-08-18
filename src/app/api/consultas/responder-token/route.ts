@@ -16,7 +16,7 @@ function adminClient() {
 }
 
 const SELECT_CONSULTA =
-  "id, empresa_id, estado, candidato_primer_nombre, candidato_segundo_nombre, candidato_primer_apellido, candidato_segundo_apellido, candidato_email, candidato_tipo_documento, candidato_numero_documento, candidato_fecha_expedicion";
+  "id, empresa_id, estado, candidato_primer_nombre, candidato_segundo_nombre, candidato_primer_apellido, candidato_segundo_apellido, candidato_email, candidato_tipo_documento, candidato_numero_documento, candidato_fecha_expedicion, documentos_requeridos";
 
 // Responde a una consulta desde el enlace del correo de invitación, sin
 // necesitar sesión iniciada — la seguridad viene del token (aleatorio,
@@ -52,6 +52,8 @@ export async function GET(request: NextRequest) {
     candidatoNombre: `${consulta.candidato_primer_nombre} ${consulta.candidato_primer_apellido}`,
     empresaNombre: empresa?.razon_social ?? "la empresa",
     estado: consulta.estado,
+    documentosRequeridos:
+      (consulta.documentos_requeridos as { id: string; documento: string }[] | null) ?? [],
   });
 }
 

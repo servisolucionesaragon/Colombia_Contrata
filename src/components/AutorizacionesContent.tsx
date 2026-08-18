@@ -20,6 +20,7 @@ type Consulta = {
   resultadoPdfs: Record<string, string> | null;
   resultadoError: string | null;
   resultadoObtenidoAt: string | null;
+  documentosRequeridos: { id: string; documento: string }[];
 };
 
 async function authHeader() {
@@ -125,6 +126,19 @@ export default function AutorizacionesContent() {
             </div>
             <EstadoBadge estado={c.estado} />
           </div>
+
+          {c.documentosRequeridos.length > 0 && (
+            <div className="mt-3 rounded-lg bg-gray-50 dark:bg-gray-800/60 px-3 py-2.5">
+              <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+                Documentos solicitados
+              </p>
+              <ul className="mt-1 text-xs text-gray-600 dark:text-gray-400 list-disc list-inside space-y-0.5">
+                {c.documentosRequeridos.map((d) => (
+                  <li key={d.id}>{d.documento}</li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           {c.estado === "pendiente" && (
             <div className="mt-4 border-t border-gray-100 dark:border-gray-800 pt-4">
