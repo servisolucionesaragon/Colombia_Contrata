@@ -171,7 +171,6 @@ export async function POST(request: NextRequest) {
           candidatoNombre: `${f.primerNombre} ${f.primerApellido}`,
           empresaNombre: contexto.razonSocial ?? "una empresa",
           token: f.tokenRespuesta,
-          documentos: documentosRequeridos.map((d) => d.documento),
         }),
       });
     }

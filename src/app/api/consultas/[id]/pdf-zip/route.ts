@@ -36,8 +36,8 @@ const FUENTE_LABEL: Record<string, string> = {
 // Descarga todos los PDF de soporte de una consulta ya autorizada desde
 // el bucket privado, los empaqueta en un .zip en memoria (sin escribir
 // a disco, sin subir el zip a Storage) y lo devuelve directo como
-// adjunto — igual que /pdf, accesible tanto por la empresa dueña como
-// por el candidato consultado.
+// adjunto — igual que /pdf, solo la empresa dueña de la consulta puede
+// acceder (ver resolverAccesoDocumentos).
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

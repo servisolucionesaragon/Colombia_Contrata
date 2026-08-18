@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
   const { data: consultas } = await db
     .from("consultas")
     .select(
-      "id, empresa_id, estado, created_at, candidato_primer_nombre, candidato_segundo_nombre, candidato_primer_apellido, candidato_segundo_apellido, candidato_tipo_documento, candidato_numero_documento, nivel_riesgo, resultado_pdfs, resultado_error, resultado_obtenido_at, documentos_requeridos"
+      "id, empresa_id, estado, created_at, candidato_primer_nombre, candidato_segundo_nombre, candidato_primer_apellido, candidato_segundo_apellido, candidato_tipo_documento, candidato_numero_documento"
     )
     .or(`candidato_id.eq.${user.id},candidato_email.eq.${user.email}`)
     .order("created_at", { ascending: false });
@@ -62,11 +62,6 @@ export async function GET(request: NextRequest) {
       .filter(Boolean)
       .join(" "),
     documento: `${c.candidato_tipo_documento} ${c.candidato_numero_documento}`,
-    nivelRiesgo: c.nivel_riesgo,
-    resultadoPdfs: c.resultado_pdfs,
-    resultadoError: c.resultado_error,
-    resultadoObtenidoAt: c.resultado_obtenido_at,
-    documentosRequeridos: (c.documentos_requeridos as { id: string; documento: string }[] | null) ?? [],
   }));
 
   return NextResponse.json({ consultas: resultado });

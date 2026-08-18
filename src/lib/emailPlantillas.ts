@@ -18,19 +18,14 @@ export function plantillaInvitacionConsulta({
   candidatoNombre,
   empresaNombre,
   token,
-  documentos,
 }: {
   candidatoNombre: string;
   empresaNombre: string;
   token: string;
-  documentos: string[];
 }) {
   const base = siteUrl();
   const urlAutorizar = `${base}/consultas/responder?token=${encodeURIComponent(token)}&decision=autorizar`;
   const urlRechazar = `${base}/consultas/responder?token=${encodeURIComponent(token)}&decision=rechazar`;
-  const listaDocumentos = documentos
-    .map((d) => `<li style="margin:0 0 4px 0;">${d}</li>`)
-    .join("");
 
   return `<!DOCTYPE html>
 <html lang="es">
@@ -87,22 +82,9 @@ export function plantillaInvitacionConsulta({
                 Hola <strong style="color:#0D1B3D;">${candidatoNombre}</strong>,
               </p>
 
-              <p style="margin:0 0 18px 0; color:#6B7280; font-size:15px; line-height:1.7;">
+              <p style="margin:0 0 28px 0; color:#6B7280; font-size:15px; line-height:1.7;">
                 <strong style="color:#0D1B3D;">${empresaNombre}</strong> te invitó a verificar tus antecedentes a través de <strong style="color:#0D1B3D;">Colombia Contrata</strong>, como parte de un proceso de contratación o vinculación laboral. Según la Ley 1581 de 2012 (Habeas Data), esta verificación solo se puede hacer con tu autorización expresa.
               </p>
-
-              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#F8FAFC; border-radius:6px; margin:0 0 28px 0;">
-                <tr>
-                  <td style="padding:14px 18px;">
-                    <p style="margin:0 0 8px 0; color:#0D1B3D; font-size:13px; font-weight:bold;">
-                      Documentos solicitados:
-                    </p>
-                    <ul style="margin:0; padding-left:18px; color:#6B7280; font-size:13px; line-height:1.6;">
-                      ${listaDocumentos}
-                    </ul>
-                  </td>
-                </tr>
-              </table>
 
               <table width="100%" cellpadding="0" cellspacing="0" border="0">
                 <tr>

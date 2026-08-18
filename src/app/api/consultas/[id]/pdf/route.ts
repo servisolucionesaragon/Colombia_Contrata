@@ -24,9 +24,9 @@ async function requireUser(request: NextRequest) {
 // Genera una URL firmada de corta duración para descargar un PDF de
 // soporte de una verificación ya autorizada. Nunca se expone una URL
 // pública fija — el bucket "verificaciones-pdf" es privado y cada
-// descarga pide una URL nueva, válida solo por unos minutos. Accesible
-// tanto por la empresa dueña de la consulta como por el propio
-// candidato consultado.
+// descarga pide una URL nueva, válida solo por unos minutos. Solo la
+// empresa dueña de la consulta puede acceder — el candidato nunca ve
+// estos documentos (ver resolverAccesoDocumentos).
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

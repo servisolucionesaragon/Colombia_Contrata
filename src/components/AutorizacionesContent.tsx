@@ -3,11 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
-import DocumentosResultado from "@/components/DocumentosResultado";
 
 type Status = "loading" | "signed-out";
-
-type NivelRiesgo = "bajo" | "medio" | "alto";
 
 type Consulta = {
   id: string;
@@ -16,11 +13,6 @@ type Consulta = {
   fecha: string;
   nombreCompleto: string;
   documento: string;
-  nivelRiesgo: NivelRiesgo | null;
-  resultadoPdfs: Record<string, string> | null;
-  resultadoError: string | null;
-  resultadoObtenidoAt: string | null;
-  documentosRequeridos: { id: string; documento: string }[];
 };
 
 async function authHeader() {
@@ -127,19 +119,6 @@ export default function AutorizacionesContent() {
             <EstadoBadge estado={c.estado} />
           </div>
 
-          {c.documentosRequeridos.length > 0 && (
-            <div className="mt-3 rounded-lg bg-gray-50 dark:bg-gray-800/60 px-3 py-2.5">
-              <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">
-                Documentos solicitados
-              </p>
-              <ul className="mt-1 text-xs text-gray-600 dark:text-gray-400 list-disc list-inside space-y-0.5">
-                {c.documentosRequeridos.map((d) => (
-                  <li key={d.id}>{d.documento}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-
           {c.estado === "pendiente" && (
             <div className="mt-4 border-t border-gray-100 dark:border-gray-800 pt-4">
               <label className="flex items-start gap-x-2 text-sm text-gray-700 dark:text-gray-300">
@@ -179,24 +158,6 @@ export default function AutorizacionesContent() {
                   Rechazar
                 </button>
               </div>
-            </div>
-          )}
-
-          {c.estado === "autorizada" && (
-            <div className="mt-4 border-t border-gray-100 dark:border-gray-800 pt-4">
-              {!c.nivelRiesgo && !c.resultadoError && !c.resultadoObtenidoAt ? (
-                <p className="text-sm text-gray-400 dark:text-gray-500">
-                  Verificando tus antecedentes...
-                </p>
-              ) : (
-                <DocumentosResultado
-                  consultaId={c.id}
-                  pdfs={c.resultadoPdfs}
-                  resultadoError={c.resultadoError}
-                  resultadoObtenidoAt={c.resultadoObtenidoAt}
-                  nivelRiesgo={c.nivelRiesgo}
-                />
-              )}
             </div>
           )}
         </div>
