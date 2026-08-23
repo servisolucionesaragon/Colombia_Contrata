@@ -4,6 +4,7 @@ import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import DocumentosResultado from "@/components/DocumentosResultado";
+import FiltrosBar from "@/components/FiltrosBar";
 
 type Status = "loading" | "signed-out" | "no-empresa" | "ready";
 
@@ -62,6 +63,11 @@ export default function EmpresaConsultasContent() {
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [perfilIncompleto, setPerfilIncompleto] = useState(false);
+
+  const [filtroEstado, setFiltroEstado] = useState("");
+  const [filtroTexto, setFiltroTexto] = useState("");
+  const [filtroDesde, setFiltroDesde] = useState("");
+  const [filtroHasta, setFiltroHasta] = useState("");
 
   const cargar = async (userId: string) => {
     const ahora = new Date().toISOString();
@@ -172,6 +178,18 @@ export default function EmpresaConsultasContent() {
 
   const set = (campo: keyof typeof formVacio) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm((prev) => ({ ...prev, [campo]: e.target.value }));
+
+  const consultasFiltradas = consultas.filter((c) => {
+    if (filtroEstado && c.estado !== filtroEstado) return false;
+    if (filtroTexto) {
+      const q = filtroTexto.toLowerCase();
+      const texto = `${c.candidato_primer_nombre} ${c.candidato_primer_apellido} ${c.candidato_email}`.toLowerCase();
+      if (!texto.includes(q)) return false;
+    }
+    if (filtroDesde && c.created_at < filtroDesde) return false;
+    if (filtroHasta && c.created_at > `${filtroHasta}T23:59:59`) return false;
+    return true;
+  });
 
   if (status === "loading") {
     return <p className="text-sm text-gray-500 dark:text-gray-400">Cargando...</p>;
@@ -356,7 +374,29 @@ export default function EmpresaConsultasContent() {
             Aún no has invitado a ningún candidato.
           </p>
         ) : (
-          <div className="mt-4 overflow-x-auto">
+          <div className="mt-4">
+            <FiltrosBar
+              estado={filtroEstado}
+              onEstadoChange={setFiltroEstado}
+              opcionesEstado={[
+                { value: "pendiente", label: "Pendiente" },
+                { value: "autorizada", label: "Autorizada" },
+                { value: "rechazada", label: "Rechazada" },
+              ]}
+              texto={filtroTexto}
+              onTextoChange={setFiltroTexto}
+              textoPlaceholder="Nombre o correo"
+              desde={filtroDesde}
+              onDesdeChange={setFiltroDesde}
+              hasta={filtroHasta}
+              onHastaChange={setFiltroHasta}
+            />
+            {consultasFiltradas.length === 0 ? (
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Ninguna consulta coincide con los filtros.
+              </p>
+            ) : (
+            <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500 border-b border-gray-200 dark:border-gray-700">
@@ -371,7 +411,7 @@ export default function EmpresaConsultasContent() {
                 </tr>
               </thead>
               <tbody>
-                {consultas.map((c) => (
+                {consultasFiltradas.map((c) => (
                   <tr
                     key={c.id}
                     className="border-b border-gray-100 dark:border-gray-800 last:border-0"
@@ -425,6 +465,8 @@ export default function EmpresaConsultasContent() {
                 ))}
               </tbody>
             </table>
+            </div>
+            )}
           </div>
         )}
       </div>
