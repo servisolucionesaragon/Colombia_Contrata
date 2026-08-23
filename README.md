@@ -69,7 +69,7 @@ Basada en `Manual_Identidad_Visual_Colombia_Contrata` (carpeta `Colombia Contrat
 | `/terminos` | Términos y Condiciones | Borrador, falta revisión legal — **editable desde `/admin` → Páginas** (ver [Términos y Privacidad como páginas editables](#términos-y-privacidad-como-páginas-editables)) |
 | `/privacidad` | Política de Tratamiento de Datos Personales (Ley 1581) | Borrador, falta revisión legal — **editable desde `/admin` → Páginas** (mismo mecanismo que `/terminos`) |
 | `/admin` | Back office con pestañas: Identidad del portal, Planes de personas, Planes de empresa, Documentos disponibles, Administradores | **Protegido con autenticación real** (solo cuentas con `app_metadata.role = "admin"`, ver [Panel de administración](#panel-de-administración)) — **todo se guarda de verdad**, incluyendo subida de logo/favicon a Storage y dar/quitar acceso admin por correo |
-| `/historial` | Historial de solicitudes/verificaciones del usuario | Placeholder protegido por sesión ("Aún no tienes solicitudes") — falta el flujo real de solicitud de documentos para tener datos que mostrar |
+| `/historial` | Historial de solicitudes/verificaciones del usuario | **Conectado a datos reales** (`solicitudes`, `pagos_empresa`, `consultas` según tipo de cuenta) — ver [Conectar `/historial` a datos reales](#conectar-historial-a-datos-reales-2026-08-18) |
 
 `/empresas` (la landing informativa, no `/empresas/planes`) sigue enlazada desde la UI pero **todavía no existe** (dará 404 si se navega directo).
 
@@ -113,7 +113,7 @@ src/
     login/page.tsx         # inicio de sesión
     perfil/page.tsx        # completar datos post-registro
     dashboard/page.tsx     # página de resumen tras iniciar sesión (persona/empresa), página por defecto post-login
-    historial/page.tsx     # placeholder de historial de solicitudes (protegido por sesión) — pendiente conectar a la tabla solicitudes, ver Roadmap
+    historial/page.tsx     # historial real (solicitudes/pagos_empresa/consultas según tipo de cuenta, protegido por sesión)
     terminos/page.tsx     # términos y condiciones — lee titulo/contenido de la tabla paginas (slug "terminos"), con fallback hardcodeado si no hay fila
     privacidad/page.tsx   # política de datos personales — mismo mecanismo, slug "privacidad"
     solicitar/page.tsx           # checklist de documentos (personas) + creación de la solicitud
@@ -150,7 +150,7 @@ src/
     LoginForm.tsx           # login real vía Supabase Auth (signInWithPassword)
     ProfileForm.tsx        # lee y guarda (upsert) en la tabla profiles según persona/empresa
     AccountSecurityForm.tsx # cambio de contraseña/correo vía supabase.auth.updateUser, en /perfil
-    HistorialContent.tsx    # contenido de /historial (gate de sesión + estado vacío)
+    HistorialContent.tsx    # contenido de /historial (solicitudes/pagos_empresa/consultas reales según tipo de cuenta)
     DashboardContent.tsx    # contenido de /dashboard, distinto para persona/empresa (créditos o solicitudes, consultas, actividad reciente)
     ConsultasTabs.tsx        # pestañas "Individual"/"Carga masiva" que enlazan /empresas/consultas y /empresas/consultas/masiva
     SolicitarContent.tsx    # checklist de documentos + total + llamada a /api/solicitudes/crear + redirección al checkout de Wompi
@@ -797,7 +797,7 @@ Todo el flujo (checklist → registro de la solicitud → redirección → fallb
 
 ⚠️ **Lo que sigue sin probarse**: la firma de integridad nunca se validó contra una cuenta Wompi real (la prueba de arriba solo confirmó el formato de la URL, no que el checksum sea válido), y el checksum del webhook tampoco se ha probado contra un evento real de Wompi — ambos se escribieron siguiendo la documentación pública de docs.wompi.co de memoria. **En cuanto el usuario tenga llaves de sandbox reales** (guardándolas desde `/admin` → Pagos (Wompi), sin tocar código), lo primero es hacer una transacción de prueba de punta a punta y confirmar que el pago se aprueba y que el webhook actualiza el estado correctamente.
 
-**Lo que falta para que esto genere un documento de verdad**: hoy, aunque el pago se apruebe, no pasa nada más — no existe todavía la integración con el proveedor de fuentes (contraloría, policía, procuraduría, etc.) que generaría los PDFs. El webhook tiene un comentario `TODO` marcando dónde debería dispararse esa generación una vez exista esa pieza. `/historial` tampoco se conectó todavía a `solicitudes` (sigue mostrando el placeholder "Aún no tienes solicitudes") — es un cambio pequeño y natural de hacer ahora que la tabla ya tiene datos reales, pero se dejó fuera de esta sesión para no ampliar el alcance.
+**Lo que falta para que esto genere un documento de verdad**: hoy, aunque el pago se apruebe, no pasa nada más — no existe todavía la integración con el proveedor de fuentes (contraloría, policía, procuraduría, etc.) para **solicitudes de persona** que generaría los PDFs (la integración real con Solverio solo existe hoy para el flujo de empresa/candidato, ver [Integración real con el proveedor de fuentes](#integración-real-con-el-proveedor-de-fuentes-solverio-verify-2026-08-17)). El webhook tiene un comentario `TODO` marcando dónde debería dispararse esa generación una vez exista esa pieza. `/historial` ya está conectado a `solicitudes` desde el 2026-08-18 (ver [Conectar `/historial` a datos reales](#conectar-historial-a-datos-reales-2026-08-18)).
 
 **`src/lib/wompi.ts`**: para no duplicar la lógica de llaves/firma entre personas y empresas, se extrajeron dos funciones compartidas — `getWompiKeys(db)` (lee `configuracion_wompi`, decide sandbox/producción, devuelve `null` si al ambiente activo le falta alguna llave) y `buildWompiCheckoutUrl(...)` (arma la URL del checkout con la firma SHA-256). Los dos endpoints de creación de pago (`/api/solicitudes/crear` y `/api/pagos-empresa/crear`) llaman a las mismas dos funciones.
 
@@ -1157,19 +1157,30 @@ A pedido explícito del usuario ("algo súper importante... al momento de invita
 
 Verificado en producción tras aplicar la migración: el formulario de invitación individual muestra las 19 opciones reales de `precios_documentos`, el botón "Invitar candidato" queda deshabilitado hasta marcar al menos un documento (confirmado interactuando con el checkbox real y leyendo el estado de React), y la tabla de consultas ya autorizadas siguió funcionando sin romperse.
 
+## Conectar `/historial` a datos reales (2026-08-18)
+
+Hasta este punto `/historial` era un placeholder fijo ("Aún no tienes solicitudes") aunque las tres tablas relevantes (`solicitudes`, `pagos_empresa`, `consultas`) ya tenían filas reales — el usuario pidió priorizar justo esto tras preguntar "qué otra mejora recomiendas". No se agregó ninguna tabla ni endpoint nuevo: `HistorialContent.tsx` reutiliza exactamente los mismos patrones de acceso ya verificados en `DashboardContent.tsx` (resolución de cuenta persona/empresa/empresa_miembro vía `profiles`, RLS existente) y en `/autorizaciones`:
+
+- **Persona**: sección "Solicitudes de documentos" (consulta directa a `solicitudes`, propia RLS de `auth.uid() = user_id`) y "Consultas de antecedentes recibidas" (reutiliza `GET /api/consultas/pendientes` tal cual, el mismo endpoint que ya usa `/autorizaciones` para resolver el nombre de la empresa server-side).
+- **Empresa** (dueña o miembro de equipo): sección "Compras de créditos" (consulta directa a `pagos_empresa`, incluye período/monto/vencimiento) y "Consultas enviadas" (consulta directa a `consultas`, con badge de riesgo solo para las ya autorizadas — sin mostrar documentos, esa función sigue solo en `/empresas/consultas`).
+
+Cada sección enlaza a la página de acción correspondiente (`/solicitar`, `/autorizaciones`, `/empresas/planes`, `/empresas/consultas`) para no duplicar funcionalidad — `/historial` es de solo lectura. El contenedor de la página pasó de `max-w-2xl` a `max-w-4xl` (antes muy angosto para tablas) y se quitó la tarjeta envolvente extra ya que `HistorialContent` ahora trae sus propias secciones con borde.
+
+Verificado por el usuario en producción con sus propias cuentas reales (persona y empresa) — confirmó que ambas vistas muestran los datos correctos.
+
 ## Roadmap / pendientes
 
 - [x] Construir `/solicitar` (checklist de documentos para personas) — ver [Solicitud de documentos y pago con Wompi](#solicitud-de-documentos-y-pago-con-wompi). Falta `/empresas`.
 - [ ] **Activar el pago real de Wompi**: guardar las tres llaves reales desde `/admin` → Pagos (Wompi) en cuanto el usuario termine la validación de su cuenta, y probar una transacción de sandbox de punta a punta — se confirmó que el formato del checkout es correcto (ver [Solicitud de documentos y pago con Wompi](#solicitud-de-documentos-y-pago-con-wompi)), pero la firma de integridad y el checksum del webhook siguen sin validarse contra una cuenta real.
 - [ ] Terminar de conectar `nombre_portal` y `eslogan` de `configuracion_portal` al resto del front — `nombre_portal` ya se usa en el copyright del footer, pero el `<title>` de las páginas, el texto "Colombia Contrata" del Header/Footer y el `eslogan` siguen fijos en el código (logo, favicon, color primario, correo de contacto y texto legal del footer ya están conectados — ver sección de tablas).
 - [ ] Registrar la IP en la trazabilidad de consentimiento de Habeas Data (requiere un endpoint de servidor/Route Handler, ya que `supabase.auth.signUp` corre en el cliente).
-- [x] Compra de planes de empresa (`/empresas/planes`, pago único mensual o anual) — ver [Planes de empresa: compra con pago mensual o anual](#planes-de-empresa-compra-con-pago-mensual-o-anual-2026-08-16). Probado de punta a punta con una cuenta de empresa real el 2026-08-17. Falta: **cobro recurrente automático** (hoy es pago manual cada período, decisión explícita del usuario para no tener que tokenizar tarjetas) y conectar `/historial` para empresas.
+- [x] Compra de planes de empresa (`/empresas/planes`, pago único mensual o anual) — ver [Planes de empresa: compra con pago mensual o anual](#planes-de-empresa-compra-con-pago-mensual-o-anual-2026-08-16). Probado de punta a punta con una cuenta de empresa real el 2026-08-17. Falta: **cobro recurrente automático** (hoy es pago manual cada período, decisión explícita del usuario para no tener que tokenizar tarjetas).
 - [x] Consumo real de créditos vía consultas individuales/masivas (`/empresas/consultas`, `/empresas/consultas/masiva`, `/autorizaciones`) — ver [Consultas de candidatos](#consultas-de-candidatos-individual-y-masiva--consumo-de-créditos-2026-08-17). Probado de punta a punta el 2026-08-17.
 - [ ] Crear cuentas de persona/empresa desde `/admin` (el usuario decidió dejar esto fuera de alcance por ahora — solo se construyó "asignar administradores", que ya está listo).
 - [ ] Storage con URLs firmadas para la expiración de 10 días de los documentos de personas.
 - [x] Integración con la API del proveedor de fuentes (Solverio Verify) para **consultas de empresa** — ver [Integración real con el proveedor de fuentes](#integración-real-con-el-proveedor-de-fuentes-solverio-verify-2026-08-17). Falta: confirmar el mapeo exacto de `nivelRiesgo` con más consultas reales, y la misma integración para **solicitudes de persona** (`/solicitar`) sigue sin conectar — hoy solo genera documentos reales el flujo de empresa/candidato.
 - [ ] Generación y empaquetado de PDFs + expiración de 10 días.
-- [ ] Conectar `/historial` a las tablas `solicitudes`, `pagos_empresa` y `consultas` reales (hoy sigue siendo el placeholder "Aún no tienes solicitudes" aunque las tres tablas ya existen y ya se están creando filas reales).
+- [x] Conectar `/historial` a las tablas `solicitudes`, `pagos_empresa` y `consultas` reales — ver [Conectar `/historial` a datos reales](#conectar-historial-a-datos-reales-2026-08-18). Verificado por el usuario en producción con cuentas reales de persona y empresa.
 - [x] Enviar por correo la invitación de `/empresas/consultas` al candidato, con botones de Autorizar/Rechazar de un clic — ver [Notificación por correo al invitar a un candidato](#notificación-por-correo-al-invitar-a-un-candidato-2026-08-17). Falta verificar en producción con un correo real (formato, enlaces, y que dispare Solverio de punta a punta).
 - [ ] Revisión legal de `/terminos` y `/privacidad` + completar datos legales de la empresa.
 - [ ] Traducir y activar el resto de plantillas de "Security" en Supabase si se llegan a necesitar (MFA, cambio de contraseña, cambio de teléfono — "Change Email Address" ya está lista).
