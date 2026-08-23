@@ -40,6 +40,7 @@ type ConsultaEnviada = {
   candidato_primer_nombre: string;
   candidato_primer_apellido: string;
   candidato_email: string;
+  candidato_tipo_documento: string;
   candidato_numero_documento: string;
   estado: EstadoConsulta;
   nivel_riesgo: NivelRiesgo | null;
@@ -137,7 +138,7 @@ export default function HistorialContent() {
           supabase
             .from("consultas")
             .select(
-              "id, candidato_primer_nombre, candidato_primer_apellido, candidato_email, candidato_numero_documento, estado, nivel_riesgo, created_at"
+              "id, candidato_primer_nombre, candidato_primer_apellido, candidato_email, candidato_tipo_documento, candidato_numero_documento, estado, nivel_riesgo, created_at"
             )
             .eq("empresa_id", empresaId)
             .order("created_at", { ascending: false })
@@ -304,6 +305,7 @@ export default function HistorialContent() {
                     <thead>
                       <tr className="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500 border-b border-gray-200 dark:border-gray-700">
                         <th className="py-2 pr-4">Candidato</th>
+                        <th className="py-2 pr-4">Documento</th>
                         <th className="py-2 pr-4">Correo</th>
                         <th className="py-2 pr-4">Fecha</th>
                         <th className="py-2 pr-4">Estado</th>
@@ -315,6 +317,9 @@ export default function HistorialContent() {
                         <tr key={c.id} className="border-b border-gray-100 dark:border-gray-800 last:border-0">
                           <td className="py-3 pr-4 text-gray-900 dark:text-gray-100">
                             {c.candidato_primer_nombre} {c.candidato_primer_apellido}
+                          </td>
+                          <td className="py-3 pr-4 text-gray-600 dark:text-gray-400">
+                            {c.candidato_tipo_documento} {c.candidato_numero_documento}
                           </td>
                           <td className="py-3 pr-4 text-gray-600 dark:text-gray-400">{c.candidato_email}</td>
                           <td className="py-3 pr-4 text-gray-600 dark:text-gray-400">
