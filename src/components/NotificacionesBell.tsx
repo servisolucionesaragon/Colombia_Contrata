@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 
 type Notificacion = {
   id: string;
+  candidato_nombre: string | null;
   mensaje: string;
   tipo: "autorizada" | "rechazada";
   leida: boolean;
@@ -27,7 +28,7 @@ export default function NotificacionesBell() {
   const cargar = async (id: string) => {
     const { data } = await supabase
       .from("notificaciones")
-      .select("id, mensaje, tipo, leida, created_at")
+      .select("id, candidato_nombre, mensaje, tipo, leida, created_at")
       .eq("empresa_id", id)
       .order("created_at", { ascending: false })
       .limit(20);
@@ -142,8 +143,13 @@ export default function NotificacionesBell() {
                   className="flex items-start gap-x-2 px-4 py-3 text-sm border-b border-gray-50 dark:border-gray-800 last:border-0 hover:bg-gray-50 dark:hover:bg-gray-800"
                 >
                   {!n.leida && <span className="mt-1.5 size-1.5 rounded-full bg-brand-blue shrink-0" />}
-                  <div className={n.leida ? "text-gray-500 dark:text-gray-400" : "text-gray-900 dark:text-gray-100 font-medium"}>
-                    <p>{n.mensaje}</p>
+                  <div className={n.leida ? "text-gray-500 dark:text-gray-400" : "text-gray-900 dark:text-gray-100"}>
+                    <p>
+                      {n.candidato_nombre && (
+                        <span className="font-semibold">{n.candidato_nombre} </span>
+                      )}
+                      {n.mensaje}
+                    </p>
                     <p className="mt-0.5 text-xs text-gray-400 dark:text-gray-500">
                       {new Date(n.created_at).toLocaleString("es-CO")}
                     </p>

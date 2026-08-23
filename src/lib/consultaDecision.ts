@@ -180,14 +180,15 @@ async function notificarEmpresa(
   const nombre = `${consulta.candidato_primer_nombre} ${consulta.candidato_primer_apellido}`;
   const mensaje =
     tipo === "autorizada"
-      ? `${nombre} autorizó la verificación de sus antecedentes.`
-      : `${nombre} rechazó la verificación de sus antecedentes.`;
+      ? "autorizó la verificación de sus antecedentes."
+      : "rechazó la verificación de sus antecedentes.";
 
   try {
     await db.from("notificaciones").insert({
       empresa_id: consulta.empresa_id,
       consulta_id: consulta.id,
       tipo,
+      candidato_nombre: nombre,
       mensaje,
     });
   } catch {
