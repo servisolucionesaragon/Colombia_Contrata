@@ -1181,6 +1181,34 @@ Mismo día, tres pedidos seguidos del usuario tras preguntarle "qué otra mejora
 
 **3. Pantallas más anchas** — el usuario reportó (con captura de pantalla) que la nueva columna "Acciones" quedaba fuera de vista, requiriendo scroll horizontal incluso en escritorio, y pidió "amplía todas las pantallas". Se ensancharon las páginas con tablas de datos: `/empresas/consultas` y `/empresas/consultas/masiva` (`max-w-4xl`/`max-w-3xl` → `max-w-7xl`), `/historial` y `/empresas/equipo` (`max-w-4xl` → `max-w-7xl`), `/dashboard` (`max-w-5xl` → `max-w-7xl`) — mismo ancho que ya usa `/admin`. Las páginas de lectura/formularios angostos (`/login`, `/registro`, `/perfil`, `/solicitar`, `/autorizaciones`, páginas legales) se dejaron como estaban, ya que ensancharlas no resuelve ningún problema real y perjudicaría la legibilidad. Verificado en producción a 1280px de ancho: la tabla de 8 columnas de `/empresas/consultas` ya no necesita scroll horizontal.
 
+## Notificación en la plataforma a la empresa (2026-08-23)
+
+El usuario pidió "notificación en la plataforma de a la empresa cuando el candidato responda" — a diferencia del correo que ya recibe el candidato al ser invitado, esto es una notificación **dentro del sitio** para que la empresa se entere de que un candidato autorizó o rechazó, sin tener que entrar manualmente a revisar `/empresas/consultas`.
+
+**Modelo de datos** — tabla nueva `notificaciones`:
+```sql
+create table public.notificaciones (
+  id uuid primary key default gen_random_uuid(),
+  empresa_id uuid not null references auth.users(id) on delete cascade,
+  consulta_id uuid references public.consultas(id) on delete cascade,
+  tipo text not null check (tipo in ('autorizada', 'rechazada')),
+  mensaje text not null,
+  leida boolean not null default false,
+  created_at timestamptz not null default now()
+);
+alter table public.notificaciones enable row level security;
+-- Select y update: la empresa dueña o un miembro de su equipo (mismo
+-- patrón que consultas/pagos_empresa) puede ver y marcar como leídas
+-- las suyas. Sin policy de insert — solo la Service Role Key inserta,
+-- desde consultaDecision.ts.
+```
+
+**`notificarEmpresa()`** en `src/lib/consultaDecision.ts`: se llama justo después de guardar el cambio de estado, tanto en la rama de rechazar como en la de autorizar (antes del `after()` que dispara Solverio) — así la notificación queda creada de inmediato, sin depender de que la verificación con Solverio termine. Es **best-effort** (envuelta en `try/catch`, sin revisar el resultado): un fallo al insertar la notificación nunca debe romper el flujo real de autorizar/rechazar, que ya quedó guardado antes de llegar a esa línea.
+
+**`NotificacionesBell.tsx`** (nuevo, en `Header.tsx`, visible solo para cuentas `empresa`/`empresa_miembro` con sesión iniciada): ícono de campana con badge rojo del conteo de no leídas ("9+" si son más), que se refresca cada 60 segundos con un `setInterval` (sin usar Realtime de Supabase, para mantenerlo simple). Al abrir el dropdown se listan las últimas 20 notificaciones (mensaje + fecha), con un punto azul en las no leídas; cada una es un enlace a `/empresas/consultas` que la marca como leída al hacer clic, y hay un botón "Marcar todas como leídas" que solo aparece si hay alguna sin leer. Se resuelve solo (empresa dueña o miembro vía `profiles`), igual que `HistorialContent.tsx`/`DashboardContent.tsx`, en vez de recibir la empresa efectiva por props desde `Header.tsx`.
+
+Verificado en producción insertando una notificación de prueba por SQL para la cuenta real de empresa (sin necesidad de autorizar/rechazar una consulta real): la campana mostró el badge "1", el dropdown mostró el mensaje y la fecha correctos, y "Marcar todas como leídas" quitó el badge, el punto azul y aclaró el texto — fila de prueba borrada después.
+
 ## Roadmap / pendientes
 
 - [x] Construir `/solicitar` (checklist de documentos para personas) — ver [Solicitud de documentos y pago con Wompi](#solicitud-de-documentos-y-pago-con-wompi). Falta `/empresas`.
@@ -1195,6 +1223,7 @@ Mismo día, tres pedidos seguidos del usuario tras preguntarle "qué otra mejora
 - [ ] Generación y empaquetado de PDFs + expiración de 10 días.
 - [x] Conectar `/historial` a las tablas `solicitudes`, `pagos_empresa` y `consultas` reales — ver [Conectar `/historial` a datos reales](#conectar-historial-a-datos-reales-2026-08-18). Verificado por el usuario en producción con cuentas reales de persona y empresa.
 - [x] Reenviar/eliminar invitaciones pendientes, filtros y búsqueda en `/empresas/consultas` y `/historial`, y pantallas más anchas — ver [Reenviar/eliminar invitaciones, filtros, y pantallas más anchas](#reenviareliminar-invitaciones-filtros-y-pantallas-más-anchas-2026-08-18). Verificado por el usuario en producción.
+- [x] Notificación en la plataforma a la empresa cuando el candidato autoriza/rechaza — ver [Notificación en la plataforma a la empresa](#notificación-en-la-plataforma-a-la-empresa-2026-08-23). Verificado insertando una notificación de prueba; falta verificar de punta a punta disparada por una autorización/rechazo real (no se probó para no gastar un crédito real de Solverio).
 - [x] Enviar por correo la invitación de `/empresas/consultas` al candidato, con botones de Autorizar/Rechazar de un clic — ver [Notificación por correo al invitar a un candidato](#notificación-por-correo-al-invitar-a-un-candidato-2026-08-17). Falta verificar en producción con un correo real (formato, enlaces, y que dispare Solverio de punta a punta).
 - [ ] Revisión legal de `/terminos` y `/privacidad` + completar datos legales de la empresa.
 - [ ] Traducir y activar el resto de plantillas de "Security" en Supabase si se llegan a necesitar (MFA, cambio de contraseña, cambio de teléfono — "Change Email Address" ya está lista).
