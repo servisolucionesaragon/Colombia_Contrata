@@ -40,6 +40,7 @@ type ConsultaEnviada = {
   candidato_primer_nombre: string;
   candidato_primer_apellido: string;
   candidato_email: string;
+  candidato_numero_documento: string;
   estado: EstadoConsulta;
   nivel_riesgo: NivelRiesgo | null;
   created_at: string;
@@ -136,7 +137,7 @@ export default function HistorialContent() {
           supabase
             .from("consultas")
             .select(
-              "id, candidato_primer_nombre, candidato_primer_apellido, candidato_email, estado, nivel_riesgo, created_at"
+              "id, candidato_primer_nombre, candidato_primer_apellido, candidato_email, candidato_numero_documento, estado, nivel_riesgo, created_at"
             )
             .eq("empresa_id", empresaId)
             .order("created_at", { ascending: false })
@@ -174,7 +175,7 @@ export default function HistorialContent() {
     if (filtroConsultasEnviadas.estado && c.estado !== filtroConsultasEnviadas.estado) return false;
     if (textoConsultasEnviadas) {
       const q = textoConsultasEnviadas.toLowerCase();
-      const texto = `${c.candidato_primer_nombre} ${c.candidato_primer_apellido} ${c.candidato_email}`.toLowerCase();
+      const texto = `${c.candidato_primer_nombre} ${c.candidato_primer_apellido} ${c.candidato_email} ${c.candidato_numero_documento}`.toLowerCase();
       if (!texto.includes(q)) return false;
     }
     return enRango(c.created_at, filtroConsultasEnviadas.desde, filtroConsultasEnviadas.hasta);
@@ -289,7 +290,7 @@ export default function HistorialContent() {
                 opcionesEstado={OPCIONES_ESTADO_CONSULTA}
                 texto={textoConsultasEnviadas}
                 onTextoChange={setTextoConsultasEnviadas}
-                textoPlaceholder="Nombre o correo"
+                textoPlaceholder="Nombre, correo o documento"
                 desde={filtroConsultasEnviadas.desde}
                 onDesdeChange={filtroConsultasEnviadas.setDesde}
                 hasta={filtroConsultasEnviadas.hasta}

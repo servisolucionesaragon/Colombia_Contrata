@@ -183,7 +183,7 @@ export default function EmpresaConsultasContent() {
     if (filtroEstado && c.estado !== filtroEstado) return false;
     if (filtroTexto) {
       const q = filtroTexto.toLowerCase();
-      const texto = `${c.candidato_primer_nombre} ${c.candidato_primer_apellido} ${c.candidato_email}`.toLowerCase();
+      const texto = `${c.candidato_primer_nombre} ${c.candidato_primer_apellido} ${c.candidato_email} ${c.candidato_numero_documento}`.toLowerCase();
       if (!texto.includes(q)) return false;
     }
     if (filtroDesde && c.created_at < filtroDesde) return false;
@@ -385,7 +385,7 @@ export default function EmpresaConsultasContent() {
               ]}
               texto={filtroTexto}
               onTextoChange={setFiltroTexto}
-              textoPlaceholder="Nombre o correo"
+              textoPlaceholder="Nombre, correo o documento"
               desde={filtroDesde}
               onDesdeChange={setFiltroDesde}
               hasta={filtroHasta}
