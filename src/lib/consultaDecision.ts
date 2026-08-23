@@ -42,6 +42,7 @@ export async function procesarDecisionConsulta(
         updated_at: new Date().toISOString(),
       })
       .eq("id", consulta.id);
+    await notificarEmpresa(db, consulta, "rechazada");
     return { ok: true };
   }
 
@@ -73,6 +74,8 @@ export async function procesarDecisionConsulta(
       updated_at: new Date().toISOString(),
     })
     .eq("id", consulta.id);
+
+  await notificarEmpresa(db, consulta, "autorizada");
 
   // La autorización ya quedó guardada — el candidato no debe esperar a
   // que Solverio responda (una consulta real tardó 68.9s). Se dispara
@@ -162,4 +165,32 @@ async function subirPdfsSoporte(
   }
 
   return Object.keys(rutas).length > 0 ? rutas : null;
+}
+
+// Notificación en la plataforma (no por correo) para que la empresa se
+// entere de que un candidato respondió sin tener que entrar a revisar
+// /empresas/consultas manualmente — ver NotificacionesBell.tsx. Un
+// fallo al insertarla nunca debe tumbar la autorización/rechazo, que ya
+// quedó guardada antes de llegar acá.
+async function notificarEmpresa(
+  db: SupabaseClient,
+  consulta: ConsultaParaDecision,
+  tipo: "autorizada" | "rechazada"
+) {
+  const nombre = `${consulta.candidato_primer_nombre} ${consulta.candidato_primer_apellido}`;
+  const mensaje =
+    tipo === "autorizada"
+      ? `${nombre} autorizó la verificación de sus antecedentes.`
+      : `${nombre} rechazó la verificación de sus antecedentes.`;
+
+  try {
+    await db.from("notificaciones").insert({
+      empresa_id: consulta.empresa_id,
+      consulta_id: consulta.id,
+      tipo,
+      mensaje,
+    });
+  } catch {
+    // Best-effort — no notificar no debe romper el flujo de autorizar/rechazar.
+  }
 }

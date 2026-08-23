@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import ThemeToggle from "@/components/ThemeToggle";
 import InstallPwaBanner from "@/components/InstallPwaBanner";
+import NotificacionesBell from "@/components/NotificacionesBell";
 
 // Con "/" delante a propósito: son secciones de la página principal por
 // ancla, y estos enlaces se muestran en TODAS las páginas del sitio (no
@@ -389,6 +390,9 @@ export default function Header() {
         </div>
 
         <div className="flex items-center gap-x-2">
+          {isSignedIn && (accountType === "empresa" || accountType === "empresa_miembro") && (
+            <NotificacionesBell />
+          )}
           <ThemeToggle className="hidden sm:flex items-center justify-center size-9 rounded-lg border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800" />
 
           {isSignedIn ? (
