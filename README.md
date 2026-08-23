@@ -1211,6 +1211,37 @@ Verificado en producción insertando una notificación de prueba por SQL para la
 
 **Nombre del candidato separado del mensaje** (mismo día): el usuario pidió que el mensaje "incluya primer nombre y primer apellido + el mensaje" — se agregó `notificaciones.candidato_nombre` (columna nueva) para guardar el nombre aparte del texto de la acción (`mensaje` pasó de `"Juan Pérez autorizó..."` a solo `"autorizó la verificación de sus antecedentes."`), y `NotificacionesBell.tsx` ahora muestra el nombre en **negrita** seguido del mensaje, en vez de una sola oración corrida. Las notificaciones creadas antes de este cambio (sin `candidato_nombre`, con el nombre ya embebido en `mensaje`) se siguen mostrando bien igual — el componente solo agrega la negrita si `candidato_nombre` no es nulo, así que las viejas simplemente aparecen como texto plano, sin romperse. Verificado en producción con una notificación de prueba nueva: el nombre apareció en negrita seguido del mensaje en texto normal.
 
+## Checkbox "Todos" en los checklists de documentos (2026-08-23)
+
+El usuario pidió que en las tres pantallas donde se eligen documentos (persona en `/solicitar`, empresa al invitar individual, empresa en carga masiva) hubiera una opción "Todos" que marque o desmarque todos de una vez, en vez de tener que hacer clic uno por uno en listas de ~19 documentos.
+
+**`CheckboxTodos.tsx`** (nuevo, compartido): un checkbox que queda marcado si están todos seleccionados, en **estado indeterminado** (el guion visual, no un check) si la selección es parcial, y al hacer clic selecciona o deselecciona todo. El estado "indeterminate" de un checkbox no es una prop de React — solo existe como propiedad del elemento DOM real — así que el componente usa un `ref` + `useEffect` para asignarlo manualmente (`ref.current.indeterminate = ...`), un patrón que no existía todavía en el proyecto. Se integró en `SolicitarContent.tsx`, `EmpresaConsultasContent.tsx` y `CargaMasivaContent.tsx`, cada uno con su propia función `seleccionarTodos(marcar)` que reemplaza el arreglo de seleccionados completo en vez de reutilizar el `toggle` individual.
+
+⚠️ **Se codificó pero no se desplegó de inmediato** — quedó como cambio local sin `git push` mientras la conversación pasó al tema de correos cayendo en spam (mismo error ya documentado antes: dejar cambios de UI terminados sin subir mientras se atiende lo siguiente). Se detectó y corrigió al pedir "documenta esto" — se desplegó por separado antes de escribir esta misma entrada. Verificado en producción con la cuenta real de empresa: clic en "Todos" marcó las 19 casillas + la de "Todos" (20 en total), y un segundo clic las desmarcó todas.
+
+## Correo cayendo en spam — DMARC faltante (2026-08-23)
+
+El usuario reportó que el correo de invitación a veces cae en spam, sobre todo en Gmail. Se investigó revisando los registros DNS públicos del dominio directamente (sin necesitar acceso a ningún panel):
+
+- **SPF** (`colombiacontrata.com`): `v=spf1 include:zohomail.com -all` — correcto para el correo normal del dominio (Zoho Mail, ver abajo).
+- **DKIM de Resend** (`resend._domainkey.colombiacontrata.com`): presente y correcto.
+- **SPF del subdominio de envío de Resend** (`send.colombiacontrata.com`): `v=spf1 include:amazonses.com ~all`, con su propio registro MX de rebote (`feedback-smtp.sa-east-1.amazonses.com`) — esta es la configuración estándar y correcta que pide Resend al verificar un dominio, separada a propósito del dominio raíz para no interferir con el correo normal (Zoho).
+- **DMARC** (`_dmarc.colombiacontrata.com`): **no existía**.
+
+Sin un registro DMARC, un dominio con SPF/DKIM técnicamente bien configurados igual puede recibir trato más desconfiado de Gmail — es una causa común de que el correo transaccional cool caiga en spam aunque todo lo demás esté bien. Se le dio al usuario el registro exacto para agregar en Cloudflare:
+
+```
+Tipo: TXT
+Nombre: _dmarc
+Contenido: v=DMARC1; p=none; rua=mailto:colombiacontrata01@gmail.com
+```
+
+`p=none` (modo monitoreo, no rechaza ni pone en cuarentena nada) es el punto de partida seguro recomendado — no puede romper ni el correo de Zoho ni el de Resend. El usuario lo agregó él mismo en Cloudflare; se verificó contra DNS públicos (`1.1.1.1` y `8.8.8.8`, no solo el resolutor local que todavía tenía la respuesta vieja en caché) y quedó exactamente como se esperaba.
+
+⚠️ **Aviso dado al usuario, para no sobre-prometer**: DMARC es la mejora más grande disponible, pero ningún registro por sí solo garantiza el 100% de entrega a la bandeja principal — Gmail también pesa el historial de aperturas vs. reportes de spam, que se construye con el tiempo. Además, como el destino de los reportes (`rua=`) es un Gmail personal (dominio distinto al que publica el DMARC), es posible que los reportes automáticos ni siquiera lleguen — Google exige que el dominio receptor autorice explícitamente recibir reportes de otros dominios (`RFC 7489` §7.1) — pero eso no afecta la protección real del DMARC, solo la visibilidad de esos reportes técnicos (que tampoco hacía falta que el usuario leyera).
+
+**Hallazgo de contexto que corrige una nota anterior**: al revisar el DNS se descubrió que los registros MX del dominio apuntan a **Zoho Mail** (`mx.zoho.com`, `mx2.zoho.com`, `mx3.zoho.com`), no a Google Workspace — la memoria del proyecto tenía registrado que se le había recomendado Google Workspace y quedaba "pendiente que el usuario lo configurara". En algún momento no documentado en este repo, el usuario optó por **Zoho Mail** en su lugar. El usuario confirmó que `contacto@colombiacontrata.com` ya es un buzón real en uso para comunicaciones (no solo el valor mostrado en el pie de página desde `configuracion_portal.correo_contacto`).
+
 ## Roadmap / pendientes
 
 - [x] Construir `/solicitar` (checklist de documentos para personas) — ver [Solicitud de documentos y pago con Wompi](#solicitud-de-documentos-y-pago-con-wompi). Falta `/empresas`.
@@ -1226,6 +1257,8 @@ Verificado en producción insertando una notificación de prueba por SQL para la
 - [x] Conectar `/historial` a las tablas `solicitudes`, `pagos_empresa` y `consultas` reales — ver [Conectar `/historial` a datos reales](#conectar-historial-a-datos-reales-2026-08-18). Verificado por el usuario en producción con cuentas reales de persona y empresa.
 - [x] Reenviar/eliminar invitaciones pendientes, filtros y búsqueda en `/empresas/consultas` y `/historial`, y pantallas más anchas — ver [Reenviar/eliminar invitaciones, filtros, y pantallas más anchas](#reenviareliminar-invitaciones-filtros-y-pantallas-más-anchas-2026-08-18). Verificado por el usuario en producción.
 - [x] Notificación en la plataforma a la empresa cuando el candidato autoriza/rechaza, con el nombre del candidato en negrita — ver [Notificación en la plataforma a la empresa](#notificación-en-la-plataforma-a-la-empresa-2026-08-23). Confirmado funcionando de punta a punta con candidatos reales (se vieron notificaciones genuinas ya generadas, sin haber tenido que probarlo a propósito).
+- [x] Checkbox "Todos" en los checklists de documentos (persona y empresa) — ver [Checkbox "Todos" en los checklists de documentos](#checkbox-todos-en-los-checklists-de-documentos-2026-08-23). Verificado en producción.
+- [x] Registro DMARC agregado para reducir que el correo caiga en spam — ver [Correo cayendo en spam — DMARC faltante](#correo-cayendo-en-spam--dmarc-faltante-2026-08-23). Verificado contra DNS públicos. No es una garantía total; monitorear si el usuario sigue reportando correos en spam.
 - [x] Enviar por correo la invitación de `/empresas/consultas` al candidato, con botones de Autorizar/Rechazar de un clic — ver [Notificación por correo al invitar a un candidato](#notificación-por-correo-al-invitar-a-un-candidato-2026-08-17). Falta verificar en producción con un correo real (formato, enlaces, y que dispare Solverio de punta a punta).
 - [ ] Revisión legal de `/terminos` y `/privacidad` + completar datos legales de la empresa.
 - [ ] Traducir y activar el resto de plantillas de "Security" en Supabase si se llegan a necesitar (MFA, cambio de contraseña, cambio de teléfono — "Change Email Address" ya está lista).
