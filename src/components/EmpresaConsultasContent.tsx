@@ -366,7 +366,8 @@ export default function EmpresaConsultasContent() {
                   <th className="py-2 pr-4">Fecha</th>
                   <th className="py-2 pr-4">Estado</th>
                   <th className="py-2 pr-4">Riesgo</th>
-                  <th className="py-2">Documentos</th>
+                  <th className="py-2 pr-4">Documentos</th>
+                  <th className="py-2">Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -399,11 +400,22 @@ export default function EmpresaConsultasContent() {
                         <RiesgoBadge nivel={c.nivel_riesgo} />
                       )}
                     </td>
-                    <td className="py-3">
+                    <td className="py-3 pr-4">
                       {c.estado === "autorizada" ? (
                         <DocumentosBoton
                           consulta={c}
                           candidatoNombre={`${c.candidato_primer_nombre} ${c.candidato_primer_apellido}`}
+                        />
+                      ) : (
+                        <span className="text-gray-300 dark:text-gray-600">—</span>
+                      )}
+                    </td>
+                    <td className="py-3">
+                      {c.estado === "pendiente" ? (
+                        <AccionesPendiente
+                          consultaId={c.id}
+                          candidatoNombre={`${c.candidato_primer_nombre} ${c.candidato_primer_apellido}`}
+                          onEliminada={() => setConsultas((prev) => prev.filter((x) => x.id !== c.id))}
                         />
                       ) : (
                         <span className="text-gray-300 dark:text-gray-600">—</span>
@@ -481,6 +493,78 @@ function DocumentosBoton({
         </div>
       )}
     </>
+  );
+}
+
+function AccionesPendiente({
+  consultaId,
+  candidatoNombre,
+  onEliminada,
+}: {
+  consultaId: string;
+  candidatoNombre: string;
+  onEliminada: () => void;
+}) {
+  const [procesando, setProcesando] = useState<"reenviar" | "eliminar" | null>(null);
+  const [mensaje, setMensaje] = useState<string | null>(null);
+
+  const reenviar = async () => {
+    setProcesando("reenviar");
+    setMensaje(null);
+    const res = await fetch(`/api/consultas/${consultaId}/reenviar`, {
+      method: "POST",
+      headers: await authHeader(),
+    });
+    setProcesando(null);
+    if (!res.ok) {
+      const data = await res.json();
+      setMensaje(data.error ?? "No pudimos reenviar la invitación.");
+      return;
+    }
+    setMensaje("Invitación reenviada.");
+  };
+
+  const eliminar = async () => {
+    if (!confirm(`¿Eliminar la invitación de ${candidatoNombre}? No se puede deshacer.`)) {
+      return;
+    }
+    setProcesando("eliminar");
+    setMensaje(null);
+    const res = await fetch(`/api/consultas/${consultaId}`, {
+      method: "DELETE",
+      headers: await authHeader(),
+    });
+    setProcesando(null);
+    if (!res.ok) {
+      const data = await res.json();
+      setMensaje(data.error ?? "No pudimos eliminar la invitación.");
+      return;
+    }
+    onEliminada();
+  };
+
+  return (
+    <div className="flex flex-col gap-y-1">
+      <div className="flex items-center gap-x-3">
+        <button
+          type="button"
+          disabled={procesando !== null}
+          onClick={reenviar}
+          className="text-xs font-semibold text-brand-blue hover:text-brand-blue-dark disabled:opacity-50"
+        >
+          {procesando === "reenviar" ? "Enviando..." : "Reenviar"}
+        </button>
+        <button
+          type="button"
+          disabled={procesando !== null}
+          onClick={eliminar}
+          className="text-xs font-semibold text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 disabled:opacity-50"
+        >
+          {procesando === "eliminar" ? "Eliminando..." : "Eliminar"}
+        </button>
+      </div>
+      {mensaje && <span className="text-xs text-gray-500 dark:text-gray-400">{mensaje}</span>}
+    </div>
   );
 }
 
