@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import CheckboxTodos from "@/components/CheckboxTodos";
 
 type Status = "loading" | "signed-out" | "no-empresa" | "ready";
 
@@ -151,6 +152,10 @@ export default function CargaMasivaContent() {
     );
   };
 
+  const seleccionarTodosDocumentos = (marcarTodos: boolean) => {
+    setDocumentosSeleccionados(marcarTodos ? documentos.map((d) => d.id) : []);
+  };
+
   const handleFile = async (file: File) => {
     setError(null);
     setMensaje(null);
@@ -295,24 +300,33 @@ export default function CargaMasivaContent() {
             Aún no hay documentos disponibles.
           </p>
         ) : (
-          <div className="mt-3 grid sm:grid-cols-2 gap-2">
-            {documentos.map((doc) => (
-              <label
-                key={doc.id}
-                className="flex items-center gap-x-2.5 rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2 cursor-pointer hover:border-brand-blue"
-              >
-                <input
-                  type="checkbox"
-                  checked={documentosSeleccionados.includes(doc.id)}
-                  onChange={() => toggleDocumento(doc.id)}
-                  className="size-4 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700 text-brand-blue focus:ring-brand-blue"
-                />
-                <span className="text-sm text-gray-700 dark:text-gray-300">
-                  {doc.documento}
-                </span>
-              </label>
-            ))}
-          </div>
+          <>
+            <div className="mt-3 mb-2 pb-2 border-b border-gray-200 dark:border-gray-700">
+              <CheckboxTodos
+                total={documentos.length}
+                seleccionados={documentosSeleccionados.length}
+                onToggle={seleccionarTodosDocumentos}
+              />
+            </div>
+            <div className="grid sm:grid-cols-2 gap-2">
+              {documentos.map((doc) => (
+                <label
+                  key={doc.id}
+                  className="flex items-center gap-x-2.5 rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2 cursor-pointer hover:border-brand-blue"
+                >
+                  <input
+                    type="checkbox"
+                    checked={documentosSeleccionados.includes(doc.id)}
+                    onChange={() => toggleDocumento(doc.id)}
+                    className="size-4 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700 text-brand-blue focus:ring-brand-blue"
+                  />
+                  <span className="text-sm text-gray-700 dark:text-gray-300">
+                    {doc.documento}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </>
         )}
       </div>
 

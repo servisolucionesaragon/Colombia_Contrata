@@ -5,6 +5,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import DocumentosResultado from "@/components/DocumentosResultado";
 import FiltrosBar from "@/components/FiltrosBar";
+import CheckboxTodos from "@/components/CheckboxTodos";
 
 type Status = "loading" | "signed-out" | "no-empresa" | "ready";
 
@@ -176,6 +177,10 @@ export default function EmpresaConsultasContent() {
     );
   };
 
+  const seleccionarTodosDocumentos = (marcarTodos: boolean) => {
+    setDocumentosSeleccionados(marcarTodos ? documentos.map((d) => d.id) : []);
+  };
+
   const set = (campo: keyof typeof formVacio) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm((prev) => ({ ...prev, [campo]: e.target.value }));
 
@@ -323,7 +328,15 @@ export default function EmpresaConsultasContent() {
                 Aún no hay documentos disponibles.
               </p>
             ) : (
-              <div className="grid sm:grid-cols-2 gap-2">
+              <>
+                <div className="mb-2 pb-2 border-b border-gray-200 dark:border-gray-700">
+                  <CheckboxTodos
+                    total={documentos.length}
+                    seleccionados={documentosSeleccionados.length}
+                    onToggle={seleccionarTodosDocumentos}
+                  />
+                </div>
+                <div className="grid sm:grid-cols-2 gap-2">
                 {documentos.map((doc) => (
                   <label
                     key={doc.id}
@@ -340,7 +353,8 @@ export default function EmpresaConsultasContent() {
                     </span>
                   </label>
                 ))}
-              </div>
+                </div>
+              </>
             )}
           </div>
           <button

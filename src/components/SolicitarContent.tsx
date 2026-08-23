@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import CheckboxTodos from "@/components/CheckboxTodos";
 
 type Documento = { id: string; documento: string };
 type Status =
@@ -70,6 +71,10 @@ export default function SolicitarContent() {
     setSeleccionados((prev) =>
       prev.includes(id) ? prev.filter((d) => d !== id) : [...prev, id]
     );
+  };
+
+  const seleccionarTodos = (marcarTodos: boolean) => {
+    setSeleccionados(marcarTodos ? documentos.map((d) => d.id) : []);
   };
 
   const handleSubmit = async () => {
@@ -155,6 +160,13 @@ export default function SolicitarContent() {
         </p>
       ) : (
         <div className="space-y-2">
+          <div className="pb-2 mb-1 border-b border-gray-200 dark:border-gray-700">
+            <CheckboxTodos
+              total={documentos.length}
+              seleccionados={seleccionados.length}
+              onToggle={seleccionarTodos}
+            />
+          </div>
           {documentos.map((doc) => (
             <label
               key={doc.id}
