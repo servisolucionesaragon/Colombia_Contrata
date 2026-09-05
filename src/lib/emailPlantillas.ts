@@ -143,3 +143,110 @@ export function plantillaInvitacionConsulta({
 </body>
 </html>`;
 }
+
+// Mismo lenguaje visual que plantillaInvitacionConsulta — se envía
+// cuando termina la verificación de una solicitud de persona pagada
+// (ver procesarPagoAprobadoSolicitud en solicitudVerificacion.ts),
+// cumpliendo la promesa que ya hacía la página de confirmación del pago
+// ("te notificaremos por correo cuando tus documentos estén listos").
+export function plantillaDocumentosListos({ nombre }: { nombre: string | null }) {
+  const url = `${siteUrl()}/historial`;
+  const saludo = nombre ? `Hola <strong style="color:#0D1B3D;">${nombre}</strong>,` : "Hola,";
+
+  return `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tus documentos están listos | Colombia Contrata</title>
+  <style>
+    @media only screen and (max-width: 600px) {
+      .container { width: 100% !important; }
+      .content { padding: 30px 22px !important; }
+      .logo { width: 230px !important; }
+      .title { font-size: 25px !important; }
+    }
+  </style>
+</head>
+<body style="margin:0; padding:0; background-color:#F5F7FA; font-family:Arial, Helvetica, sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#F5F7FA; padding:40px 15px;">
+    <tr>
+      <td align="center">
+
+        <table class="container" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px; max-width:600px; background-color:#FFFFFF; border-radius:16px; overflow:hidden; border:1px solid #E5E7EB;">
+
+          <tr>
+            <td style="height:7px; background-color:#0033A0; font-size:0; line-height:0;">&nbsp;</td>
+          </tr>
+
+          <tr>
+            <td align="center" style="padding:35px 25px 25px 25px; background-color:#FFFFFF;">
+              <img class="logo" src="${LOGO_URL}" width="260" alt="Colombia Contrata" style="display:block; width:260px; max-width:100%; height:auto; border:0;">
+            </td>
+          </tr>
+
+          <tr>
+            <td align="center" style="padding:0 35px 25px 35px;">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td width="33%" style="height:4px; background-color:#FCD116; font-size:0; line-height:0;">&nbsp;</td>
+                  <td width="34%" style="height:4px; background-color:#0033A0; font-size:0; line-height:0;">&nbsp;</td>
+                  <td width="33%" style="height:4px; background-color:#CE1126; font-size:0; line-height:0;">&nbsp;</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <tr>
+            <td class="content" style="padding:10px 50px 40px 50px;">
+
+              <h1 class="title" style="margin:0 0 20px 0; color:#0D1B3D; font-size:28px; line-height:1.3; font-weight:700; text-align:center;">
+                Tus documentos están listos
+              </h1>
+
+              <p style="margin:0 0 18px 0; color:#374151; font-size:16px; line-height:1.7;">
+                ${saludo}
+              </p>
+
+              <p style="margin:0 0 28px 0; color:#6B7280; font-size:15px; line-height:1.7;">
+                Ya terminamos de verificar los documentos que solicitaste en <strong style="color:#0D1B3D;">Colombia Contrata</strong>. Puedes revisarlos y descargarlos desde tu historial.
+              </p>
+
+              <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td align="center" style="padding:0 0 12px 0;">
+                    <a href="${url}" style="display:inline-block; background-color:#0033A0; color:#FFFFFF; text-decoration:none; font-size:16px; font-weight:bold; padding:15px 35px; border-radius:8px;">
+                      Ver mis documentos
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+            </td>
+          </tr>
+
+          <tr>
+            <td align="center" style="padding:25px 30px; background-color:#0D1B3D;">
+              <p style="margin:0 0 8px 0; color:#FFFFFF; font-size:14px; font-weight:bold;">
+                Colombia Contrata
+              </p>
+              <p style="margin:0; color:#CBD5E1; font-size:12px; line-height:1.5;">
+                Gestión documental para la contratación
+              </p>
+              <p style="margin:15px 0 0 0; color:#94A3B8; font-size:11px; line-height:1.5;">
+                Este es un mensaje automático. Por favor, no respondas directamente a este correo.
+              </p>
+              <p style="margin:12px 0 0 0; color:#64748B; font-size:11px;">
+                © 2026 Colombia Contrata
+              </p>
+            </td>
+          </tr>
+
+        </table>
+
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}

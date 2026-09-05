@@ -25,6 +25,7 @@ type Consulta = {
   resultado_pdfs: Record<string, string> | null;
   resultado_error: string | null;
   resultado_obtenido_at: string | null;
+  resultado_json: unknown;
   created_at: string;
 };
 
@@ -87,7 +88,7 @@ export default function EmpresaConsultasContent() {
         supabase
           .from("consultas")
           .select(
-            "id, candidato_primer_nombre, candidato_primer_apellido, candidato_email, candidato_tipo_documento, candidato_numero_documento, estado, nivel_riesgo, resultado_pdfs, resultado_error, resultado_obtenido_at, created_at"
+            "id, candidato_primer_nombre, candidato_primer_apellido, candidato_email, candidato_tipo_documento, candidato_numero_documento, estado, nivel_riesgo, resultado_pdfs, resultado_error, resultado_obtenido_at, resultado_json, created_at"
           )
           .eq("empresa_id", userId)
           .order("created_at", { ascending: false })
@@ -470,6 +471,7 @@ export default function EmpresaConsultasContent() {
                           pdfs={c.resultado_pdfs}
                           resultadoError={c.resultado_error}
                           resultadoObtenidoAt={c.resultado_obtenido_at}
+                          resultadoJson={c.resultado_json}
                           nivelRiesgo={c.nivel_riesgo}
                         />
                       ) : (

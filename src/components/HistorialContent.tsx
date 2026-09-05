@@ -20,6 +20,7 @@ type Solicitud = {
   resultado_pdfs: Record<string, string> | null;
   resultado_error: string | null;
   resultado_obtenido_at: string | null;
+  resultado_json: unknown;
   nivel_riesgo: NivelRiesgo | null;
 };
 
@@ -156,7 +157,7 @@ export default function HistorialContent() {
           supabase
             .from("solicitudes")
             .select(
-              "id, created_at, monto, estado, documentos, resultado_pdfs, resultado_error, resultado_obtenido_at, nivel_riesgo"
+              "id, created_at, monto, estado, documentos, resultado_pdfs, resultado_error, resultado_obtenido_at, resultado_json, nivel_riesgo"
             )
             .eq("user_id", user.id)
             .order("created_at", { ascending: false })
@@ -417,6 +418,7 @@ export default function HistorialContent() {
                               pdfs={s.resultado_pdfs}
                               resultadoError={s.resultado_error}
                               resultadoObtenidoAt={s.resultado_obtenido_at}
+                              resultadoJson={s.resultado_json}
                               nivelRiesgo={s.nivel_riesgo}
                             />
                           )}

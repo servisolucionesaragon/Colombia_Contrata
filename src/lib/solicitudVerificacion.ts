@@ -7,6 +7,8 @@ import {
   type TipoDocumentoCandidato,
   type ResultadoVerificacion,
 } from "@/lib/solverio";
+import { enviarCorreo } from "@/lib/resend";
+import { plantillaDocumentosListos } from "@/lib/emailPlantillas";
 
 type DocumentoRequerido = { id: string; documento: string; clave_fuente: string | null };
 
@@ -27,6 +29,35 @@ export async function procesarPagoAprobadoSolicitud(
 ): Promise<void> {
   const resultado = await ejecutarVerificacion(db, solicitud);
   await guardarResultado(db, solicitud.id, resultado);
+
+  // Solo se notifica cuando la verificación sí terminó — la página de
+  // confirmación del pago promete "te notificaremos por correo cuando
+  // tus documentos estén listos", así que si falló (resultado_error)
+  // no hay nada listo todavía que anunciar.
+  if (resultado.ok) {
+    await notificarDocumentosListos(db, solicitud.user_id);
+  }
+}
+
+async function notificarDocumentosListos(db: SupabaseClient, userId: string): Promise<void> {
+  try {
+    const [{ data: userData }, { data: profile }] = await Promise.all([
+      db.auth.admin.getUserById(userId),
+      db.from("profiles").select("primer_nombre").eq("id", userId).maybeSingle(),
+    ]);
+
+    const email = userData.user?.email;
+    if (!email) return;
+
+    await enviarCorreo(db, {
+      to: email,
+      subject: "Tus documentos ya están listos para descargar",
+      html: plantillaDocumentosListos({ nombre: profile?.primer_nombre ?? null }),
+    });
+  } catch {
+    // Best-effort — un fallo al enviar el correo no debe afectar el
+    // resultado ya guardado (el usuario igual puede verlo en /historial).
+  }
 }
 
 async function ejecutarVerificacion(

@@ -5,6 +5,14 @@ import DocumentosResultado from "@/components/DocumentosResultado";
 
 type NivelRiesgo = "bajo" | "medio" | "alto";
 
+function extraerTotalFuentes(resultadoJson: unknown): number {
+  if (!resultadoJson || typeof resultadoJson !== "object") return 0;
+  const data = (resultadoJson as { data?: unknown }).data;
+  if (!data || typeof data !== "object") return 0;
+  const fuentes = (data as { fuentes?: unknown }).fuentes;
+  return Array.isArray(fuentes) ? fuentes.length : 0;
+}
+
 // Botón "Ver documentos (N)" que abre un modal con DocumentosResultado —
 // compartido entre EmpresaConsultasContent.tsx (tipo="consultas") y
 // HistorialContent.tsx (tipo="solicitudes").
@@ -15,6 +23,7 @@ export default function DocumentosBoton({
   pdfs,
   resultadoError,
   resultadoObtenidoAt,
+  resultadoJson,
   nivelRiesgo,
 }: {
   id: string;
@@ -23,10 +32,15 @@ export default function DocumentosBoton({
   pdfs: Record<string, string> | null;
   resultadoError: string | null;
   resultadoObtenidoAt: string | null;
+  resultadoJson?: unknown;
   nivelRiesgo: NivelRiesgo | null;
 }) {
   const [abierto, setAbierto] = useState(false);
-  const cantidad = pdfs ? Object.keys(pdfs).length : 0;
+  // No todas las fuentes devuelven PDF (ver DocumentosResultado.tsx) —
+  // el conteo del botón debe reflejar el total de resultados
+  // disponibles, no solo los descargables.
+  const totalFuentes = extraerTotalFuentes(resultadoJson);
+  const cantidad = totalFuentes > 0 ? totalFuentes : pdfs ? Object.keys(pdfs).length : 0;
 
   if (cantidad === 0) {
     return resultadoError ? (
@@ -43,7 +57,7 @@ export default function DocumentosBoton({
         onClick={() => setAbierto(true)}
         className="inline-flex items-center gap-x-1.5 text-xs font-semibold text-brand-blue hover:text-brand-blue-dark"
       >
-        Ver documentos ({cantidad})
+        Ver resultados ({cantidad})
       </button>
 
       {abierto && (
@@ -72,6 +86,7 @@ export default function DocumentosBoton({
               pdfs={pdfs}
               resultadoError={resultadoError}
               resultadoObtenidoAt={resultadoObtenidoAt}
+              resultadoJson={resultadoJson}
               nivelRiesgo={nivelRiesgo}
             />
           </div>
