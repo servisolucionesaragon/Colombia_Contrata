@@ -167,7 +167,7 @@ export default function SolicitarContent() {
               onToggle={seleccionarTodos}
             />
           </div>
-          <div className="grid sm:grid-cols-2 gap-2">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
             {documentos.map((doc) => (
               <label
                 key={doc.id}
