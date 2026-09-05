@@ -51,6 +51,15 @@ function resumenDetalleFuente(detalle: unknown): string | null {
   return partes.length > 0 ? partes.join(" · ") : null;
 }
 
+// Vericol es inconsistente entre cómo nombra una fuente en el log de
+// ejecución (data.fuentes[i].fuente) y la clave real donde guarda su
+// resultado dentro de data — ej. el log dice "proveedoresFicticiosDian"
+// pero el detalle vive en data.proveedoresFicticios (sin "Dian"). Si se
+// encuentran más casos así, agregarlos aquí.
+const ALIAS_CLAVE_DETALLE: Record<string, string> = {
+  proveedoresFicticiosDian: "proveedoresFicticios",
+};
+
 // No todas las fuentes que Vericol consulta devuelven un PDF (ver
 // FUENTE_LABEL/TODAS_LAS_FUENTES en solverio.ts) — muchas solo traen un
 // resultado en JSON. resultado_json ya guarda la respuesta completa
@@ -71,7 +80,8 @@ function extraerFuentes(resultadoJson: unknown): FuenteResultado[] {
       const fuente = typeof f.fuente === "string" ? f.fuente : "";
       const error = typeof f.error === "string" ? f.error : null;
       const estado = typeof f.estado === "string" ? f.estado : null;
-      const resumenDetalle = resumenDetalleFuente(dataObj[fuente]);
+      const detalle = dataObj[fuente] ?? dataObj[ALIAS_CLAVE_DETALLE[fuente]];
+      const resumenDetalle = resumenDetalleFuente(detalle);
       return {
         fuente,
         tieneSoporte: f.tieneSoporte === true,
