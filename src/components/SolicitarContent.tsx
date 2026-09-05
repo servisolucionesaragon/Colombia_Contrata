@@ -4,8 +4,9 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import CheckboxTodos from "@/components/CheckboxTodos";
+import GeneraPdfBadge from "@/components/GeneraPdfBadge";
 
-type Documento = { id: string; documento: string; descripcion: string | null };
+type Documento = { id: string; documento: string; descripcion: string | null; genera_pdf: boolean };
 type Status =
   | "loading"
   | "signed-out"
@@ -51,7 +52,7 @@ export default function SolicitarContent() {
       const [{ data: docs }, { data: config }] = await Promise.all([
         supabase
           .from("precios_documentos")
-          .select("id, documento, descripcion")
+          .select("id, documento, descripcion, genera_pdf")
           .eq("activo", true)
           .order("documento", { ascending: true }),
         supabase
@@ -160,12 +161,15 @@ export default function SolicitarContent() {
         </p>
       ) : (
         <div>
-          <div className="pb-2 mb-2 border-b border-gray-200 dark:border-gray-700">
+          <div className="pb-2 mb-2 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between flex-wrap gap-x-4 gap-y-1">
             <CheckboxTodos
               total={documentos.length}
               seleccionados={seleccionados.length}
               onToggle={seleccionarTodos}
             />
+            <span className="inline-flex items-center gap-x-1 text-xs text-gray-400 dark:text-gray-500">
+              <GeneraPdfBadge /> genera un documento descargable
+            </span>
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
             {documentos.map((doc) => (
@@ -180,8 +184,9 @@ export default function SolicitarContent() {
                   className="mt-0.5 size-4 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700 text-brand-blue focus:ring-brand-blue"
                 />
                 <span>
-                  <span className="block text-sm font-medium text-gray-800 dark:text-gray-200">
+                  <span className="flex items-center gap-x-1.5 text-sm font-medium text-gray-800 dark:text-gray-200">
                     {doc.documento}
+                    {doc.genera_pdf && <GeneraPdfBadge />}
                   </span>
                   {doc.descripcion && (
                     <span className="block text-xs text-gray-500 dark:text-gray-400">

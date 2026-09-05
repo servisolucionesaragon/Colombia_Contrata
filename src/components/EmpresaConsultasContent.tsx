@@ -6,12 +6,13 @@ import { supabase } from "@/lib/supabase";
 import DocumentosBoton from "@/components/DocumentosBoton";
 import FiltrosBar from "@/components/FiltrosBar";
 import CheckboxTodos from "@/components/CheckboxTodos";
+import GeneraPdfBadge from "@/components/GeneraPdfBadge";
 
 type Status = "loading" | "signed-out" | "no-empresa" | "ready";
 
 type NivelRiesgo = "bajo" | "medio" | "alto";
 
-type Documento = { id: string; documento: string; descripcion: string | null };
+type Documento = { id: string; documento: string; descripcion: string | null; genera_pdf: boolean };
 
 type Consulta = {
   id: string;
@@ -135,7 +136,7 @@ export default function EmpresaConsultasContent() {
       );
       const { data: docs } = await supabase
         .from("precios_documentos")
-        .select("id, documento, descripcion")
+        .select("id, documento, descripcion, genera_pdf")
         .eq("activo", true)
         .order("documento", { ascending: true });
       setDocumentos((docs as Documento[]) ?? []);
@@ -330,12 +331,15 @@ export default function EmpresaConsultasContent() {
               </p>
             ) : (
               <>
-                <div className="mb-2 pb-2 border-b border-gray-200 dark:border-gray-700">
+                <div className="mb-2 pb-2 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between flex-wrap gap-x-4 gap-y-1">
                   <CheckboxTodos
                     total={documentos.length}
                     seleccionados={documentosSeleccionados.length}
                     onToggle={seleccionarTodosDocumentos}
                   />
+                  <span className="inline-flex items-center gap-x-1 text-xs text-gray-400 dark:text-gray-500">
+                    <GeneraPdfBadge /> genera un documento descargable
+                  </span>
                 </div>
                 <div className="grid sm:grid-cols-2 gap-2">
                 {documentos.map((doc) => (
@@ -350,8 +354,9 @@ export default function EmpresaConsultasContent() {
                       className="mt-0.5 size-4 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700 text-brand-blue focus:ring-brand-blue"
                     />
                     <span>
-                      <span className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      <span className="flex items-center gap-x-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">
                         {doc.documento}
+                        {doc.genera_pdf && <GeneraPdfBadge />}
                       </span>
                       {doc.descripcion && (
                         <span className="block text-xs text-gray-500 dark:text-gray-400">

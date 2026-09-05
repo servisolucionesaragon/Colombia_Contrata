@@ -3,12 +3,14 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { supabase } from "@/lib/supabase";
 import { TODAS_LAS_FUENTES } from "@/lib/solverio";
+import GeneraPdfBadge from "@/components/GeneraPdfBadge";
 
 type Documento = {
   id: string;
   documento: string;
   descripcion: string | null;
   clave_fuente: string | null;
+  genera_pdf: boolean;
   activo: boolean;
 };
 
@@ -23,7 +25,7 @@ export default function PreciosDocumentosManager() {
     setLoading(true);
     const { data } = await supabase
       .from("precios_documentos")
-      .select("id, documento, descripcion, clave_fuente, activo")
+      .select("id, documento, descripcion, clave_fuente, genera_pdf, activo")
       .order("documento", { ascending: true });
     setDocumentos((data as Documento[]) ?? []);
     setLoading(false);
@@ -47,6 +49,7 @@ export default function PreciosDocumentosManager() {
       documento: formData.get("documento") as string,
       descripcion: (formData.get("descripcion") as string) || null,
       clave_fuente: claveFuente || null,
+      genera_pdf: formData.get("genera_pdf") === "on",
       activo: formData.get("activo") === "on",
     };
 
@@ -136,6 +139,12 @@ export default function PreciosDocumentosManager() {
                     {!doc.clave_fuente && (
                       <span className="text-xs rounded-full bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-400 px-2 py-0.5">
                         Sin fuente
+                      </span>
+                    )}
+                    {doc.genera_pdf && (
+                      <span className="inline-flex items-center gap-x-1 text-xs rounded-full bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-400 px-2 py-0.5">
+                        <GeneraPdfBadge />
+                        Genera PDF
                       </span>
                     )}
                   </div>
@@ -228,6 +237,18 @@ function DocumentoForm({
           ))}
         </select>
       </Field>
+      <label className="inline-flex items-center gap-x-2 text-sm text-gray-700 dark:text-gray-300">
+        <input
+          type="checkbox"
+          name="genera_pdf"
+          defaultChecked={documento?.genera_pdf ?? false}
+          className="size-4 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700 text-brand-blue focus:ring-brand-blue"
+        />
+        Genera PDF descargable
+      </label>
+      <p className="-mt-2 text-xs text-gray-400 dark:text-gray-500">
+        Basado en observación real de respuestas de Vericol, no en documentación oficial del proveedor — puede corregirse aquí si una fuente cambia de comportamiento.
+      </p>
       <label className="inline-flex items-center gap-x-2 text-sm text-gray-700 dark:text-gray-300">
         <input
           type="checkbox"
