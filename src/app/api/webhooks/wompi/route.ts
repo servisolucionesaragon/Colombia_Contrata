@@ -1,14 +1,19 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import crypto from "crypto";
+import { procesarPagoAprobadoSolicitud } from "@/lib/solicitudVerificacion";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
+// La verificación real con Vericol puede tardar más de un minuto (ver el
+// mismo comentario en /api/consultas/autorizar) — se dispara con after()
+// después de responder a Wompi, no antes.
+export const maxDuration = 180;
+
 // Wompi llama este endpoint cuando cambia el estado de una transacción.
-// Nunca probado contra un evento real todavía (no hay llaves de Wompi) —
-// el algoritmo de checksum sigue la documentación de docs.wompi.co, pero
-// hay que confirmarlo con un evento real en cuanto haya sandbox.
+// Validado contra Wompi real (Sandbox) el 2026-09-04 — ver
+// .claude/CLAUDE.md para el detalle del fix (URL de Eventos con www.).
 export async function POST(request: NextRequest) {
   const db = createClient(supabaseUrl, serviceRoleKey, {
     auth: { autoRefreshToken: false, persistSession: false },
@@ -105,17 +110,27 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ received: true });
   }
 
-  // TODO: cuando exista la integración con el proveedor de fuentes, este
-  // es el lugar para disparar la generación de los documentos al pasar a
-  // estado "pagado".
-  await db
+  const { data: solicitudActualizada } = await db
     .from("solicitudes")
     .update({
       estado: nuevoEstado,
       wompi_transaction_id: transaction.id,
       updated_at: new Date().toISOString(),
     })
-    .eq("wompi_referencia", reference);
+    .eq("wompi_referencia", reference)
+    .select("id, user_id, documentos, resultado_obtenido_at")
+    .maybeSingle();
+
+  // Dispara la verificación real de fuentes solo la primera vez que el
+  // pago queda aprobado — resultado_obtenido_at ya seteado es la guarda
+  // de idempotencia por si Wompi reenvía el mismo evento. Un intento
+  // fallido (resultado_error, sin resultado_obtenido_at) sí se reintenta
+  // en un próximo evento, a propósito.
+  if (nuevoEstado === "pagado" && solicitudActualizada && !solicitudActualizada.resultado_obtenido_at) {
+    after(async () => {
+      await procesarPagoAprobadoSolicitud(db, solicitudActualizada);
+    });
+  }
 
   return NextResponse.json({ received: true });
 }

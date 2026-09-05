@@ -72,6 +72,39 @@ export const TODAS_LAS_FUENTES = [
   "supersociedades",
 ];
 
+// Nombre amigable de cada fuente, igual al que se ve en el catálogo
+// "Documentos disponibles" — usado para etiquetar los PDF descargados
+// (nombre del archivo en el .zip, texto del botón) en vez de mostrar la
+// clave cruda de la API.
+export const FUENTE_LABEL: Record<string, string> = {
+  adres: "ADRES",
+  bdme: "BDME",
+  contraloria: "Contraloría",
+  delitosMenores: "Delitos contra menores",
+  funcionPublica: "Función Pública",
+  inpec: "INPEC",
+  listasRestrictivas: "Listas restrictivas",
+  paco: "PACO",
+  peps: "PEPs",
+  policia: "Policía Nacional",
+  procuraduria: "Procuraduría",
+  proveedoresFicticiosDian: "Proveedores ficticios",
+  ramaJudicial: "Rama Judicial",
+  registraduria: "Registraduría",
+  rndc: "Licencia de conducción",
+  rnmc: "RNMC",
+  rucom: "RUCOM",
+  rues: "RUES",
+  rut: "RUT (DIAN)",
+  secop: "SECOP",
+  sena: "SENA",
+  simit: "SIMIT",
+  siri: "SIRI",
+  sisben: "Sisbén IV / RUI",
+  sisconmp: "SISCONMP",
+  supersociedades: "Supersociedades",
+};
+
 export async function getSolverioConfig(
   db: SupabaseClient
 ): Promise<{ baseUrl: string; apiKey: string } | null> {

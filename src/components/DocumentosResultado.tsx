@@ -2,17 +2,9 @@
 
 import { useState, type SVGProps } from "react";
 import { supabase } from "@/lib/supabase";
+import { FUENTE_LABEL } from "@/lib/solverio";
 
 type NivelRiesgo = "bajo" | "medio" | "alto";
-
-const FUENTE_LABEL: Record<string, string> = {
-  registraduria: "Registraduría",
-  policia: "Policía",
-  procuraduria: "Procuraduría",
-  contraloria: "Contraloría",
-  ramaJudicial: "Rama Judicial",
-  rnmc: "Medidas correctivas",
-};
 
 async function authHeader() {
   const { data } = await supabase.auth.getSession();
@@ -21,18 +13,20 @@ async function authHeader() {
 
 // Panel "amigable" de los documentos resultantes de una verificación,
 // compartido entre la vista de empresa (dentro de un modal, ver
-// EmpresaConsultasContent.tsx) y la vista de persona/candidato (inline
-// en su tarjeta de autorización, ver AutorizacionesContent.tsx) — ambas
-// llaman a los mismos endpoints (/pdf y /pdf-zip), que autorizan tanto a
-// la empresa dueña como al propio candidato.
+// EmpresaConsultasContent.tsx, tipo="consultas") y la de persona (ver
+// HistorialContent.tsx, tipo="solicitudes") — cada una llama a sus
+// propios endpoints /pdf y /pdf-zip, con reglas de acceso distintas
+// (empresa dueña de la consulta vs. persona dueña de su solicitud).
 export default function DocumentosResultado({
-  consultaId,
+  id,
+  tipo = "consultas",
   pdfs,
   resultadoError,
   resultadoObtenidoAt,
   nivelRiesgo,
 }: {
-  consultaId: string;
+  id: string;
+  tipo?: "consultas" | "solicitudes";
   pdfs: Record<string, string> | null;
   resultadoError: string | null;
   resultadoObtenidoAt: string | null;
@@ -42,13 +36,14 @@ export default function DocumentosResultado({
   const [descargandoTodo, setDescargandoTodo] = useState(false);
   const [errorDescarga, setErrorDescarga] = useState<string | null>(null);
 
+  const base = `/api/${tipo}/${id}`;
   const fuentes = pdfs ? Object.keys(pdfs) : [];
 
   const descargar = async (fuente: string) => {
     setDescargando(fuente);
     setErrorDescarga(null);
     const res = await fetch(
-      `/api/consultas/${consultaId}/pdf?fuente=${encodeURIComponent(fuente)}`,
+      `${base}/pdf?fuente=${encodeURIComponent(fuente)}`,
       { headers: await authHeader() }
     );
     setDescargando(null);
@@ -63,7 +58,7 @@ export default function DocumentosResultado({
   const descargarTodo = async () => {
     setDescargandoTodo(true);
     setErrorDescarga(null);
-    const res = await fetch(`/api/consultas/${consultaId}/pdf-zip`, {
+    const res = await fetch(`${base}/pdf-zip`, {
       headers: await authHeader(),
     });
     if (!res.ok) {
@@ -75,7 +70,7 @@ export default function DocumentosResultado({
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `documentos-${consultaId.slice(0, 8)}.zip`;
+    a.download = `documentos-${id.slice(0, 8)}.zip`;
     document.body.appendChild(a);
     a.click();
     a.remove();

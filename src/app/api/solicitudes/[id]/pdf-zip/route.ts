@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { resolverAccesoDocumentos } from "@/lib/consultaAcceso";
+import { resolverAccesoDocumentosSolicitud } from "@/lib/solicitudAcceso";
 import { crearZip } from "@/lib/zip";
 import { FUENTE_LABEL } from "@/lib/solverio";
 
@@ -25,11 +25,9 @@ async function requireUser(request: NextRequest) {
   return data.user;
 }
 
-// Descarga todos los PDF de soporte de una consulta ya autorizada desde
-// el bucket privado, los empaqueta en un .zip en memoria (sin escribir
-// a disco, sin subir el zip a Storage) y lo devuelve directo como
-// adjunto — igual que /pdf, solo la empresa dueña de la consulta puede
-// acceder (ver resolverAccesoDocumentos).
+// Igual que /api/consultas/[id]/pdf-zip pero para solicitudes de persona
+// — solo el dueño de la solicitud puede descargar (ver
+// resolverAccesoDocumentosSolicitud).
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -39,14 +37,14 @@ export async function GET(
     return NextResponse.json({ error: "Debes iniciar sesión." }, { status: 401 });
   }
 
-  const { id: consultaId } = await params;
+  const { id: solicitudId } = await params;
   const db = adminClient();
-  const consulta = await resolverAccesoDocumentos(db, consultaId, user);
-  if (!consulta) {
-    return NextResponse.json({ error: "No encontramos esta consulta." }, { status: 404 });
+  const solicitud = await resolverAccesoDocumentosSolicitud(db, solicitudId, user);
+  if (!solicitud) {
+    return NextResponse.json({ error: "No encontramos esta solicitud." }, { status: 404 });
   }
 
-  const rutas = consulta.resultado_pdfs ?? {};
+  const rutas = solicitud.resultado_pdfs ?? {};
   const fuentes = Object.keys(rutas);
   if (fuentes.length === 0) {
     return NextResponse.json({ error: "No hay documentos disponibles para descargar." }, { status: 404 });
@@ -70,7 +68,7 @@ export async function GET(
   return new NextResponse(new Uint8Array(zip), {
     headers: {
       "Content-Type": "application/zip",
-      "Content-Disposition": `attachment; filename="documentos-${consultaId.slice(0, 8)}.zip"`,
+      "Content-Disposition": `attachment; filename="documentos-${solicitudId.slice(0, 8)}.zip"`,
     },
   });
 }

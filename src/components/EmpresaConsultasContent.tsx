@@ -3,7 +3,7 @@
 import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
-import DocumentosResultado from "@/components/DocumentosResultado";
+import DocumentosBoton from "@/components/DocumentosBoton";
 import FiltrosBar from "@/components/FiltrosBar";
 import CheckboxTodos from "@/components/CheckboxTodos";
 
@@ -464,8 +464,13 @@ export default function EmpresaConsultasContent() {
                     <td className="py-3 pr-4">
                       {c.estado === "autorizada" ? (
                         <DocumentosBoton
-                          consulta={c}
-                          candidatoNombre={`${c.candidato_primer_nombre} ${c.candidato_primer_apellido}`}
+                          id={c.id}
+                          tipo="consultas"
+                          titulo={`Documentos de ${c.candidato_primer_nombre} ${c.candidato_primer_apellido}`}
+                          pdfs={c.resultado_pdfs}
+                          resultadoError={c.resultado_error}
+                          resultadoObtenidoAt={c.resultado_obtenido_at}
+                          nivelRiesgo={c.nivel_riesgo}
                         />
                       ) : (
                         <span className="text-gray-300 dark:text-gray-600">—</span>
@@ -492,70 +497,6 @@ export default function EmpresaConsultasContent() {
         )}
       </div>
     </div>
-  );
-}
-
-function DocumentosBoton({
-  consulta,
-  candidatoNombre,
-}: {
-  consulta: Consulta;
-  candidatoNombre: string;
-}) {
-  const [abierto, setAbierto] = useState(false);
-  const cantidad = consulta.resultado_pdfs ? Object.keys(consulta.resultado_pdfs).length : 0;
-
-  if (cantidad === 0) {
-    return consulta.resultado_error ? (
-      <span className="text-xs text-gray-400 dark:text-gray-500">No disponible</span>
-    ) : (
-      <span className="text-xs text-gray-400 dark:text-gray-500">—</span>
-    );
-  }
-
-  return (
-    <>
-      <button
-        type="button"
-        onClick={() => setAbierto(true)}
-        className="inline-flex items-center gap-x-1.5 text-xs font-semibold text-brand-blue hover:text-brand-blue-dark"
-      >
-        Ver documentos ({cantidad})
-      </button>
-
-      {abierto && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
-          onClick={() => setAbierto(false)}
-        >
-          <div
-            className="w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-6"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-start justify-between gap-x-3 mb-5">
-              <h3 className="font-semibold text-gray-900 dark:text-gray-100">
-                Documentos de {candidatoNombre}
-              </h3>
-              <button
-                type="button"
-                onClick={() => setAbierto(false)}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-xl leading-none"
-                aria-label="Cerrar"
-              >
-                &times;
-              </button>
-            </div>
-            <DocumentosResultado
-              consultaId={consulta.id}
-              pdfs={consulta.resultado_pdfs}
-              resultadoError={consulta.resultado_error}
-              resultadoObtenidoAt={consulta.resultado_obtenido_at}
-              nivelRiesgo={consulta.nivel_riesgo}
-            />
-          </div>
-        </div>
-      )}
-    </>
   );
 }
 

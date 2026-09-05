@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import FiltrosBar from "@/components/FiltrosBar";
+import DocumentosBoton from "@/components/DocumentosBoton";
 
 type Status = "loading" | "signed-out" | "ready";
 type EstadoPago = "pendiente" | "pagado" | "fallido";
@@ -16,6 +17,10 @@ type Solicitud = {
   monto: number;
   estado: EstadoPago;
   documentos: { id: string; documento: string }[];
+  resultado_pdfs: Record<string, string> | null;
+  resultado_error: string | null;
+  resultado_obtenido_at: string | null;
+  nivel_riesgo: NivelRiesgo | null;
 };
 
 type ConsultaRecibida = {
@@ -150,7 +155,9 @@ export default function HistorialContent() {
         const [{ data: solicitudesData }, resPendientes] = await Promise.all([
           supabase
             .from("solicitudes")
-            .select("id, created_at, monto, estado, documentos")
+            .select(
+              "id, created_at, monto, estado, documentos, resultado_pdfs, resultado_error, resultado_obtenido_at, nivel_riesgo"
+            )
             .eq("user_id", user.id)
             .order("created_at", { ascending: false })
             .limit(200),
@@ -380,7 +387,8 @@ export default function HistorialContent() {
                       <th className="py-2 pr-4">Fecha</th>
                       <th className="py-2 pr-4">Documentos</th>
                       <th className="py-2 pr-4">Monto</th>
-                      <th className="py-2">Estado</th>
+                      <th className="py-2 pr-4">Estado</th>
+                      <th className="py-2">Resultado</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -393,8 +401,25 @@ export default function HistorialContent() {
                           {(s.documentos ?? []).map((d) => d.documento).join(", ") || "—"}
                         </td>
                         <td className="py-3 pr-4 text-gray-600 dark:text-gray-400">{formatCOP(s.monto)}</td>
-                        <td className="py-3">
+                        <td className="py-3 pr-4">
                           <EstadoPagoBadge estado={s.estado} />
+                        </td>
+                        <td className="py-3">
+                          {s.estado !== "pagado" ? (
+                            <span className="text-gray-300 dark:text-gray-600">—</span>
+                          ) : !s.resultado_pdfs && !s.resultado_error && !s.resultado_obtenido_at ? (
+                            <span className="text-xs text-gray-400 dark:text-gray-500">Verificando...</span>
+                          ) : (
+                            <DocumentosBoton
+                              id={s.id}
+                              tipo="solicitudes"
+                              titulo="Tus documentos"
+                              pdfs={s.resultado_pdfs}
+                              resultadoError={s.resultado_error}
+                              resultadoObtenidoAt={s.resultado_obtenido_at}
+                              nivelRiesgo={s.nivel_riesgo}
+                            />
+                          )}
                         </td>
                       </tr>
                     ))}
