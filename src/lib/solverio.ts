@@ -34,6 +34,42 @@ const TIPO_DOCUMENTO_SOLVERIO: Partial<Record<TipoDocumentoCandidato, string>> =
   PPT: "10",
 };
 
+// Todas las fuentes disponibles en POST /api/Verificacion/completa
+// (colección "Vericol API" actualizada 2026-09-04). A diferencia del
+// endpoint Enterprise anterior (que corría un conjunto fijo sin poder
+// elegirlo), este POST exige mandar explícitamente la lista de fuentes —
+// se piden todas a propósito (decisión del usuario: el costo en créditos
+// lo asume él, no le importa que sean más de 15 fuentes = 2 créditos por
+// consulta en vez de 1).
+const TODAS_LAS_FUENTES = [
+  "adres",
+  "bdme",
+  "contraloria",
+  "delitosMenores",
+  "funcionPublica",
+  "inpec",
+  "listasRestrictivas",
+  "paco",
+  "peps",
+  "policia",
+  "procuraduria",
+  "proveedoresFicticiosDian",
+  "ramaJudicial",
+  "registraduria",
+  "rndc",
+  "rnmc",
+  "rucom",
+  "rues",
+  "rut",
+  "secop",
+  "sena",
+  "simit",
+  "siri",
+  "sisben",
+  "sisconmp",
+  "supersociedades",
+];
+
 export async function getSolverioConfig(
   db: SupabaseClient
 ): Promise<{ baseUrl: string; apiKey: string } | null> {
@@ -59,34 +95,37 @@ export async function consultarVerificacionCompleta(
     };
   }
 
-  const params = new URLSearchParams({
+  const requestBody: Record<string, unknown> = {
     documento: datos.documento,
+    tipoDocumento: tipoCodigo,
     primerNombre: datos.primerNombre,
     primerApellido: datos.primerApellido,
-    tipoDocumento: tipoCodigo,
-  });
-  if (datos.segundoNombre) params.set("segundoNombre", datos.segundoNombre);
-  if (datos.segundoApellido) params.set("segundoApellido", datos.segundoApellido);
-  if (datos.fechaExpedicion) params.set("fechaExpedicion", datos.fechaExpedicion);
+    obtenerSoportes: true,
+    fuentes: TODAS_LAS_FUENTES,
+  };
+  if (datos.segundoNombre) requestBody.segundoNombre = datos.segundoNombre;
+  if (datos.segundoApellido) requestBody.segundoApellido = datos.segundoApellido;
+  if (datos.fechaExpedicion) requestBody.fechaExpedicion = datos.fechaExpedicion;
 
   let response: Response;
   try {
-    response = await fetch(
-      `${config.baseUrl}/api/enterprise/verificacion/completa?${params.toString()}`,
-      {
-        method: "GET",
-        headers: { Accept: "application/json", "X-Api-Key": config.apiKey },
-      }
-    );
+    response = await fetch(`${config.baseUrl}/api/Verificacion/completa`, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "X-Api-Key": config.apiKey,
+      },
+      body: JSON.stringify(requestBody),
+    });
   } catch {
     return { ok: false, error: "No pudimos conectar con el proveedor de verificación." };
   }
 
-  if (response.status === 403) {
+  if (response.status === 400) {
     return {
       ok: false,
-      error:
-        "El plan de Solverio de esta cuenta no tiene habilitada la verificación completa (Enterprise).",
+      error: "El proveedor de verificación rechazó la solicitud (parámetros o fuentes inválidas).",
     };
   }
   if (!response.ok) {
@@ -107,15 +146,18 @@ export async function consultarVerificacionCompleta(
     return { ok: false, error: body.mensaje || "El proveedor de verificación devolvió un error." };
   }
 
-  // Estructura real confirmada con una consulta de prueba real el
-  // 2026-08-17 (la colección de Postman del proveedor no traía un
-  // ejemplo): todo viene envuelto en { exitoso, mensaje, data: {...} }.
-  // Dentro de "data", el riesgo es un número (data.nivelRiesgo), no un
-  // texto "semaforo" como sugería la descripción del endpoint — el
-  // significado exacto de cada valor (0/1/2...) todavía no está
-  // confirmado con el proveedor, se usa el mapeo más razonable
-  // (0=verde/bajo, 1=amarillo/medio, 2 o más=rojo/alto) hasta poder
-  // confirmarlo con más consultas reales o con Solverio directamente.
+  // Estructura confirmada con una consulta de prueba real contra
+  // GET /api/enterprise/verificacion/completa el 2026-08-17: todo viene
+  // envuelto en { exitoso, mensaje, data: {...} }, con el riesgo como
+  // número en data.nivelRiesgo (no un texto "semaforo" como sugería la
+  // descripción del endpoint). Se asume la misma estructura para este
+  // POST /api/Verificacion/completa (2026-09-04, mismo proveedor) porque
+  // la colección de Postman tampoco trae un ejemplo de respuesta —
+  // ⚠️ pendiente confirmar con una consulta manual real desde /admin →
+  // Fuentes en cuanto se use por primera vez. El significado exacto de
+  // cada valor de nivelRiesgo (0/1/2...) tampoco está confirmado con el
+  // proveedor — se usa el mapeo más razonable (0=verde/bajo,
+  // 1=amarillo/medio, 2 o más=rojo/alto).
   const data = body.data ?? {};
   const nivelRiesgoRaw = data.nivelRiesgo;
   const semaforo = normalizarNivelRiesgo(nivelRiesgoRaw);
