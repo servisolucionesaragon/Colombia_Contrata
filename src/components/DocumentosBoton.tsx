@@ -66,7 +66,7 @@ export default function DocumentosBoton({
           onClick={() => setAbierto(false)}
         >
           <div
-            className="w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-6"
+            className="w-full max-w-3xl max-h-[85vh] overflow-y-auto rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-6"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-x-3 mb-5">
