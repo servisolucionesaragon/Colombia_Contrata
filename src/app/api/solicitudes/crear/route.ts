@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
       db.from("configuracion_persona").select("precio_desde").eq("id", 1).single(),
       db
         .from("precios_documentos")
-        .select("id, documento")
+        .select("id, documento, clave_fuente")
         .in("id", documentoIds)
         .eq("activo", true),
     ]);

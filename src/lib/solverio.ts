@@ -37,11 +37,13 @@ const TIPO_DOCUMENTO_SOLVERIO: Partial<Record<TipoDocumentoCandidato, string>> =
 // Todas las fuentes disponibles en POST /api/Verificacion/completa
 // (colección "Vericol API" actualizada 2026-09-04). A diferencia del
 // endpoint Enterprise anterior (que corría un conjunto fijo sin poder
-// elegirlo), este POST exige mandar explícitamente la lista de fuentes —
-// se piden todas a propósito (decisión del usuario: el costo en créditos
-// lo asume él, no le importa que sean más de 15 fuentes = 2 créditos por
-// consulta en vez de 1).
-const TODAS_LAS_FUENTES = [
+// elegirlo), este POST exige mandar explícitamente la lista de fuentes.
+// Cada una tiene su fila espejo en precios_documentos.clave_fuente — el
+// checklist que arma la empresa (o la persona) al invitar/solicitar
+// determina cuáles de estas se piden de verdad (ver ejecutarVerificacion
+// en consultaDecision.ts). Se usa como fallback cuando no hay checklist
+// que filtrar (ej. la consulta manual de /admin → Fuentes).
+export const TODAS_LAS_FUENTES = [
   "adres",
   "bdme",
   "contraloria",
@@ -85,7 +87,8 @@ export async function getSolverioConfig(
 
 export async function consultarVerificacionCompleta(
   config: { baseUrl: string; apiKey: string },
-  datos: DatosVerificacion
+  datos: DatosVerificacion,
+  fuentes: string[] = TODAS_LAS_FUENTES
 ): Promise<ResultadoVerificacion> {
   const tipoCodigo = TIPO_DOCUMENTO_SOLVERIO[datos.tipoDocumento];
   if (!tipoCodigo) {
@@ -95,13 +98,21 @@ export async function consultarVerificacionCompleta(
     };
   }
 
+  if (fuentes.length === 0) {
+    return {
+      ok: false,
+      error:
+        "Ninguno de los documentos seleccionados tiene una fuente de verificación automática disponible.",
+    };
+  }
+
   const requestBody: Record<string, unknown> = {
     documento: datos.documento,
     tipoDocumento: tipoCodigo,
     primerNombre: datos.primerNombre,
     primerApellido: datos.primerApellido,
     obtenerSoportes: true,
-    fuentes: TODAS_LAS_FUENTES,
+    fuentes,
   };
   if (datos.segundoNombre) requestBody.segundoNombre = datos.segundoNombre;
   if (datos.segundoApellido) requestBody.segundoApellido = datos.segundoApellido;

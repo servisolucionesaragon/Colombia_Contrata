@@ -2,10 +2,13 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { supabase } from "@/lib/supabase";
+import { TODAS_LAS_FUENTES } from "@/lib/solverio";
 
 type Documento = {
   id: string;
   documento: string;
+  descripcion: string | null;
+  clave_fuente: string | null;
   activo: boolean;
 };
 
@@ -20,7 +23,7 @@ export default function PreciosDocumentosManager() {
     setLoading(true);
     const { data } = await supabase
       .from("precios_documentos")
-      .select("id, documento, activo")
+      .select("id, documento, descripcion, clave_fuente, activo")
       .order("documento", { ascending: true });
     setDocumentos((data as Documento[]) ?? []);
     setLoading(false);
@@ -39,8 +42,11 @@ export default function PreciosDocumentosManager() {
     setError(null);
 
     const formData = new FormData(event.currentTarget);
+    const claveFuente = formData.get("clave_fuente") as string;
     const payload = {
       documento: formData.get("documento") as string,
+      descripcion: (formData.get("descripcion") as string) || null,
+      clave_fuente: claveFuente || null,
       activo: formData.get("activo") === "on",
     };
 
@@ -117,14 +123,27 @@ export default function PreciosDocumentosManager() {
                 key={doc.id}
                 className="flex items-center justify-between rounded-lg border border-gray-200 dark:border-gray-700 px-4 py-3"
               >
-                <div className="flex items-center gap-x-2">
-                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                    {doc.documento}
-                  </p>
-                  {!doc.activo && (
-                    <span className="text-xs rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 px-2 py-0.5">
-                      Inactivo
-                    </span>
+                <div>
+                  <div className="flex items-center gap-x-2">
+                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                      {doc.documento}
+                    </p>
+                    {!doc.activo && (
+                      <span className="text-xs rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 px-2 py-0.5">
+                        Inactivo
+                      </span>
+                    )}
+                    {!doc.clave_fuente && (
+                      <span className="text-xs rounded-full bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-400 px-2 py-0.5">
+                        Sin fuente
+                      </span>
+                    )}
+                  </div>
+                  {doc.descripcion && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                      {doc.descripcion}
+                      {doc.clave_fuente && ` · ${doc.clave_fuente}`}
+                    </p>
                   )}
                 </div>
                 <div className="flex items-center gap-x-4 shrink-0">
@@ -180,6 +199,35 @@ function DocumentoForm({
           className={inputClass}
         />
       </Field>
+      <Field label="Descripción" htmlFor="descripcion">
+        <input
+          id="descripcion"
+          name="descripcion"
+          type="text"
+          defaultValue={documento?.descripcion ?? ""}
+          placeholder="Ej. Afiliación a salud (BDUA)"
+          className={inputClass}
+        />
+      </Field>
+      <Field
+        label="Fuente de verificación (Vericol)"
+        htmlFor="clave_fuente"
+        hint="Determina qué fuente real se consulta cuando se selecciona este documento. Déjalo en 'Ninguna' si no tiene una fuente automática equivalente."
+      >
+        <select
+          id="clave_fuente"
+          name="clave_fuente"
+          defaultValue={documento?.clave_fuente ?? ""}
+          className={inputClass}
+        >
+          <option value="">Ninguna (solo informativo)</option>
+          {TODAS_LAS_FUENTES.map((clave) => (
+            <option key={clave} value={clave}>
+              {clave}
+            </option>
+          ))}
+        </select>
+      </Field>
       <label className="inline-flex items-center gap-x-2 text-sm text-gray-700 dark:text-gray-300">
         <input
           type="checkbox"
@@ -220,10 +268,12 @@ const inputClass =
 function Field({
   label,
   htmlFor,
+  hint,
   children,
 }: {
   label: string;
   htmlFor: string;
+  hint?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -235,6 +285,7 @@ function Field({
         {label}
       </label>
       {children}
+      {hint && <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{hint}</p>}
     </div>
   );
 }

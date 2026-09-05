@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
 
   const { data: documentosRequeridos } = await db
     .from("precios_documentos")
-    .select("id, documento")
+    .select("id, documento, clave_fuente")
     .in("id", documentoIds)
     .eq("activo", true);
 

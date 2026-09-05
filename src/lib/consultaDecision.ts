@@ -1,7 +1,12 @@
 import { after } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { creditosDisponibles, esEmpresaAdmin } from "@/lib/creditos";
-import { getSolverioConfig, consultarVerificacionCompleta, semaforoANivelRiesgo } from "@/lib/solverio";
+import {
+  getSolverioConfig,
+  consultarVerificacionCompleta,
+  semaforoANivelRiesgo,
+  TODAS_LAS_FUENTES,
+} from "@/lib/solverio";
 
 export type ConsultaParaDecision = {
   id: string;
@@ -14,6 +19,7 @@ export type ConsultaParaDecision = {
   candidato_tipo_documento: "CC" | "PPT" | "CE" | "PA";
   candidato_numero_documento: string;
   candidato_fecha_expedicion: string | null;
+  documentos_requeridos: Array<{ id: string; documento: string; clave_fuente: string | null }> | null;
 };
 
 type Resultado = { ok: true } | { ok: false; error: string; status: number };
@@ -95,15 +101,35 @@ async function ejecutarVerificacion(db: SupabaseClient, consulta: ConsultaParaDe
     return { ok: false as const, error: "La verificación automática de fuentes no está configurada." };
   }
 
-  return consultarVerificacionCompleta(config, {
-    documento: consulta.candidato_numero_documento,
-    primerNombre: consulta.candidato_primer_nombre,
-    primerApellido: consulta.candidato_primer_apellido,
-    segundoNombre: consulta.candidato_segundo_nombre,
-    segundoApellido: consulta.candidato_segundo_apellido,
-    tipoDocumento: consulta.candidato_tipo_documento,
-    fechaExpedicion: consulta.candidato_fecha_expedicion,
-  });
+  // El checklist que la empresa armó al invitar (documentos_requeridos,
+  // guardado como snapshot en el momento de la invitación) decide qué
+  // fuentes de Vericol se piden de verdad — ya no se pide siempre el
+  // conjunto completo. Si por alguna razón la consulta no trae checklist
+  // (dato viejo de antes de este cambio), se cae de vuelta a pedirlas
+  // todas para no romper consultas ya en curso.
+  const fuentes = consulta.documentos_requeridos
+    ? Array.from(
+        new Set(
+          consulta.documentos_requeridos
+            .map((d) => d.clave_fuente)
+            .filter((clave): clave is string => Boolean(clave))
+        )
+      )
+    : TODAS_LAS_FUENTES;
+
+  return consultarVerificacionCompleta(
+    config,
+    {
+      documento: consulta.candidato_numero_documento,
+      primerNombre: consulta.candidato_primer_nombre,
+      primerApellido: consulta.candidato_primer_apellido,
+      segundoNombre: consulta.candidato_segundo_nombre,
+      segundoApellido: consulta.candidato_segundo_apellido,
+      tipoDocumento: consulta.candidato_tipo_documento,
+      fechaExpedicion: consulta.candidato_fecha_expedicion,
+    },
+    fuentes
+  );
 }
 
 async function guardarResultadoVerificacion(

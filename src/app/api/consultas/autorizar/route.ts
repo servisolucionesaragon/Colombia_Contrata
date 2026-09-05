@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
   const { data: consulta } = await db
     .from("consultas")
     .select(
-      "id, empresa_id, candidato_id, candidato_email, estado, candidato_primer_nombre, candidato_segundo_nombre, candidato_primer_apellido, candidato_segundo_apellido, candidato_tipo_documento, candidato_numero_documento, candidato_fecha_expedicion"
+      "id, empresa_id, candidato_id, candidato_email, estado, candidato_primer_nombre, candidato_segundo_nombre, candidato_primer_apellido, candidato_segundo_apellido, candidato_tipo_documento, candidato_numero_documento, candidato_fecha_expedicion, documentos_requeridos"
     )
     .eq("id", consultaId)
     .maybeSingle();

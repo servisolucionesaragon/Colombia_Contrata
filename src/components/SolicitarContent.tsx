@@ -5,7 +5,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import CheckboxTodos from "@/components/CheckboxTodos";
 
-type Documento = { id: string; documento: string };
+type Documento = { id: string; documento: string; descripcion: string | null };
 type Status =
   | "loading"
   | "signed-out"
@@ -51,7 +51,7 @@ export default function SolicitarContent() {
       const [{ data: docs }, { data: config }] = await Promise.all([
         supabase
           .from("precios_documentos")
-          .select("id, documento")
+          .select("id, documento, descripcion")
           .eq("activo", true)
           .order("documento", { ascending: true }),
         supabase
@@ -170,16 +170,23 @@ export default function SolicitarContent() {
           {documentos.map((doc) => (
             <label
               key={doc.id}
-              className="flex items-center gap-x-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 cursor-pointer hover:border-brand-blue"
+              className="flex items-start gap-x-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 cursor-pointer hover:border-brand-blue"
             >
               <input
                 type="checkbox"
                 checked={seleccionados.includes(doc.id)}
                 onChange={() => toggleDoc(doc.id)}
-                className="size-4 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700 text-brand-blue focus:ring-brand-blue"
+                className="mt-0.5 size-4 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700 text-brand-blue focus:ring-brand-blue"
               />
-              <span className="text-sm text-gray-800 dark:text-gray-200">
-                {doc.documento}
+              <span>
+                <span className="block text-sm font-medium text-gray-800 dark:text-gray-200">
+                  {doc.documento}
+                </span>
+                {doc.descripcion && (
+                  <span className="block text-xs text-gray-500 dark:text-gray-400">
+                    {doc.descripcion}
+                  </span>
+                )}
               </span>
             </label>
           ))}
