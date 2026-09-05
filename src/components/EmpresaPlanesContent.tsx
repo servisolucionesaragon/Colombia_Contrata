@@ -29,7 +29,18 @@ const formatCOP = (value: number) =>
 export default function EmpresaPlanesContent() {
   const [status, setStatus] = useState<Status>("loading");
   const [planes, setPlanes] = useState<Plan[]>([]);
-  const [periodo, setPeriodo] = useState<Periodo>("mensual");
+  // El landing público (PlanesEmpresaPricing.tsx) enlaza aquí con
+  // ?periodo=anual cuando el usuario ya eligió "Anual" allá — sin esto,
+  // esta página siempre abría en "Mensual" sin importar lo que se
+  // seleccionó antes, y si el usuario compraba sin volver a marcar
+  // "Anual" acababa pagando el valor mensual pensando que era el anual.
+  const [periodo, setPeriodo] = useState<Periodo>(() => {
+    if (typeof window !== "undefined") {
+      const desdeUrl = new URLSearchParams(window.location.search).get("periodo");
+      if (desdeUrl === "anual") return "anual";
+    }
+    return "mensual";
+  });
   const [comprandoId, setComprandoId] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [perfilIncompleto, setPerfilIncompleto] = useState(false);
