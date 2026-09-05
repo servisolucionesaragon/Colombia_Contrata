@@ -8,9 +8,8 @@ type NivelRiesgo = "bajo" | "medio" | "alto";
 
 type FuenteResultado = {
   fuente: string;
-  estado: string | null;
-  error: string | null;
   tieneSoporte: boolean;
+  resumen: string;
 };
 
 async function authHeader() {
@@ -18,27 +17,67 @@ async function authHeader() {
   return { Authorization: `Bearer ${data.session?.access_token}` };
 }
 
+// data.fuentes[i].estado es solo un status técnico ("ok" = la fuente
+// respondió sin error), no el resultado real — el hallazgo sustantivo de
+// cada fuente vive en su propia clave dentro de data (ej.
+// data.funcionPublica.mensaje: "No se encontraron registros en SIGEP
+// para...", data.siri.tieneInhabilidades). Esto arma un resumen legible
+// a partir de ese detalle en vez de mostrar el "ok" genérico.
+function resumenDetalleFuente(detalle: unknown): string | null {
+  if (!detalle || typeof detalle !== "object") return null;
+  const obj = detalle as Record<string, unknown>;
+
+  // La mayoría de fuentes con hallazgos ya traen su propia frase lista
+  // ("No se encontraron registros en SIGEP para 'Juan Pérez'.") — es lo
+  // más fiel a "lo que envía la fuente", úsala tal cual si existe.
+  if (typeof obj.mensaje === "string" && obj.mensaje.trim()) {
+    return obj.mensaje.trim();
+  }
+
+  // Sin "mensaje", se arma un resumen corto con los campos más
+  // informativos que sí aparecen en casi todas las fuentes (banderas
+  // tipo tieneX/esX y conteos totalX) — datos reales de la fuente,
+  // aunque no vengan redactados como oración.
+  const partes: string[] = [];
+  for (const [key, value] of Object.entries(obj)) {
+    if (partes.length >= 4) break;
+    if (value === null || value === undefined) continue;
+    if (typeof value === "boolean" && /^(tiene|es|suspendid|cancelad)/i.test(key)) {
+      partes.push(`${key}: ${value ? "Sí" : "No"}`);
+    } else if (typeof value === "number" && key.toLowerCase().startsWith("total")) {
+      partes.push(`${key}: ${value}`);
+    }
+  }
+  return partes.length > 0 ? partes.join(" · ") : null;
+}
+
 // No todas las fuentes que Vericol consulta devuelven un PDF (ver
 // FUENTE_LABEL/TODAS_LAS_FUENTES en solverio.ts) — muchas solo traen un
-// resultado en JSON (ej. "sin novedad"). resultado_json ya guarda la
-// respuesta completa desde que se construyó la integración; esto solo
-// la lee para mostrar también esas fuentes sin soporte en pantalla, en
-// vez de que queden invisibles por no tener botón de descarga.
+// resultado en JSON. resultado_json ya guarda la respuesta completa
+// desde que se construyó la integración; esto solo la lee para mostrar
+// también esas fuentes sin soporte en pantalla, con su resultado real
+// en vez de un "ok" genérico.
 function extraerFuentes(resultadoJson: unknown): FuenteResultado[] {
   if (!resultadoJson || typeof resultadoJson !== "object") return [];
   const data = (resultadoJson as { data?: unknown }).data;
   if (!data || typeof data !== "object") return [];
-  const fuentes = (data as { fuentes?: unknown }).fuentes;
+  const dataObj = data as Record<string, unknown>;
+  const fuentes = (dataObj as { fuentes?: unknown }).fuentes;
   if (!Array.isArray(fuentes)) return [];
 
   return fuentes
     .filter((f): f is Record<string, unknown> => !!f && typeof f === "object")
-    .map((f) => ({
-      fuente: typeof f.fuente === "string" ? f.fuente : "",
-      estado: typeof f.estado === "string" ? f.estado : null,
-      error: typeof f.error === "string" ? f.error : null,
-      tieneSoporte: f.tieneSoporte === true,
-    }))
+    .map((f) => {
+      const fuente = typeof f.fuente === "string" ? f.fuente : "";
+      const error = typeof f.error === "string" ? f.error : null;
+      const estado = typeof f.estado === "string" ? f.estado : null;
+      const resumenDetalle = resumenDetalleFuente(dataObj[fuente]);
+      return {
+        fuente,
+        tieneSoporte: f.tieneSoporte === true,
+        resumen: error || resumenDetalle || (estado ? estado.replace(/_/g, " ") : "Sin información disponible."),
+      };
+    })
     .filter((f) => f.fuente);
 }
 
@@ -191,7 +230,7 @@ export default function DocumentosResultado({
                     {FUENTE_LABEL[f.fuente] ?? f.fuente}
                   </span>
                   <span className="block text-xs text-gray-500 dark:text-gray-400">
-                    {f.error ? f.error : f.estado ? f.estado.replace(/_/g, " ") : "Sin información"}
+                    {f.resumen}
                   </span>
                 </span>
               </div>
