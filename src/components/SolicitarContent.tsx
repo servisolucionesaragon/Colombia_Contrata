@@ -159,37 +159,39 @@ export default function SolicitarContent() {
           Aún no hay documentos disponibles.
         </p>
       ) : (
-        <div className="space-y-2">
-          <div className="pb-2 mb-1 border-b border-gray-200 dark:border-gray-700">
+        <div>
+          <div className="pb-2 mb-2 border-b border-gray-200 dark:border-gray-700">
             <CheckboxTodos
               total={documentos.length}
               seleccionados={seleccionados.length}
               onToggle={seleccionarTodos}
             />
           </div>
-          {documentos.map((doc) => (
-            <label
-              key={doc.id}
-              className="flex items-start gap-x-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 cursor-pointer hover:border-brand-blue"
-            >
-              <input
-                type="checkbox"
-                checked={seleccionados.includes(doc.id)}
-                onChange={() => toggleDoc(doc.id)}
-                className="mt-0.5 size-4 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700 text-brand-blue focus:ring-brand-blue"
-              />
-              <span>
-                <span className="block text-sm font-medium text-gray-800 dark:text-gray-200">
-                  {doc.documento}
-                </span>
-                {doc.descripcion && (
-                  <span className="block text-xs text-gray-500 dark:text-gray-400">
-                    {doc.descripcion}
+          <div className="grid sm:grid-cols-2 gap-2">
+            {documentos.map((doc) => (
+              <label
+                key={doc.id}
+                className="flex items-start gap-x-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 cursor-pointer hover:border-brand-blue"
+              >
+                <input
+                  type="checkbox"
+                  checked={seleccionados.includes(doc.id)}
+                  onChange={() => toggleDoc(doc.id)}
+                  className="mt-0.5 size-4 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700 text-brand-blue focus:ring-brand-blue"
+                />
+                <span>
+                  <span className="block text-sm font-medium text-gray-800 dark:text-gray-200">
+                    {doc.documento}
                   </span>
-                )}
-              </span>
-            </label>
-          ))}
+                  {doc.descripcion && (
+                    <span className="block text-xs text-gray-500 dark:text-gray-400">
+                      {doc.descripcion}
+                    </span>
+                  )}
+                </span>
+              </label>
+            ))}
+          </div>
         </div>
       )}
 
