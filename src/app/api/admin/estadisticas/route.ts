@@ -106,13 +106,26 @@ export async function GET(request: NextRequest) {
     (u) => u.banned_until && new Date(u.banned_until) > ahora
   ).length;
 
-  const conteoTipos = { persona: 0, empresa: 0, empresa_miembro: 0, sin_perfil: 0 };
+  // El tipo de cuenta se elige al registrarse y queda en user_metadata, pero
+  // la fila en "profiles" solo nace cuando la persona guarda su perfil por
+  // primera vez. Por eso el tipo se lee de profiles y, si todavía no existe,
+  // del metadato del registro — si no, quien se registró y nunca completó su
+  // perfil aparecería "sin tipo" aunque sí eligió uno.
+  const conteoTipos = { persona: 0, empresa: 0, empresa_miembro: 0, sin_definir: 0 };
+  let perfilesSinCompletar = 0;
+
   for (const usuario of usuarios) {
-    const tipo = tipoPorId.get(usuario.id);
+    if (!tipoPorId.has(usuario.id)) perfilesSinCompletar++;
+
+    const tipo =
+      tipoPorId.get(usuario.id) ??
+      (usuario.user_metadata?.account_type as string | undefined) ??
+      null;
+
     if (tipo === "persona") conteoTipos.persona++;
     else if (tipo === "empresa") conteoTipos.empresa++;
     else if (tipo === "empresa_miembro") conteoTipos.empresa_miembro++;
-    else conteoTipos.sin_perfil++;
+    else conteoTipos.sin_definir++;
   }
 
   const listaSolicitudes = solicitudes ?? [];
@@ -137,11 +150,14 @@ export async function GET(request: NextRequest) {
       total: usuarios.length,
       pendientesVerificar,
       desactivados,
+      perfilesSinCompletar,
       porTipo: [
         { label: "Personas", valor: conteoTipos.persona },
         { label: "Empresas", valor: conteoTipos.empresa },
         { label: "Miembros de empresa", valor: conteoTipos.empresa_miembro },
-        { label: "Sin perfil completo", valor: conteoTipos.sin_perfil },
+        ...(conteoTipos.sin_definir > 0
+          ? [{ label: "Sin definir", valor: conteoTipos.sin_definir }]
+          : []),
       ],
       porMes: contarPorMes(
         usuarios.map((u) => ({ created_at: u.created_at })),

@@ -10,6 +10,7 @@ type Estadisticas = {
     total: number;
     pendientesVerificar: number;
     desactivados: number;
+    perfilesSinCompletar: number;
     porTipo: Categoria[];
     porMes: number[];
   };
@@ -169,6 +170,14 @@ export default function TableroAdmin() {
       <div className="grid lg:grid-cols-3 gap-6">
         <Tarjeta titulo="Usuarios por tipo de cuenta">
           <GraficaBarras datos={datos.usuarios.porTipo} />
+          {datos.usuarios.perfilesSinCompletar > 0 && (
+            <p className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800 text-xs text-gray-500 dark:text-gray-400">
+              {datos.usuarios.perfilesSinCompletar}{" "}
+              {datos.usuarios.perfilesSinCompletar === 1
+                ? "usuario eligió su tipo de cuenta al registrarse pero todavía no completa su perfil."
+                : "usuarios eligieron su tipo de cuenta al registrarse pero todavía no completan su perfil."}
+            </p>
+          )}
         </Tarjeta>
         <Tarjeta titulo="Consultas por estado">
           <GraficaBarras datos={datos.consultas.porEstado} />
