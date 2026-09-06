@@ -27,7 +27,10 @@ Copiar a `.env.local` (no se sube a git):
 NEXT_PUBLIC_SUPABASE_URL=https://zjbijmieiyumpqwyqhfm.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon key del proyecto en Supabase>
 SUPABASE_SERVICE_ROLE_KEY=<service_role key del proyecto en Supabase>
+CRON_SECRET=<cadena aleatoria larga, solo hace falta en Vercel>
 ```
+
+`CRON_SECRET` la usa **únicamente** el trabajo programado que borra los documentos vencidos (ver [Retención de documentos](#retención-de-documentos-borrado-automático-a-los-30-días-2026-09-06)). Vercel la manda en el header `Authorization` al disparar el cron; el endpoint la exige y, si no está configurada, responde `500` y no borra nada. **Sin esta variable en Vercel, la limpieza automática no corre** — el sitio funciona igual, pero los documentos se quedan para siempre. Generar el valor con `openssl rand -hex 32` (o `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`) y pegarlo en Project Settings → Environment Variables.
 
 Las llaves de Wompi **no** son variables de entorno — se configuran desde `/admin` → **Pagos (Wompi)** y se guardan en la tabla `configuracion_wompi`, precisamente para poder activarlas sin pasar por Vercel ni hacer un redeploy. Ver [Solicitud de documentos y pago con Wompi](#solicitud-de-documentos-y-pago-con-wompi).
 
@@ -1338,12 +1341,31 @@ El permiso se agregó en **`resolverAccesoDocumentos` (`consultaAcceso.ts`) y `r
 
 En la UI, el panel de soporte reutiliza `DocumentosBoton` — el mismo componente de `/empresas/consultas` y `/historial` — así que el admin ve exactamente lo mismo que el titular: los PDF descargables, el ZIP, y la sección "Otros resultados" con el hallazgo real de las fuentes que no generan documento (leído de `resultado_json.data.<claveFuente>`, no del log de ejecución `data.fuentes`). Las fuentes que se pidieron se muestran como etiquetas con su nombre en español, no con la clave cruda de la API.
 
+## Retención de documentos: borrado automático a los 30 días (2026-09-06)
+
+El usuario preguntó "¿por cuántos días se guardan los documentos?" y la respuesta, al revisar el código, fue **por siempre**: no existía ninguna lógica de expiración, ni cron, ni política de retención en el bucket. Los tres textos del sitio prometían 10 días (landing, Términos, Privacidad) — era una promesa escrita que el sistema no cumplía, con datos sensibles de por medio (Ley 1581 de 2012). Lo único que caducaba eran las URLs firmadas de descarga (5 minutos), que protegen el enlace pero no borran el archivo.
+
+Puesto a elegir entre cumplir los 10 días o ajustar el plazo, el usuario definió **30 días**.
+
+**Dónde vive el número**: `src/lib/retencionDocumentos.ts` (`DIAS_RETENCION_DOCUMENTOS`), que además calcula los días restantes. El plazo aparece también en tres textos que **están en la base de datos, no en el código** — `configuracion_landing.paso3_descripcion` y las filas `terminos`/`privacidad` de la tabla `paginas`; los archivos `page.tsx` solo tienen el respaldo por si esas filas no existen. Si el plazo cambia, hay que tocar los cuatro lugares.
+
+**El borrado** (`src/app/api/cron/limpiar-documentos/route.ts`, disparado por `vercel.json` a las 07:00 UTC = 2 a.m. Colombia):
+- Busca en `consultas` y `solicitudes` las filas con `resultado_obtenido_at` anterior al límite que todavía tengan `resultado_json`.
+- Borra los PDF de Storage y pone `resultado_pdfs` y **`resultado_json`** en `null`. **El JSON se borra a propósito**: ahí viven los hallazgos completos (inhabilidades, multas, comparendos, coincidencias en listas), que son el mismo dato sensible que el PDF — dejarlo habría cumplido la promesa solo a medias. Se conservan `resultado_obtenido_at` y `nivel_riesgo`: son el registro de que la verificación existió y no revelan el detalle.
+- Si un archivo no se puede borrar, **la fila no se limpia** — así el siguiente ciclo lo reintenta, en vez de dejar un PDF huérfano que ya nadie referencia.
+- Está protegido con `CRON_SECRET` (Vercel lo manda en `Authorization: Bearer ...`). **Falla cerrado**: sin esa variable de entorno responde `500` y no borra nada, para que nadie pueda dispararlo desde fuera.
+
+**No hizo falta ninguna migración**: el estado "ya se eliminó" se deduce (`resultado_obtenido_at` presente + `resultado_json` vacío = la limpieza ya pasó), en vez de agregar una columna nueva.
+
+**Lo que ve el usuario** (`DocumentosResultado.tsx`, así que aplica igual a empresas, personas y al panel de soporte): un aviso con los días que faltan y la fecha exacta de borrado, en gris normalmente y en ámbar la última semana; el día del vencimiento dice "Último día para descargarlos". Cuando los documentos ya se borraron, en vez de "no hay documentos" explica que se conservan 30 días y que hay que pedir una verificación nueva.
+
 ## Roadmap / pendientes
 
 - [x] Construir `/solicitar` (checklist de documentos para personas) — ver [Solicitud de documentos y pago con Wompi](#solicitud-de-documentos-y-pago-con-wompi). Falta `/empresas`.
 - [x] **Validar Wompi Sandbox de punta a punta** (2026-09-04): firma de integridad, checkout y webhook (con su checksum) confirmados contra una cuenta Wompi real — ver [Solicitud de documentos y pago con Wompi](#solicitud-de-documentos-y-pago-con-wompi). Encontrado y corregido en el camino: la URL de Eventos de Wompi debe usar `www.colombiacontrata.com`, no el dominio raíz (redirige 308 y Wompi no lo sigue).
 - [x] **Producción de Wompi ACTIVADA** (2026-09-06) — ver [Salida a producción](#salida-a-producción-wompi-en-vivo-2026-09-06). El sitio ya puede cobrar dinero real. Verificado por SQL: `ambiente_activo = "produccion"`, llave `pub_prod_...`, secretos de integridad y eventos guardados; y confirmado con el usuario que la URL de Eventos de Producción quedó con `www.`. **Falta**: una compra real de punta a punta en Producción (ver esa misma sección).
 - [ ] Terminar de conectar `nombre_portal` y `eslogan` de `configuracion_portal` al resto del front — `nombre_portal` ya se usa en el copyright del footer, pero el `<title>` de las páginas, el texto "Colombia Contrata" del Header/Footer y el `eslogan` siguen fijos en el código (logo, favicon, color primario, correo de contacto y texto legal del footer ya están conectados — ver sección de tablas).
+- [ ] **Configurar `CRON_SECRET` en Vercel** — sin ella el borrado automático de documentos a los 30 días no corre (ver [Retención de documentos](#retención-de-documentos-borrado-automático-a-los-30-días-2026-09-06) y [Variables de entorno](#variables-de-entorno)). Es lo único que falta para que esa promesa legal se cumpla de verdad.
 - [ ] Registrar la IP en la trazabilidad de consentimiento de Habeas Data (requiere un endpoint de servidor/Route Handler, ya que `supabase.auth.signUp` corre en el cliente).
 - [x] Compra de planes de empresa (`/empresas/planes`, pago único mensual o anual) — ver [Planes de empresa: compra con pago mensual o anual](#planes-de-empresa-compra-con-pago-mensual-o-anual-2026-08-16). Probado de punta a punta con una cuenta de empresa real el 2026-08-17. Falta: **cobro recurrente automático** (hoy es pago manual cada período, decisión explícita del usuario para no tener que tokenizar tarjetas).
 - [x] **Corregir el periodo mensual/anual perdido al pasar del landing a `/empresas/planes`** (2026-09-05) — el botón "Elegir plan" no le decía a `/empresas/planes` qué periodo se había elegido en el landing, así que la página de compra siempre abría en "Mensual"; se corrigió pasando `?periodo=` por query string. Ver [Cambio de proveedor a Vericol](#cambio-de-proveedor-a-vericol--catálogo-de-documentos-con-fuentes-reales-2026-09-05) para el hallazgo colateral (dato, no bug): el plan "Expert" tiene el mismo `precio_anual` que "Advanced" — pendiente que el usuario lo corrija desde `/admin` → Planes de empresa (estimado ~$25.000.000 según el patrón de descuento de los demás planes).
