@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
     db
       .from("profiles")
       .select(
-        "account_type, primer_nombre, primer_apellido, razon_social, tipo_documento, documento, telefono, empresa_id_padre, rol_empresa"
+        "account_type, primer_nombre, primer_apellido, razon_social, tipo_documento, documento, nit, telefono, empresa_id_padre, rol_empresa"
       )
       .eq("id", userId)
       .maybeSingle(),
@@ -144,9 +144,12 @@ export async function GET(request: NextRequest) {
         perfil?.razon_social ||
         [perfil?.primer_nombre, perfil?.primer_apellido].filter(Boolean).join(" ") ||
         null,
-      documento: perfil?.documento
-        ? `${perfil.tipo_documento ?? ""} ${perfil.documento}`.trim()
-        : null,
+      // Una empresa se identifica por NIT; una persona por su documento.
+      documento: perfil?.nit
+        ? `NIT ${perfil.nit}`
+        : perfil?.documento
+          ? `${perfil.tipo_documento ?? ""} ${perfil.documento}`.trim()
+          : null,
       telefono: perfil?.telefono ?? null,
       rolEmpresa: perfil?.rol_empresa ?? null,
       perteneceAEmpresa: perfil?.empresa_id_padre ?? null,
