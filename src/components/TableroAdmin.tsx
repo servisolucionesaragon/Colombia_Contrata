@@ -5,10 +5,18 @@ import { supabase } from "@/lib/supabase";
 
 type Categoria = { label: string; valor: number; estado?: string };
 
+type UsuarioPendiente = {
+  id: string;
+  email: string | null;
+  nombre: string | null;
+  creadoEn: string;
+};
+
 type Estadisticas = {
   usuarios: {
     total: number;
     pendientesVerificar: number;
+    listaPendientesVerificar: UsuarioPendiente[];
     desactivados: number;
     perfilesSinCompletar: number;
     porTipo: Categoria[];
@@ -138,6 +146,12 @@ export default function TableroAdmin() {
         />
       </div>
 
+      {datos.usuarios.listaPendientesVerificar.length > 0 && (
+        <Tarjeta titulo="Pendientes por verificar">
+          <PendientesVerificar usuarios={datos.usuarios.listaPendientesVerificar} />
+        </Tarjeta>
+      )}
+
       <div className="grid lg:grid-cols-2 gap-6">
         <Tarjeta titulo="Usuarios registrados por mes">
           <GraficaColumnas
@@ -187,6 +201,71 @@ export default function TableroAdmin() {
         </Tarjeta>
       </div>
     </div>
+  );
+}
+
+// Lista de quienes se registraron pero nunca confirmaron el correo, con la
+// acción de reenviarles la verificación sin salir del tablero. Reusa el mismo
+// endpoint que el módulo de Usuarios, así que la plantilla y el límite de
+// frecuencia de Supabase son exactamente los mismos.
+function PendientesVerificar({ usuarios }: { usuarios: UsuarioPendiente[] }) {
+  const [enviandoId, setEnviandoId] = useState<string | null>(null);
+  const [enviados, setEnviados] = useState<Record<string, string>>({});
+
+  const reenviar = async (usuario: UsuarioPendiente) => {
+    setEnviandoId(usuario.id);
+    const res = await fetch("/api/admin/usuarios", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...(await authHeader()) },
+      body: JSON.stringify({ userId: usuario.id, accion: "reenviar-verificacion" }),
+    });
+    let data: { error?: string } = {};
+    try {
+      data = await res.json();
+    } catch {
+      /* respuesta sin cuerpo */
+    }
+    setEnviandoId(null);
+    setEnviados((previo) => ({
+      ...previo,
+      [usuario.id]: res.ok ? "Correo reenviado." : data.error ?? "No pudimos reenviarlo.",
+    }));
+  };
+
+  return (
+    <ul className="divide-y divide-gray-100 dark:divide-gray-800">
+      {usuarios.map((usuario) => (
+        <li
+          key={usuario.id}
+          className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 py-2.5 first:pt-0 last:pb-0"
+        >
+          <div className="min-w-0">
+            <p className="text-sm text-gray-900 dark:text-gray-100 truncate">
+              {usuario.nombre || usuario.email || "Sin nombre"}
+            </p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+              {usuario.nombre && usuario.email ? `${usuario.email} · ` : ""}
+              Registrado el {new Date(usuario.creadoEn).toLocaleDateString("es-CO")}
+            </p>
+          </div>
+          <div className="flex items-center gap-x-3">
+            {enviados[usuario.id] && (
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                {enviados[usuario.id]}
+              </span>
+            )}
+            <button
+              type="button"
+              disabled={enviandoId === usuario.id}
+              onClick={() => reenviar(usuario)}
+              className="text-sm font-medium text-brand-blue hover:text-brand-blue-dark disabled:opacity-50"
+            >
+              {enviandoId === usuario.id ? "Enviando..." : "Reenviar verificación"}
+            </button>
+          </div>
+        </li>
+      ))}
+    </ul>
   );
 }
 

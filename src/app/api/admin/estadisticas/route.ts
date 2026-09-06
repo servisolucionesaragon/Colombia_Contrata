@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
     { data: consultas },
   ] = await Promise.all([
     db.auth.admin.listUsers({ perPage: 1000 }),
-    db.from("profiles").select("id, account_type"),
+    db.from("profiles").select("id, account_type, primer_nombre, primer_apellido, razon_social"),
     db.from("solicitudes").select("estado, monto, created_at, resultado_obtenido_at"),
     db.from("pagos_empresa").select("estado, monto, created_at"),
     db.from("consultas").select("estado, nivel_riesgo, credito_descontado, created_at"),
@@ -99,9 +99,24 @@ export async function GET(request: NextRequest) {
   const meses = clavesDeMeses();
   const usuarios = authData?.users ?? [];
   const tipoPorId = new Map((perfiles ?? []).map((p) => [p.id, p.account_type as string | null]));
+  const perfilPorId = new Map((perfiles ?? []).map((p) => [p.id, p]));
 
   const ahora = new Date();
-  const pendientesVerificar = usuarios.filter((u) => !u.email_confirmed_at).length;
+  const sinVerificar = usuarios.filter((u) => !u.email_confirmed_at);
+  const pendientesVerificar = sinVerificar.length;
+
+  // El tablero no solo cuenta los pendientes: los lista con nombre y correo
+  // para poder reenviarles la verificación desde ahí mismo.
+  const listaPendientesVerificar = sinVerificar
+    .map((u) => {
+      const perfil = perfilPorId.get(u.id);
+      const nombre =
+        perfil?.razon_social ||
+        [perfil?.primer_nombre, perfil?.primer_apellido].filter(Boolean).join(" ") ||
+        null;
+      return { id: u.id, email: u.email ?? null, nombre, creadoEn: u.created_at };
+    })
+    .sort((a, b) => (a.creadoEn < b.creadoEn ? 1 : -1));
   const desactivados = usuarios.filter(
     (u) => u.banned_until && new Date(u.banned_until) > ahora
   ).length;
@@ -149,6 +164,7 @@ export async function GET(request: NextRequest) {
     usuarios: {
       total: usuarios.length,
       pendientesVerificar,
+      listaPendientesVerificar,
       desactivados,
       perfilesSinCompletar,
       porTipo: [
