@@ -92,9 +92,10 @@ function extraerFuentes(resultadoJson: unknown): FuenteResultado[] {
     .filter((f) => f.fuente);
 }
 
-// Cuenta regresiva hasta el borrado automático. Se pone en ámbar solo en
-// la última semana: mostrarlo en rojo desde el día 1 convertiría un dato
-// informativo en una alarma permanente.
+// Cuenta regresiva hasta el borrado automático. Va siempre en ámbar con
+// borde propio — a pedido del usuario, que en gris se confundía con las
+// tarjetas de documento y no se identificaba como aviso — y pasa a rojo
+// en la última semana, cuando ya hay urgencia real de descargar.
 function AvisoVencimiento({
   diasRestantes,
   borraEl,
@@ -107,10 +108,10 @@ function AvisoVencimiento({
 
   return (
     <div
-      className={`flex items-start gap-x-2 rounded-lg px-3 py-2 text-xs ${
+      className={`flex items-start gap-x-2 rounded-lg border px-3 py-2 text-xs ${
         urgente
-          ? "bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300"
-          : "bg-gray-50 dark:bg-gray-800/60 text-gray-600 dark:text-gray-400"
+          ? "border-red-300 dark:border-red-800 bg-red-50 dark:bg-red-950/40 text-red-800 dark:text-red-300"
+          : "border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 text-amber-900 dark:text-amber-300"
       }`}
     >
       <IconReloj className="size-4 shrink-0 mt-px" />
