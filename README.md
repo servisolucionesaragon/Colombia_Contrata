@@ -1357,7 +1357,7 @@ Puesto a elegir entre cumplir los 10 días o ajustar el plazo, el usuario defini
 
 **No hizo falta ninguna migración**: el estado "ya se eliminó" se deduce (`resultado_obtenido_at` presente + `resultado_json` vacío = la limpieza ya pasó), en vez de agregar una columna nueva.
 
-**Lo que ve el usuario** (`DocumentosResultado.tsx`, así que aplica igual a empresas, personas y al panel de soporte): un aviso con los días que faltan y la fecha exacta de borrado, en gris normalmente y en ámbar la última semana; el día del vencimiento dice "Último día para descargarlos". Cuando los documentos ya se borraron, en vez de "no hay documentos" explica que se conservan 30 días y que hay que pedir una verificación nueva.
+**Lo que ve el usuario** (`DocumentosResultado.tsx`, así que aplica igual a empresas, personas y al panel de soporte): un aviso con los días que faltan y la fecha exacta de borrado. La primera versión lo puso en gris y el usuario pidió de inmediato "un color diferente para poder identificarlo" (mandó una captura con el mensaje encerrado en rojo) — se confundía con las tarjetas de documento, que también son grises. Ahora va **siempre en ámbar con borde propio**, y pasa a **rojo en los últimos 7 días**, cuando ya hay urgencia real; el día del vencimiento dice "Último día para descargarlos". Cuando los documentos ya se borraron, en vez de "no hay documentos" explica que se conservan 30 días y que hay que pedir una verificación nueva.
 
 ## Roadmap / pendientes
 
