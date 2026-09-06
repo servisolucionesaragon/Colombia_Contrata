@@ -167,6 +167,8 @@ src/
     FuentesConfigManager.tsx # admin: endpoint base y API key de Solverio (más el módulo de Consulta manual embebido)
     ConsultaManualAdmin.tsx  # admin: corre una verificación directa contra Solverio sin pasar por ninguna empresa
     AdminGate.tsx           # bloquea /admin a menos que la sesión tenga app_metadata.role === "admin"
+    TableroAdmin.tsx         # tablero de /admin: KPIs y gráficas hechas a mano (SVG/HTML, sin librerías)
+    ActividadUsuarioManager.tsx # módulo de soporte: toda la actividad de una cuenta en una pantalla
     AdminTabs.tsx            # menú lateral agrupado del panel admin (Identidad / grupo Página principal / grupo Planes y documentos / grupo Usuarios y pagos / Administradores); en móvil colapsa detrás de un botón tipo hamburguesa
     AdminSettingsForm.tsx  # identidad del portal — lee/guarda en configuracion_portal, sube logo/favicon a Storage
     LandingConfigManager.tsx # admin: textos y mostrar/ocultar secciones de la página principal (configuracion_landing)
@@ -650,6 +652,7 @@ alter table public.configuracion_wompi enable row level security;
 
 `AdminTabs.tsx` organiza el panel como un **menú lateral agrupado** (no pestañas horizontales — con siete secciones ya no cabían sin scroll, ver gotcha abajo), todas con guardado real. **En móvil** (`sm:hidden`), con 12 secciones el menú ya no cabía expandido sobre el contenido sin obligar a un scroll largo — ahora colapsa detrás de un botón "☰ {sección actual}" que se cierra solo al elegir una opción; en escritorio sigue siendo el menú lateral fijo de siempre, sin cambios (2026-08-17).
 
+- **Tablero** (`TableroAdmin.tsx`) — pantalla de inicio del panel: KPIs, tendencias por mes y desgloses de usuarios/consultas/pagos. Ver [Tablero de administración](#tablero-de-administración-2026-09-06).
 - **Identidad del portal** (`AdminSettingsForm.tsx`) — nombre, eslogan, color primario, logo y favicon (`configuracion_portal` + Storage).
 - Grupo **Página principal**:
   - **Textos y secciones** (`LandingConfigManager.tsx`) — textos del encabezado, de la sección "Cómo funciona" (título + 3 pasos) y de los títulos/subtítulos de "Documentos disponibles" y "Planes", más un interruptor mostrar/ocultar por sección (`configuracion_landing`).
@@ -660,7 +663,8 @@ alter table public.configuracion_wompi enable row level security;
   - **Planes de empresa** (`PlanesEmpresaManager.tsx`) — crear/editar/eliminar planes; incluye la opción de asignar un plan a una sola empresa (privado).
   - **Documentos disponibles** (`PreciosDocumentosManager.tsx`) — lista de documentos para personas naturales (sin precio).
 - Grupo **Usuarios y pagos**:
-  - **Usuarios** (`UsuariosManager.tsx`) — lista de cuentas (persona/empresa), activar/desactivar login. Ver [Panel de admin: Usuarios y pagos](#panel-de-admin-usuarios-y-pagos-2026-08-16).
+  - **Usuarios** (`UsuariosManager.tsx`) — lista de cuentas (persona/empresa), activar/desactivar login, reenviar la verificación de correo y eliminar cuentas. Ver [Panel de admin: Usuarios y pagos](#panel-de-admin-usuarios-y-pagos-2026-08-16) y [Verificación de correo y borrado de cuentas](#verificación-de-correo-y-borrado-de-cuentas-2026-09-06).
+  - **Actividad por usuario** (`ActividadUsuarioManager.tsx`) — módulo de soporte: todo lo que hizo una cuenta en una sola pantalla. Ver [Módulo de soporte](#módulo-de-soporte-actividad-por-usuario-2026-09-06).
   - **Pagos** (`PagosManager.tsx`) — solicitudes de personas + pagos de empresa combinados, filtrables, marcar como pagado a mano.
 - **Pagos (Wompi)** (`WompiConfigManager.tsx`) — llave pública y secretos de integridad/eventos de Wompi (`configuracion_wompi`). Ver [Solicitud de documentos y pago con Wompi](#solicitud-de-documentos-y-pago-con-wompi).
 - **Administradores** (`AdminRolesManager.tsx`) — dar/quitar acceso de administrador escribiendo el correo de una cuenta ya registrada.
@@ -1278,6 +1282,57 @@ El usuario preguntó "¿qué nos faltaría para salir a producción?" y, tras re
 **Estado real del webhook de Producción**: se confirmó por SQL que el cambio a Producción ocurrió el 2026-09-06 a las 19:36 UTC, mientras que el último pago exitoso registrado es del 2026-09-05 a las 22:21 UTC — es decir, **en Sandbox, antes del cambio**. Ningún pago real ha pasado todavía por Producción, así que el webhook de Producción está bien configurado pero **nunca se ha ejercitado**. Toda la cadena (firma de integridad, checkout, webhook, checksum, generación de documentos, correo) sí está validada de punta a punta en Sandbox contra Wompi real, y el único componente que cambia entre ambientes son las llaves y la URL de Eventos — pero la lección de Sandbox fue justamente que un problema de configuración externo no se detecta hasta hacer una transacción real. **Recomendado**: una compra real por el monto mínimo en Producción para cerrar el ciclo.
 
 **Bloqueador que sigue abierto**: revisión legal de `/terminos` y `/privacidad` (siguen siendo plantillas base, sin razón social ni NIT reales) — es el único de los 4 bloqueadores identificados que no depende de código sino de un abogado.
+
+## Tablero de administración (2026-09-06)
+
+A pedido del usuario ("dentro de `/admin` me gustaría tener un tablero con gráficas de todo el proceso: número de usuarios registrados, consultas, pagos realizados, usuarios pendientes por verificar"), se agregó **Tablero** como primera sección del panel y pestaña activa por defecto.
+
+**Backend** (`src/app/api/admin/estadisticas/route.ts`): un solo `GET` protegido con el mismo `requireAdmin` que el resto del panel. Lee `auth.admin.listUsers`, `profiles`, `solicitudes`, `pagos_empresa` y `consultas`, y **agrega en JavaScript** en vez de crear vistas o funciones en Postgres — las cinco tablas son chicas (cientos de filas como mucho), así que esto evita una migración y deja toda la lógica del tablero en un archivo. Devuelve KPIs, series de los últimos 12 meses y desgloses por categoría.
+
+**Frontend** (`src/components/TableroAdmin.tsx`): gráficas **hechas a mano**, sin ninguna librería de charts (mismo criterio de siempre en esta unidad de red — ver [Entorno de desarrollo local](#entorno-de-desarrollo-local-importante)):
+- `GraficaColumnas` — columnas apiladas en SVG, con tooltip al pasar el mouse, leyenda cuando hay 2 series (nunca con 1: el título ya la nombra), esquinas superiores redondeadas a 4px ancladas a la línea cero, 2px de separación entre segmentos apilados, y un botón "Ver como tabla" para leer los mismos datos sin depender del color.
+- `GraficaBarras` — barras horizontales en HTML (el texto no se deforma al escalar) con el valor como etiqueta directa en cada fila.
+
+Los colores viven como variables CSS en un `<style>` local para que el modo oscuro se resuelva en un solo lugar. La paleta se validó con `node scripts/validate_palette.js` contra las superficies reales de la pantalla, en los dos modos: `#2a78d6` / `#eb6834` sobre `#ffffff` (claro) y `#3987e5` / `#d95926` sobre `#111827` (oscuro) — ambas pasan todas las verificaciones (banda de luminosidad, piso de croma, separación para daltonismo, contraste). Los colores de estado (`good`/`warning`/`critical`/`neutral`) están reservados para los desgloses de estado y riesgo, y nunca se reutilizan como "serie 3".
+
+⚠️ **Pregunta del usuario que descubrió un bug real**: "¿por qué en 'Usuarios por tipo de cuenta' hay personas con 'Sin perfil completo' si al registrarse deben escoger entre Persona o Empresa?". Tenía razón — el endpoint leía el tipo solo de la tabla `profiles`, pero esa fila **solo nace cuando la persona guarda su perfil por primera vez**; el tipo elegido al registrarse vive antes en `user_metadata.account_type`. Quien se registró y nunca completó su perfil aparecía "sin tipo" aunque sí había elegido uno. Se corrigió leyendo `profiles` primero y cayendo a `user_metadata` como respaldo, y "perfil sin completar" pasó a ser una nota aparte debajo de la gráfica en vez de una categoría del desglose.
+
+## Verificación de correo y borrado de cuentas (2026-09-06)
+
+A pedido del usuario ("veo una gráfica 'Pendientes por verificar', debería mostrarme esas cuentas y poder reenviar correo de verificación; además en el módulo de usuario un botón para eliminar usuarios"):
+
+**Reenviar verificación**: `POST /api/admin/usuarios` con `accion: "reenviar-verificacion"`. Por dentro usa el **cliente anónimo** a propósito (no la Service Role Key) para llamar `supabase.auth.resend({ type: "signup" })` — así el correo que sale es la misma plantilla "Confirm signup" de Supabase Auth ya traducida al español que la persona recibió al registrarse, en vez de una plantilla nueva. Supabase limita la frecuencia de reenvío (≈60s), así que dos intentos seguidos devuelven un error del propio Supabase que se muestra tal cual. Está disponible en dos lugares: en el Tablero, debajo del KPI "Pendientes por verificar" (que ahora lista las cuentas, no solo las cuenta), y en la columna "Verificación" del módulo de Usuarios.
+
+**Eliminar cuenta**: `POST /api/admin/usuarios` con `accion: "eliminar"` → `auth.admin.deleteUser`. Antes de construirlo se revisaron por `pg_constraint` **todas** las llaves foráneas que apuntan a `auth.users`, para saber exactamente qué arrastra un borrado:
+
+| Tabla y columna | Regla | Efecto al eliminar la cuenta |
+|---|---|---|
+| `profiles.id` | CASCADE | se borra el perfil |
+| `profiles.empresa_id_padre` | CASCADE | **se borran las cuentas de los miembros del equipo** |
+| `solicitudes.user_id` | CASCADE | se borran sus solicitudes de documentos |
+| `pagos_empresa.empresa_id` | CASCADE | se borran sus compras de créditos |
+| `consultas.empresa_id` | CASCADE | se borran las consultas que envió |
+| `notificaciones.empresa_id` | CASCADE | se borran sus notificaciones |
+| **`consultas.candidato_id`** | **NO ACTION** | **Postgres bloquea el borrado** |
+
+Por eso el endpoint hace dos cosas antes de borrar: (1) si la persona ya respondió consultas como candidato, devuelve `409` con un mensaje en español explicando que ese registro debe conservarse y sugiriendo desactivar la cuenta — en vez de dejar que Postgres devuelva un error crudo de llave foránea; y (2) bloquea el auto-borrado, igual que ya se bloqueaba la auto-desactivación. El `GET` devuelve además el conteo de registros relacionados por usuario, para que la UI advierta **antes** de confirmar qué se va a borrar junto con la cuenta.
+
+En la UI la confirmación es **en dos pasos dentro de la propia fila** ("Eliminar" → "Se borrará también: N consultas, N pagos… / Sí, eliminar / Cancelar"), no un `window.confirm()` — ese diálogo nativo no se puede aceptar en el navegador automatizado de esta máquina (gotcha ya conocido, ver [Entorno de desarrollo local](#entorno-de-desarrollo-local-importante)), así que además de ser mejor UX evita el problema de verificación.
+
+⚠️ **Ajuste pedido el mismo día**: las tres acciones estaban juntas en una sola columna "Acciones" y el usuario reportó que "confunden las dos en la misma columna". Ahora **Verificación**, **Acceso** (activar/desactivar) y **Eliminar** son tres columnas separadas — desactivar es reversible y eliminar no, y compartir celda las hacía leer como si fueran variantes de lo mismo.
+
+## Módulo de soporte: actividad por usuario (2026-09-06)
+
+A pedido del usuario ("me gustaría tener un módulo para ver las consultas realizadas por cada persona, ya que desde aquí podemos dar soporte"): pestaña **Actividad por usuario** en `/admin` (grupo Usuarios y pagos).
+
+Se elige una cuenta de la lista lateral (buscable por nombre o correo) y `GET /api/admin/actividad?userId=...` devuelve todo su rastro en una sola llamada:
+- **Datos de la cuenta** — tipo, documento, teléfono, fecha de registro, último acceso, si el correo está verificado, si está activa, y el rol dentro de una empresa si aplica.
+- **Solicitudes de documentos** — monto, estado del pago, referencia de Wompi, **qué fuentes pidió** (traducidas con `FUENTE_LABEL`, no las claves crudas de la API), cuántos PDF se generaron y cuándo, y el `resultado_error` del proveedor si falló.
+- **Consultas enviadas a candidatos** — candidato, estado, si consumió crédito, nivel de riesgo, fuentes pedidas, documentos generados y errores.
+- **Consultas recibidas como candidato** — qué empresas lo consultaron y cómo respondió. Se buscan por `candidato_id` **o** por `candidato_email`, porque a un candidato lo pueden haber invitado antes de que tuviera cuenta.
+- **Compras de créditos** — plan, créditos, período, monto, estado y hasta cuándo está vigente.
+
+**Decisión de privacidad deliberada**: el módulo muestra *metadatos* (cuántos documentos se generaron, cuándo, qué falló), **no el contenido de los documentos**. Los PDF siguen abriéndose únicamente por su dueño legítimo a través de `/api/consultas/[id]/pdf` y `/api/solicitudes/[id]/pdf` con URL firmada — no se agregó ningún bypass de admin a esos endpoints. Con esto alcanza para el caso real de soporte ("pagué y no me llegaron mis documentos": se ve si el pago se aprobó, si la verificación corrió, y el error exacto del proveedor).
 
 ## Roadmap / pendientes
 
