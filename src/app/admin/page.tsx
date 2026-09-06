@@ -14,6 +14,7 @@ import UsuariosManager from "@/components/UsuariosManager";
 import PagosManager from "@/components/PagosManager";
 import RiesgoConsultasManager from "@/components/RiesgoConsultasManager";
 import FuentesConfigManager from "@/components/FuentesConfigManager";
+import TableroAdmin from "@/components/TableroAdmin";
 import AdminTabs from "@/components/AdminTabs";
 
 export const metadata: Metadata = {
@@ -52,6 +53,11 @@ export default function AdminPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
           <AdminGate>
             <AdminTabs
+              tablero={
+                <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 sm:p-8">
+                  <TableroAdmin />
+                </div>
+              }
               identidad={
                 <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 sm:p-8">
                   <AdminSettingsForm />

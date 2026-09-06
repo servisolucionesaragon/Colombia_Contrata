@@ -3,6 +3,7 @@
 import { useState, type ReactNode, type SVGProps } from "react";
 
 const tabs = [
+  { id: "tablero", label: "Tablero" },
   { id: "identidad", label: "Identidad del portal" },
   { id: "landing", label: "Textos y secciones" },
   { id: "bloques", label: "Bloques de contenido" },
@@ -25,6 +26,7 @@ type NavEntry =
   | { type: "group"; label: string; items: { id: TabId; label: string }[] };
 
 const nav: NavEntry[] = [
+  { type: "item", id: "tablero", label: "Tablero" },
   { type: "item", id: "identidad", label: "Identidad del portal" },
   {
     type: "group",
@@ -59,6 +61,7 @@ const nav: NavEntry[] = [
 ];
 
 export default function AdminTabs({
+  tablero,
   identidad,
   landing,
   bloques,
@@ -73,6 +76,7 @@ export default function AdminTabs({
   fuentes,
   admins,
 }: {
+  tablero: ReactNode;
   identidad: ReactNode;
   landing: ReactNode;
   bloques: ReactNode;
@@ -87,9 +91,10 @@ export default function AdminTabs({
   fuentes: ReactNode;
   admins: ReactNode;
 }) {
-  const [active, setActive] = useState<TabId>("identidad");
+  const [active, setActive] = useState<TabId>("tablero");
   const [menuAbierto, setMenuAbierto] = useState(false);
   const content = {
+    tablero,
     identidad,
     landing,
     bloques,
