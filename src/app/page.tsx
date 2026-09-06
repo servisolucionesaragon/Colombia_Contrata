@@ -1,4 +1,5 @@
 import Header from "@/components/Header";
+import AvisoCuentaEliminada from "@/components/AvisoCuentaEliminada";
 import Footer from "@/components/Footer";
 import PlanesEmpresaPricing from "@/components/PlanesEmpresaPricing";
 import PreciosDocumentosPricing from "@/components/PreciosDocumentosPricing";
@@ -72,6 +73,7 @@ export default async function Home() {
   return (
     <>
       <Header />
+      <AvisoCuentaEliminada />
 
       <main className="flex-1">
         {/* Hero */}

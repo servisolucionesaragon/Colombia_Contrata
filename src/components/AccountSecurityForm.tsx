@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { supabase } from "@/lib/supabase";
+import EliminarCuentaForm from "@/components/EliminarCuentaForm";
 
 type Message = { type: "success" | "error"; text: string };
 
@@ -26,6 +27,7 @@ export default function AccountSecurityForm() {
       <div className="mt-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 sm:p-8 space-y-8">
         <ChangeEmailForm />
         <ChangePasswordForm />
+        <EliminarCuentaForm />
       </div>
     </>
   );
