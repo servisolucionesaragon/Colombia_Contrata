@@ -1359,6 +1359,36 @@ Puesto a elegir entre cumplir los 10 días o ajustar el plazo, el usuario defini
 
 **Lo que ve el usuario** (`DocumentosResultado.tsx`, así que aplica igual a empresas, personas y al panel de soporte): un aviso con los días que faltan y la fecha exacta de borrado. La primera versión lo puso en gris y el usuario pidió de inmediato "un color diferente para poder identificarlo" (mandó una captura con el mensaje encerrado en rojo) — se confundía con las tarjetas de documento, que también son grises. Ahora va **siempre en ámbar con borde propio**, y pasa a **rojo en los últimos 7 días**, cuando ya hay urgencia real; el día del vencimiento dice "Último día para descargarlos". Cuando los documentos ya se borraron, en vez de "no hay documentos" explica que se conservan 30 días y que hay que pedir una verificación nueva.
 
+## Derechos del titular y eliminación de cuenta (2026-09-06)
+
+Dos piezas construidas el mismo día, ambas en `/perfil` → "Seguridad de la cuenta".
+
+### Eliminar mi cuenta
+
+`EliminarCuentaForm.tsx` + `GET/POST /api/cuenta/eliminar`. La confirmación es **en dos pasos dentro de la página** (no `window.confirm()`) y lista lo que se va a borrar con los **conteos reales de esa cuenta** — solicitudes, pagos, consultas enviadas y, en el caso grave, las cuentas de los miembros del equipo de una empresa, que caen por cascada. Es más honesto que una advertencia genérica y hace visible el caso que de verdad sorprende.
+
+Se bloquea en dos casos, con el motivo explicado en pantalla en vez de un error:
+- **Quien ya respondió consultas como candidato** — la FK `consultas.candidato_id` es `NO ACTION` y Postgres lo impediría, pero la razón de fondo es mejor: ese registro es la constancia de que la persona dio su autorización de Habeas Data.
+- **Cuentas con `role: admin`** — borrarse a sí mismo podría dejar el portal sin ningún administrador y sin forma de recuperarlo desde la interfaz.
+
+Tras borrar se cierra la sesión local (la sesión apuntaría a un usuario inexistente) y se vuelve a `/` con un aviso de confirmación. Ese aviso (`AvisoCuentaEliminada.tsx`) lee el parámetro **en el cliente** a propósito: leer `searchParams` en el server component volvería dinámica la landing y perdería su `revalidate = 60` para todos los visitantes.
+
+### Solicitudes de habeas data
+
+La Política de Privacidad ya prometía que los derechos se ejercen "desde la sección de tu perfil dentro de la Plataforma" — y esa sección no existía. Se construyó: tabla `solicitudes_datos`, `GET/POST /api/cuenta/solicitud-datos` y `SolicitudDatosForm.tsx`.
+
+Cubre los cinco derechos de la Ley 1581 de 2012 (supresión, revocación de la autorización, acceso, rectificación, actualización) más "otra solicitud", cada uno con su nombre legal **y una explicación en lenguaje corriente** — "supresión" o "revocación" no le dicen nada a la mayoría. Al radicar se muestra el plazo legal (15 días hábiles, prorrogables 8) y la persona ve el estado de lo que radicó. Solo se admite una solicitud abierta por tipo, para que un doble clic no genere expedientes duplicados del mismo caso.
+
+### Pestaña de admin, con aviso visible
+
+`/admin` → Usuarios y pagos → **Solicitudes de datos** (`SolicitudesDatosManager.tsx` + `/api/admin/solicitudes-datos`). Sin esto las peticiones solo se veían por el correo que llega a `configuracion_portal.correo_contacto`, y un correo perdido en spam no detiene el plazo legal.
+
+- El plazo se cuenta en **días hábiles reales**, no corridos — contar corridos daría una fecha límite equivocada, que es justo el dato que sirve para no incumplir. Cada fila avisa "vence pronto" desde el día 11 y "fuera de plazo" pasados los 15.
+- Cerrar una solicitud (resuelta / no procede) **exige escribir la respuesta**; al cerrarla se le puede enviar por correo al titular, y si ese envío falla se dice explícitamente en vez de dar por respondido algo que nunca salió.
+- **Insignia roja con el número de pendientes en el menú lateral**, visible desde cualquier sección de `/admin`.
+
+Verificado en producción: la insignia mostró el conteo correcto y la lista renderizó bien — de paso apareció una **solicitud real** que el usuario radicó desde su perfil mientras se construía la pestaña ("Actualización de datos — requiero cambiar el segundo nombre"), lo que confirma el flujo completo de punta a punta. La fila de prueba insertada por SQL se borró después.
+
 ## Roadmap / pendientes
 
 - [x] Construir `/solicitar` (checklist de documentos para personas) — ver [Solicitud de documentos y pago con Wompi](#solicitud-de-documentos-y-pago-con-wompi). Falta `/empresas`.
