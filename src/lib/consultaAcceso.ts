@@ -16,6 +16,11 @@ const SELECT = "id, empresa_id, resultado_pdfs";
 // su equipo, vía resolverContextoEmpresa), a diferencia de
 // /api/consultas/autorizar y /api/consultas/pendientes que sí atienden
 // también al candidato.
+//
+// La única excepción es un administrador del portal, habilitada a pedido
+// explícito del usuario (2026-09-06) para poder dar soporte: sin esto no
+// hay forma de responder un "pagué y el PDF no abre" sin pedirle a la
+// empresa que reenvíe el archivo. Sigue sin alcanzar al candidato.
 export async function resolverAccesoDocumentos(
   db: SupabaseClient,
   consultaId: string,
@@ -28,6 +33,10 @@ export async function resolverAccesoDocumentos(
     .maybeSingle();
 
   if (!consulta) return null;
+
+  if (user.app_metadata?.role === "admin") {
+    return consulta as ConsultaConDocumentos;
+  }
 
   const contexto = await resolverContextoEmpresa(db, user.id);
   if (contexto && contexto.empresaId === consulta.empresa_id) {

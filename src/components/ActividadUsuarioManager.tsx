@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import DocumentosBoton from "@/components/DocumentosBoton";
+
+type NivelRiesgo = "bajo" | "medio" | "alto";
 
 type UsuarioListado = {
   id: string;
@@ -20,9 +23,11 @@ type Solicitud = {
   creadaEn: string;
   fuentesPedidas: string[];
   documentosGenerados: number;
-  nivelRiesgo: string | null;
+  nivelRiesgo: NivelRiesgo | null;
   error: string | null;
   resultadoEn: string | null;
+  pdfs: Record<string, string> | null;
+  resultadoJson: unknown;
 };
 
 type ConsultaEnviada = {
@@ -32,13 +37,15 @@ type ConsultaEnviada = {
   candidatoDocumento: string | null;
   estado: string;
   creditoDescontado: boolean;
-  nivelRiesgo: string | null;
+  nivelRiesgo: NivelRiesgo | null;
   fuentesPedidas: string[];
   documentosGenerados: number;
   error: string | null;
   resultadoEn: string | null;
   respondidaEn: string | null;
   creadaEn: string;
+  pdfs: Record<string, string> | null;
+  resultadoJson: unknown;
 };
 
 type ConsultaRecibida = {
@@ -170,8 +177,9 @@ export default function ActividadUsuarioManager() {
         </h2>
         <p className="text-sm text-gray-500 dark:text-gray-400">
           Todo lo que hizo una cuenta en un solo lugar, para dar soporte: qué
-          pidió, qué se le cobró, qué devolvió el proveedor y qué falló. No
-          muestra el contenido de los documentos — esos solo los abre su dueño.
+          documentos pidió, qué se le cobró, qué devolvió cada fuente y qué
+          falló. Desde &ldquo;Ver resultados&rdquo; se abren los mismos PDF y
+          hallazgos que ve el titular.
         </p>
       </div>
 
@@ -295,6 +303,18 @@ function DetalleActividad({ actividad }: { actividad: Actividad }) {
               <p className="mt-1 text-xs text-red-600 dark:text-red-400">Error: {s.error}</p>
             )}
             {s.fuentesPedidas.length > 0 && <Fuentes claves={s.fuentesPedidas} />}
+            <div className="mt-2">
+              <DocumentosBoton
+                id={s.id}
+                tipo="solicitudes"
+                titulo={`Solicitud del ${soloFecha(s.creadaEn)}`}
+                pdfs={s.pdfs}
+                resultadoError={s.error}
+                resultadoObtenidoAt={s.resultadoEn}
+                resultadoJson={s.resultadoJson}
+                nivelRiesgo={s.nivelRiesgo}
+              />
+            </div>
           </div>
         ))}
       </Bloque>
@@ -331,6 +351,18 @@ function DetalleActividad({ actividad }: { actividad: Actividad }) {
               <p className="mt-1 text-xs text-red-600 dark:text-red-400">Error: {c.error}</p>
             )}
             {c.fuentesPedidas.length > 0 && <Fuentes claves={c.fuentesPedidas} />}
+            <div className="mt-2">
+              <DocumentosBoton
+                id={c.id}
+                tipo="consultas"
+                titulo={`Resultados de ${c.candidato}`}
+                pdfs={c.pdfs}
+                resultadoError={c.error}
+                resultadoObtenidoAt={c.resultadoEn}
+                resultadoJson={c.resultadoJson}
+                nivelRiesgo={c.nivelRiesgo}
+              />
+            </div>
           </div>
         ))}
       </Bloque>

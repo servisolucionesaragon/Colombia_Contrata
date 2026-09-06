@@ -12,6 +12,10 @@ const SELECT = "id, user_id, resultado_pdfs";
 // los documentos), una solicitud de persona es la propia persona
 // comprando sus propios documentos — el único dueño legítimo es quien
 // pagó, verificado por user_id.
+//
+// La única excepción es un administrador del portal, habilitada a pedido
+// explícito del usuario (2026-09-06) para poder dar soporte desde
+// /admin → Actividad por usuario.
 export async function resolverAccesoDocumentosSolicitud(
   db: SupabaseClient,
   solicitudId: string,
@@ -23,7 +27,8 @@ export async function resolverAccesoDocumentosSolicitud(
     .eq("id", solicitudId)
     .maybeSingle();
 
-  if (!solicitud || solicitud.user_id !== user.id) return null;
+  if (!solicitud) return null;
+  if (solicitud.user_id !== user.id && user.app_metadata?.role !== "admin") return null;
 
   return solicitud as SolicitudConDocumentos;
 }

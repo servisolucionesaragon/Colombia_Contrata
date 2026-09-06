@@ -68,14 +68,14 @@ export async function GET(request: NextRequest) {
     db
       .from("solicitudes")
       .select(
-        "id, estado, monto, documentos, wompi_referencia, created_at, nivel_riesgo, resultado_pdfs, resultado_error, resultado_obtenido_at"
+        "id, estado, monto, documentos, wompi_referencia, created_at, nivel_riesgo, resultado_pdfs, resultado_json, resultado_error, resultado_obtenido_at"
       )
       .eq("user_id", userId)
       .order("created_at", { ascending: false }),
     db
       .from("consultas")
       .select(
-        "id, candidato_primer_nombre, candidato_primer_apellido, candidato_email, candidato_numero_documento, estado, credito_descontado, nivel_riesgo, documentos_requeridos, resultado_pdfs, resultado_error, resultado_obtenido_at, fecha_respuesta, created_at"
+        "id, candidato_primer_nombre, candidato_primer_apellido, candidato_email, candidato_numero_documento, estado, credito_descontado, nivel_riesgo, documentos_requeridos, resultado_pdfs, resultado_json, resultado_error, resultado_obtenido_at, fecha_respuesta, created_at"
       )
       .eq("empresa_id", userId)
       .order("created_at", { ascending: false }),
@@ -145,6 +145,11 @@ export async function GET(request: NextRequest) {
       nivelRiesgo: s.nivel_riesgo ?? null,
       error: s.resultado_error ?? null,
       resultadoEn: s.resultado_obtenido_at ?? null,
+      // Se devuelven tal cual para que el panel de soporte pueda abrir los
+      // PDF y mostrar el hallazgo de las fuentes que no generan documento,
+      // con el mismo componente que ve la persona dueña.
+      pdfs: (s.resultado_pdfs as Record<string, string> | null) ?? null,
+      resultadoJson: s.resultado_json ?? null,
     })),
     consultasEnviadas: (enviadas ?? []).map((c) => ({
       id: c.id,
@@ -163,6 +168,8 @@ export async function GET(request: NextRequest) {
       resultadoEn: c.resultado_obtenido_at ?? null,
       respondidaEn: c.fecha_respuesta ?? null,
       creadaEn: c.created_at,
+      pdfs: (c.resultado_pdfs as Record<string, string> | null) ?? null,
+      resultadoJson: c.resultado_json ?? null,
     })),
     consultasRecibidas: (recibidas ?? []).map((c) => ({
       id: c.id,
