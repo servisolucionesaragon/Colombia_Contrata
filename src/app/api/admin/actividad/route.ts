@@ -23,9 +23,26 @@ async function requireAdmin(request: NextRequest) {
   return data.user;
 }
 
-function nombreFuentes(claves: unknown): string[] {
-  if (!Array.isArray(claves)) return [];
-  return claves.map((c) => (typeof c === "string" ? FUENTE_LABEL[c] ?? c : String(c)));
+// Tanto solicitudes.documentos como consultas.documentos_requeridos guardan
+// una copia de las filas de precios_documentos al momento de pedirlas
+// (`{id, documento, clave_fuente}`), no las claves sueltas — así el registro
+// no cambia si después se edita el catálogo. Se acepta también una clave
+// suelta por si alguna fila vieja quedó en ese formato.
+function nombreFuentes(documentos: unknown): string[] {
+  if (!Array.isArray(documentos)) return [];
+  return documentos
+    .map((item) => {
+      if (typeof item === "string") return FUENTE_LABEL[item] ?? item;
+      if (item && typeof item === "object") {
+        const fila = item as { documento?: unknown; clave_fuente?: unknown };
+        if (typeof fila.documento === "string" && fila.documento.trim()) return fila.documento;
+        if (typeof fila.clave_fuente === "string") {
+          return FUENTE_LABEL[fila.clave_fuente] ?? fila.clave_fuente;
+        }
+      }
+      return null;
+    })
+    .filter((nombre): nombre is string => Boolean(nombre));
 }
 
 // Este módulo es para dar soporte: se ve el rastro de lo que hizo una cuenta

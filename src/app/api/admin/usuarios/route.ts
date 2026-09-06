@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
     db
       .from("profiles")
       .select(
-        "id, account_type, primer_nombre, primer_apellido, razon_social, created_at, empresa_id_padre"
+        "id, account_type, primer_nombre, primer_apellido, razon_social, tipo_documento, documento, nit, created_at, empresa_id_padre"
       ),
     db.from("consultas").select("empresa_id, candidato_id"),
     db.from("solicitudes").select("user_id"),
@@ -84,10 +84,22 @@ export async function GET(request: NextRequest) {
         ? perfil?.razon_social
         : [perfil?.primer_nombre, perfil?.primer_apellido].filter(Boolean).join(" ");
 
+    // Una empresa se identifica por NIT y una persona por su documento —
+    // se expone el que corresponda para poder buscar por número.
+    const documento =
+      tipoCuenta === "empresa"
+        ? perfil?.nit
+          ? `NIT ${perfil.nit}`
+          : null
+        : perfil?.documento
+          ? `${perfil.tipo_documento ?? ""} ${perfil.documento}`.trim()
+          : null;
+
     return {
       id: user.id,
       email: user.email,
       nombre: nombre || null,
+      documento,
       tipoCuenta,
       esAdmin: user.app_metadata?.role === "admin",
       activo: !user.banned_until || new Date(user.banned_until) < new Date(),

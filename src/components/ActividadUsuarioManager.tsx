@@ -10,6 +10,7 @@ type UsuarioListado = {
   id: string;
   email: string | null;
   nombre: string | null;
+  documento: string | null;
   tipoCuenta: string | null;
   verificado: boolean;
   activo: boolean;
@@ -165,8 +166,16 @@ export default function ActividadUsuarioManager() {
   };
 
   const filtrados = usuarios.filter((u) => {
-    const texto = `${u.nombre ?? ""} ${u.email ?? ""}`.toLowerCase();
-    return texto.includes(busqueda.toLowerCase());
+    // El número se busca también sin puntos ni guiones: quien da soporte
+    // suele tenerlo escrito como "1.038.103.291" o "900-123-456".
+    const documentoPlano = (u.documento ?? "").replace(/[.\-\s]/g, "");
+    const termino = busqueda.trim().toLowerCase();
+    const terminoPlano = termino.replace(/[.\-\s]/g, "");
+    const texto = `${u.nombre ?? ""} ${u.email ?? ""} ${u.documento ?? ""}`.toLowerCase();
+    return (
+      texto.includes(termino) ||
+      (terminoPlano.length > 0 && documentoPlano.toLowerCase().includes(terminoPlano))
+    );
   });
 
   return (
@@ -189,7 +198,7 @@ export default function ActividadUsuarioManager() {
         <div>
           <input
             type="text"
-            placeholder="Buscar por nombre o correo..."
+            placeholder="Buscar por nombre, correo o documento..."
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
             className="mb-3 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:border-brand-blue focus:ring-1 focus:ring-brand-blue focus:outline-none"
@@ -214,6 +223,11 @@ export default function ActividadUsuarioManager() {
                       {u.nombre || u.email || "Sin nombre"}
                     </p>
                     <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{u.email}</p>
+                    {u.documento && (
+                      <p className="text-xs text-gray-400 dark:text-gray-500 truncate">
+                        {u.documento}
+                      </p>
+                    )}
                   </button>
                 </li>
               ))}
