@@ -179,7 +179,9 @@ export default function UsuariosManager() {
                 <th className="py-2 pr-4">Tipo</th>
                 <th className="py-2 pr-4">Registro</th>
                 <th className="py-2 pr-4">Estado</th>
-                <th className="py-2 text-right">Acciones</th>
+                <th className="py-2 pr-4">Verificación</th>
+                <th className="py-2 pr-4">Acceso</th>
+                <th className="py-2 text-right">Eliminar</th>
               </tr>
             </thead>
             <tbody>
@@ -225,6 +227,37 @@ export default function UsuariosManager() {
                         )}
                       </div>
                     </td>
+                    {/* Cada acción va en su propia columna: desactivar es
+                        reversible y eliminar no, así que compartir celda las
+                        hacía ver como si fueran lo mismo. */}
+                    <td className="py-3 pr-4">
+                      {u.verificado ? (
+                        <span className="text-sm text-gray-400 dark:text-gray-600">—</span>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled={cambiandoId === u.id}
+                          onClick={() => reenviarVerificacion(u)}
+                          className="text-sm font-medium text-brand-blue hover:text-brand-blue-dark disabled:opacity-50"
+                        >
+                          Reenviar correo
+                        </button>
+                      )}
+                    </td>
+                    <td className="py-3 pr-4">
+                      <button
+                        type="button"
+                        disabled={cambiandoId === u.id}
+                        onClick={() => toggleActivo(u)}
+                        className={`text-sm font-medium disabled:opacity-50 ${
+                          u.activo
+                            ? "text-amber-600 dark:text-amber-400 hover:text-amber-700"
+                            : "text-brand-blue hover:text-brand-blue-dark"
+                        }`}
+                      >
+                        {u.activo ? "Desactivar" : "Activar"}
+                      </button>
+                    </td>
                     <td className="py-3 text-right">
                       {confirmandoBorrado === u.id ? (
                         <div className="inline-flex flex-col items-end gap-y-1">
@@ -252,47 +285,23 @@ export default function UsuariosManager() {
                           </div>
                         </div>
                       ) : (
-                        <div className="flex flex-col items-end gap-y-1">
-                          {!u.verificado && (
-                            <button
-                              type="button"
-                              disabled={cambiandoId === u.id}
-                              onClick={() => reenviarVerificacion(u)}
-                              className="text-sm font-medium text-brand-blue hover:text-brand-blue-dark disabled:opacity-50"
-                            >
-                              Reenviar verificación
-                            </button>
-                          )}
-                          <button
-                            type="button"
-                            disabled={cambiandoId === u.id}
-                            onClick={() => toggleActivo(u)}
-                            className={`text-sm font-medium disabled:opacity-50 ${
-                              u.activo
-                                ? "text-amber-600 dark:text-amber-400 hover:text-amber-700"
-                                : "text-brand-blue hover:text-brand-blue-dark"
-                            }`}
-                          >
-                            {u.activo ? "Desactivar" : "Activar"}
-                          </button>
-                          <button
-                            type="button"
-                            disabled={cambiandoId === u.id || bloqueado}
-                            title={
-                              bloqueado
-                                ? "No se puede eliminar: ya respondió consultas de antecedentes."
-                                : undefined
-                            }
-                            onClick={() => {
-                              setError(null);
-                              setAviso(null);
-                              setConfirmandoBorrado(u.id);
-                            }}
-                            className="text-sm font-medium text-red-600 dark:text-red-400 hover:text-red-700 disabled:opacity-40 disabled:cursor-not-allowed"
-                          >
-                            Eliminar
-                          </button>
-                        </div>
+                        <button
+                          type="button"
+                          disabled={cambiandoId === u.id || bloqueado}
+                          title={
+                            bloqueado
+                              ? "No se puede eliminar: ya respondió consultas de antecedentes."
+                              : undefined
+                          }
+                          onClick={() => {
+                            setError(null);
+                            setAviso(null);
+                            setConfirmandoBorrado(u.id);
+                          }}
+                          className="text-sm font-medium text-red-600 dark:text-red-400 hover:text-red-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          Eliminar
+                        </button>
                       )}
                     </td>
                   </tr>
@@ -300,7 +309,7 @@ export default function UsuariosManager() {
               })}
               {filtrados.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="py-6 text-center text-gray-500 dark:text-gray-400">
+                  <td colSpan={8} className="py-6 text-center text-gray-500 dark:text-gray-400">
                     No hay usuarios que coincidan.
                   </td>
                 </tr>

@@ -12,6 +12,7 @@ const tabs = [
   { id: "planes", label: "Planes de empresa" },
   { id: "documentos", label: "Documentos disponibles" },
   { id: "usuarios", label: "Usuarios" },
+  { id: "actividad", label: "Actividad por usuario" },
   { id: "pagosClientes", label: "Pagos" },
   { id: "riesgo", label: "Riesgo de consultas" },
   { id: "pagos", label: "Pagos (Wompi)" },
@@ -51,6 +52,7 @@ const nav: NavEntry[] = [
     label: "Usuarios y pagos",
     items: [
       { id: "usuarios", label: "Usuarios" },
+      { id: "actividad", label: "Actividad por usuario" },
       { id: "pagosClientes", label: "Pagos" },
       { id: "riesgo", label: "Riesgo de consultas" },
     ],
@@ -70,6 +72,7 @@ export default function AdminTabs({
   planes,
   documentos,
   usuarios,
+  actividad,
   pagosClientes,
   riesgo,
   pagos,
@@ -85,6 +88,7 @@ export default function AdminTabs({
   planes: ReactNode;
   documentos: ReactNode;
   usuarios: ReactNode;
+  actividad: ReactNode;
   pagosClientes: ReactNode;
   riesgo: ReactNode;
   pagos: ReactNode;
@@ -103,6 +107,7 @@ export default function AdminTabs({
     planes,
     documentos,
     usuarios,
+    actividad,
     pagosClientes,
     riesgo,
     pagos,
