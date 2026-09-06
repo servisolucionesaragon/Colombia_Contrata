@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, type ReactNode, type SVGProps } from "react";
+import { useEffect, useState, type ReactNode, type SVGProps } from "react";
+import { supabase } from "@/lib/supabase";
 
 const tabs = [
   { id: "tablero", label: "Tablero" },
@@ -13,6 +14,7 @@ const tabs = [
   { id: "documentos", label: "Documentos disponibles" },
   { id: "usuarios", label: "Usuarios" },
   { id: "actividad", label: "Actividad por usuario" },
+  { id: "solicitudesDatos", label: "Solicitudes de datos" },
   { id: "pagosClientes", label: "Pagos" },
   { id: "riesgo", label: "Riesgo de consultas" },
   { id: "pagos", label: "Pagos (Wompi)" },
@@ -53,6 +55,7 @@ const nav: NavEntry[] = [
     items: [
       { id: "usuarios", label: "Usuarios" },
       { id: "actividad", label: "Actividad por usuario" },
+      { id: "solicitudesDatos", label: "Solicitudes de datos" },
       { id: "pagosClientes", label: "Pagos" },
       { id: "riesgo", label: "Riesgo de consultas" },
     ],
@@ -73,6 +76,7 @@ export default function AdminTabs({
   documentos,
   usuarios,
   actividad,
+  solicitudesDatos,
   pagosClientes,
   riesgo,
   pagos,
@@ -89,6 +93,7 @@ export default function AdminTabs({
   documentos: ReactNode;
   usuarios: ReactNode;
   actividad: ReactNode;
+  solicitudesDatos: ReactNode;
   pagosClientes: ReactNode;
   riesgo: ReactNode;
   pagos: ReactNode;
@@ -97,6 +102,24 @@ export default function AdminTabs({
 }) {
   const [active, setActive] = useState<TabId>("tablero");
   const [menuAbierto, setMenuAbierto] = useState(false);
+  // Las solicitudes de habeas data tienen plazo legal, así que su conteo
+  // vive en el menú y no solo dentro de su pestaña: es lo primero que se
+  // ve al entrar a /admin, sin importar en qué sección se esté.
+  const [pendientesDatos, setPendientesDatos] = useState(0);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      if (!token) return;
+      const res = await fetch("/api/admin/solicitudes-datos", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return;
+      const cuerpo = await res.json();
+      setPendientesDatos(cuerpo.pendientes ?? 0);
+    })();
+  }, [active]);
   const content = {
     tablero,
     identidad,
@@ -108,6 +131,7 @@ export default function AdminTabs({
     documentos,
     usuarios,
     actividad,
+    solicitudesDatos,
     pagosClientes,
     riesgo,
     pagos,
@@ -143,7 +167,12 @@ export default function AdminTabs({
       >
         {nav.map((entry, index) =>
           entry.type === "item" ? (
-            <NavButton key={entry.id} active={active === entry.id} onClick={() => elegir(entry.id)}>
+            <NavButton
+              key={entry.id}
+              active={active === entry.id}
+              onClick={() => elegir(entry.id)}
+              badge={entry.id === "solicitudesDatos" ? pendientesDatos : 0}
+            >
               {entry.label}
             </NavButton>
           ) : (
@@ -153,7 +182,12 @@ export default function AdminTabs({
               </p>
               <div className="space-y-0.5">
                 {entry.items.map((item) => (
-                  <NavButton key={item.id} active={active === item.id} onClick={() => elegir(item.id)}>
+                  <NavButton
+                    key={item.id}
+                    active={active === item.id}
+                    onClick={() => elegir(item.id)}
+                    badge={item.id === "solicitudesDatos" ? pendientesDatos : 0}
+                  >
                     {item.label}
                   </NavButton>
                 ))}
@@ -206,23 +240,30 @@ function IconChevron(props: SVGProps<SVGSVGElement>) {
 function NavButton({
   active,
   onClick,
+  badge = 0,
   children,
 }: {
   active: boolean;
   onClick: () => void;
+  badge?: number;
   children: ReactNode;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`block w-full text-left rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+      className={`flex w-full items-center justify-between gap-x-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors text-left ${
         active
           ? "bg-brand-blue/10 text-brand-blue"
           : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-200"
       }`}
     >
-      {children}
+      <span>{children}</span>
+      {badge > 0 && (
+        <span className="shrink-0 rounded-full bg-red-600 px-2 py-0.5 text-xs font-semibold text-white">
+          {badge}
+        </span>
+      )}
     </button>
   );
 }

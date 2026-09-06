@@ -12,6 +12,7 @@ import AdminRolesManager from "@/components/AdminRolesManager";
 import WompiConfigManager from "@/components/WompiConfigManager";
 import UsuariosManager from "@/components/UsuariosManager";
 import ActividadUsuarioManager from "@/components/ActividadUsuarioManager";
+import SolicitudesDatosManager from "@/components/SolicitudesDatosManager";
 import PagosManager from "@/components/PagosManager";
 import RiesgoConsultasManager from "@/components/RiesgoConsultasManager";
 import FuentesConfigManager from "@/components/FuentesConfigManager";
@@ -102,6 +103,11 @@ export default function AdminPage() {
               actividad={
                 <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 sm:p-8">
                   <ActividadUsuarioManager />
+                </div>
+              }
+              solicitudesDatos={
+                <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 sm:p-8">
+                  <SolicitudesDatosManager />
                 </div>
               }
               pagosClientes={
