@@ -50,7 +50,7 @@ const DEFAULT_CONTENIDO = `
 <p>No vendemos ni compartimos tus datos con terceros para fines distintos a los aquí descritos.</p>
 
 <h2>Tiempo de conservación</h2>
-<p>Los documentos generados quedan disponibles para descarga durante 10 días calendario, después de los cuales se eliminan de nuestro almacenamiento. Los datos de tu cuenta se conservan mientras esta permanezca activa o mientras sea necesario para cumplir obligaciones legales o contractuales, y se eliminarán o anonimizarán cuando dejen de ser necesarios, salvo obligación legal de conservarlos por más tiempo.</p>
+<p>Los documentos generados quedan disponibles para descarga durante 30 días calendario, después de los cuales se eliminan automáticamente de nuestro almacenamiento, junto con los hallazgos detallados de cada fuente consultada. Los datos de tu cuenta se conservan mientras esta permanezca activa o mientras sea necesario para cumplir obligaciones legales o contractuales, y se eliminarán o anonimizarán cuando dejen de ser necesarios, salvo obligación legal de conservarlos por más tiempo.</p>
 
 <h2>Derechos del titular</h2>
 <p>Como titular de tus datos, tienes derecho a:</p>

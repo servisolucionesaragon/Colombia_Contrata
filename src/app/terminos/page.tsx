@@ -24,7 +24,7 @@ const DEFAULT_CONTENIDO = `
 <li>Realizas el pago correspondiente a través de la pasarela de pagos habilitada en la Plataforma.</li>
 <li>Una vez validado el pago, se envía la solicitud al proveedor externo de consultas, que verifica las fuentes oficiales correspondientes.</li>
 <li>Te notificamos por correo electrónico cuando los documentos estén listos para descargar.</li>
-<li>Los documentos quedan disponibles para descarga durante <strong>10 días calendario</strong> desde la notificación. Pasado ese plazo, deberán solicitarse nuevamente y podrá aplicar un nuevo cobro.</li>
+<li>Los documentos quedan disponibles para descarga durante <strong>30 días calendario</strong> desde la notificación. Pasado ese plazo, deberán solicitarse nuevamente y podrá aplicar un nuevo cobro.</li>
 </ul>
 
 <h2>Precios y reembolsos</h2>

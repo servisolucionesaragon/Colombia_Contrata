@@ -3,6 +3,7 @@
 import { useState, type SVGProps } from "react";
 import { supabase } from "@/lib/supabase";
 import { FUENTE_LABEL } from "@/lib/solverio";
+import { DIAS_RETENCION_DOCUMENTOS, estadoRetencion } from "@/lib/retencionDocumentos";
 
 type NivelRiesgo = "bajo" | "medio" | "alto";
 
@@ -91,6 +92,49 @@ function extraerFuentes(resultadoJson: unknown): FuenteResultado[] {
     .filter((f) => f.fuente);
 }
 
+// Cuenta regresiva hasta el borrado automático. Se pone en ámbar solo en
+// la última semana: mostrarlo en rojo desde el día 1 convertiría un dato
+// informativo en una alarma permanente.
+function AvisoVencimiento({
+  diasRestantes,
+  borraEl,
+}: {
+  diasRestantes: number;
+  borraEl: Date;
+}) {
+  const urgente = diasRestantes <= 7;
+  const fecha = borraEl.toLocaleDateString("es-CO");
+
+  return (
+    <div
+      className={`flex items-start gap-x-2 rounded-lg px-3 py-2 text-xs ${
+        urgente
+          ? "bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300"
+          : "bg-gray-50 dark:bg-gray-800/60 text-gray-600 dark:text-gray-400"
+      }`}
+    >
+      <IconReloj className="size-4 shrink-0 mt-px" />
+      <span>
+        {diasRestantes === 0 ? (
+          <>
+            <strong className="font-semibold">Último día para descargarlos.</strong> Se
+            eliminan hoy ({fecha}).
+          </>
+        ) : (
+          <>
+            Disponibles{" "}
+            <strong className="font-semibold">
+              {diasRestantes} {diasRestantes === 1 ? "día más" : "días más"}
+            </strong>
+            . Se eliminan automáticamente el {fecha}; descárgalos antes si los
+            necesitas.
+          </>
+        )}
+      </span>
+    </div>
+  );
+}
+
 // Panel "amigable" de los documentos resultantes de una verificación,
 // compartido entre la vista de empresa (dentro de un modal, ver
 // EmpresaConsultasContent.tsx, tipo="consultas") y la de persona (ver
@@ -164,7 +208,24 @@ export default function DocumentosResultado({
     setDescargandoTodo(false);
   };
 
+  const retencion = estadoRetencion(
+    resultadoObtenidoAt,
+    fuentesConPdf.length > 0 || fuentesSinPdf.length > 0
+  );
+
   if (fuentesConPdf.length === 0 && fuentesSinPdf.length === 0) {
+    if (retencion.estado === "eliminado") {
+      return (
+        <p className="text-sm text-gray-500 dark:text-gray-400">
+          Los documentos de esta verificación ya se eliminaron: solo se
+          conservan {DIAS_RETENCION_DOCUMENTOS} días desde que se generaron
+          {resultadoObtenidoAt
+            ? ` (${new Date(resultadoObtenidoAt).toLocaleDateString("es-CO")})`
+            : ""}
+          . Para tenerlos de nuevo hay que solicitar una verificación nueva.
+        </p>
+      );
+    }
     if (resultadoError) {
       return (
         <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -202,6 +263,13 @@ export default function DocumentosResultado({
           </button>
         )}
       </div>
+
+      {retencion.estado === "vigente" && (
+        <AvisoVencimiento
+          diasRestantes={retencion.diasRestantes}
+          borraEl={retencion.borraEl}
+        />
+      )}
 
       {fuentesConPdf.length > 0 && (
         <div className="grid sm:grid-cols-2 gap-2">
@@ -289,6 +357,14 @@ function IconInfo(props: SVGProps<SVGSVGElement>) {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} {...props}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
+    </svg>
+  );
+}
+
+function IconReloj(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} {...props}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6l4 2m6-2a10 10 0 11-20 0 10 10 0 0120 0z" />
     </svg>
   );
 }

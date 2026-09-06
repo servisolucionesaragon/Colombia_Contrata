@@ -26,7 +26,7 @@ const defaults = {
     "Autoriza el tratamiento de tus datos y realiza el pago de forma segura.",
   paso3_titulo: "Recibe tus documentos",
   paso3_descripcion:
-    "Te notificamos por correo cuando estén listos. Descárgalos en un solo comprimido, disponible por 10 días.",
+    "Te notificamos por correo cuando estén listos. Descárgalos en un solo comprimido, disponible por 30 días.",
   documentos_activo: true,
   documentos_titulo: "Documentos disponibles",
   documentos_subtitulo:
