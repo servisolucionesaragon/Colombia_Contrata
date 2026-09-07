@@ -247,7 +247,7 @@ function DocumentoForm({
         Genera PDF descargable
       </label>
       <p className="-mt-2 text-xs text-gray-400 dark:text-gray-500">
-        Basado en observación real de respuestas de Vericol, no en documentación oficial del proveedor — puede corregirse aquí si una fuente cambia de comportamiento.
+        Se marca sola: cada vez que Vericol devuelve el PDF de una fuente, esa fuente queda marcada aquí. Nunca se desmarca automáticamente, porque una fuente puede omitir el soporte cuando no encuentra registros de esa persona — eso no prueba que no lo genere. Puedes corregirla a mano si hace falta.
       </p>
       <label className="inline-flex items-center gap-x-2 text-sm text-gray-700 dark:text-gray-300">
         <input

@@ -7,6 +7,7 @@ import {
   semaforoANivelRiesgo,
   TODAS_LAS_FUENTES,
 } from "@/lib/solverio";
+import { marcarFuentesQueGeneraronPdf } from "@/lib/fuentesConPdf";
 
 export type ConsultaParaDecision = {
   id: string;
@@ -146,6 +147,7 @@ async function guardarResultadoVerificacion(
   }
 
   const rutasPdf = await subirPdfsSoporte(db, consultaId, resultado.pdfs);
+  await marcarFuentesQueGeneraronPdf(db, resultado.pdfs);
 
   await db
     .from("consultas")

@@ -9,6 +9,7 @@ import {
 } from "@/lib/solverio";
 import { enviarCorreo } from "@/lib/resend";
 import { plantillaDocumentosListos } from "@/lib/emailPlantillas";
+import { marcarFuentesQueGeneraronPdf } from "@/lib/fuentesConPdf";
 
 type DocumentoRequerido = { id: string; documento: string; clave_fuente: string | null };
 
@@ -122,6 +123,7 @@ async function guardarResultado(
   }
 
   const rutasPdf = await subirPdfsSoporte(db, solicitudId, resultado.pdfs);
+  await marcarFuentesQueGeneraronPdf(db, resultado.pdfs);
 
   await db
     .from("solicitudes")
