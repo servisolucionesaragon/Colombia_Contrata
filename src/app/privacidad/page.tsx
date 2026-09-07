@@ -123,7 +123,7 @@ export default async function PrivacidadPage() {
               {titulo}
             </h1>
             <p className="mt-4 text-gray-500 dark:text-gray-400">
-              Última actualización: [fecha pendiente de publicación]
+              Última actualización: 1 de septiembre de 2026
             </p>
           </div>
         </section>

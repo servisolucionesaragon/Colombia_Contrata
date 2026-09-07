@@ -28,6 +28,8 @@ const montserrat = Montserrat({
   weight: ["400", "500", "600", "700"],
 });
 
+// Respaldos por si la fila de configuración no existe todavía: el sitio
+// nunca debe quedarse sin título ni sin descripción para compartir.
 const TITLE = "Colombia Contrata";
 const DESCRIPTION =
   "Todos los documentos requeridos para contratación pública en un solo lugar.";
@@ -39,14 +41,17 @@ export const viewport: Viewport = {
 export async function generateMetadata(): Promise<Metadata> {
   const { data } = await supabase
     .from("configuracion_portal")
-    .select("favicon_url")
+    .select("favicon_url, nombre_portal, eslogan")
     .eq("id", 1)
     .single();
 
+  const titulo = data?.nombre_portal?.trim() || TITLE;
+  const descripcion = data?.eslogan?.trim() || DESCRIPTION;
+
   return {
     metadataBase: new URL("https://colombiacontrata.com"),
-    title: TITLE,
-    description: DESCRIPTION,
+    title: titulo,
+    description: descripcion,
     keywords: [
       "contratación pública Colombia",
       "antecedentes contratación pública",
@@ -60,14 +65,14 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     appleWebApp: {
       capable: true,
-      title: TITLE,
+      title: titulo,
       statusBarStyle: "default",
     },
     openGraph: {
-      title: TITLE,
-      description: DESCRIPTION,
+      title: titulo,
+      description: descripcion,
       url: "https://colombiacontrata.com",
-      siteName: TITLE,
+      siteName: titulo,
       locale: "es_CO",
       type: "website",
       images: [
@@ -75,14 +80,14 @@ export async function generateMetadata(): Promise<Metadata> {
           url: "/og-image.png",
           width: 1200,
           height: 630,
-          alt: TITLE,
+          alt: titulo,
         },
       ],
     },
     twitter: {
       card: "summary_large_image",
-      title: TITLE,
-      description: DESCRIPTION,
+      title: titulo,
+      description: descripcion,
       images: ["/og-image.png"],
     },
   };

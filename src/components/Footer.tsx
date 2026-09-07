@@ -21,12 +21,19 @@ export default async function Footer() {
   const { data } = await supabase
     .from("configuracion_portal")
     .select(
-      "facebook_url, instagram_url, twitter_url, linkedin_url, tiktok_url, correo_contacto, nombre_portal, footer_texto"
+      "facebook_url, instagram_url, twitter_url, linkedin_url, tiktok_url, correo_contacto, nombre_portal, eslogan, footer_texto"
     )
     .eq("id", 1)
     .single();
 
   const activeSocialLinks = socialLinks.filter((link) => data?.[link.key]);
+
+  // El nombre se pinta bicolor como la marca: primera palabra en navy y
+  // el resto en azul. Partirlo así conserva el diseño aunque el nombre se
+  // cambie desde /admin.
+  const nombrePortal = data?.nombre_portal?.trim() || "Colombia Contrata";
+  const [primeraPalabra, ...restoPartes] = nombrePortal.split(" ");
+  const resto = restoPartes.join(" ");
 
   return (
     <footer className="mt-auto w-full bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800">
@@ -35,18 +42,18 @@ export default async function Footer() {
           <div className="flex items-center gap-x-2">
             <Image
               src="/isotipo.png"
-              alt="Colombia Contrata"
+              alt={nombrePortal}
               width={28}
               height={28}
               className="size-7"
             />
             <span className="text-lg font-bold">
-              <span className="text-brand-navy dark:text-white">Colombia</span>{" "}
-              <span className="text-brand-blue">Contrata</span>
+              <span className="text-brand-navy dark:text-white">{primeraPalabra}</span>
+              {resto && <span className="text-brand-blue"> {resto}</span>}
             </span>
           </div>
           <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-            Documentos para contratación pública en un solo lugar.
+            {data?.eslogan?.trim() || "Documentos para contratación pública en un solo lugar."}
           </p>
         </div>
 
@@ -114,7 +121,7 @@ export default async function Footer() {
 
       <div className="border-t border-gray-200 dark:border-gray-800 py-4">
         <p className="text-center text-xs text-gray-400 dark:text-gray-500">
-          © {new Date().getFullYear()} {data?.nombre_portal || "Colombia Contrata"}.{" "}
+          © {new Date().getFullYear()} {nombrePortal}.{" "}
           {data?.footer_texto || "Todos los derechos reservados."}
         </p>
       </div>

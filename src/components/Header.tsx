@@ -208,6 +208,7 @@ export default function Header() {
   const [initials, setInitials] = useState<string | null>(null);
   const [email, setEmail] = useState<string | null>(null);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [nombrePortal, setNombrePortal] = useState("Colombia Contrata");
   const [paginasMenu, setPaginasMenu] = useState<
     { slug: string; titulo: string }[]
   >([]);
@@ -217,11 +218,12 @@ export default function Header() {
   useEffect(() => {
     supabase
       .from("configuracion_portal")
-      .select("logo_url, color_primario")
+      .select("logo_url, color_primario, nombre_portal")
       .eq("id", 1)
       .single()
       .then(({ data }) => {
         if (data?.logo_url) setLogoUrl(data.logo_url);
+        if (data?.nombre_portal?.trim()) setNombrePortal(data.nombre_portal.trim());
         if (data?.color_primario) applyBrandColor(data.color_primario);
       });
 
@@ -351,20 +353,27 @@ export default function Header() {
         <Link href="/" className="flex-none flex items-center gap-x-2">
           {logoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={logoUrl} alt="Colombia Contrata" className="h-11 w-auto" />
+            <img src={logoUrl} alt={nombrePortal} className="h-11 w-auto" />
           ) : (
             <Image
               src="/isotipo.png"
-              alt="Colombia Contrata"
+              alt={nombrePortal}
               width={44}
               height={44}
               className="size-11"
               priority
             />
           )}
+          {/* Bicolor de la marca: primera palabra en navy, el resto en azul.
+              Se parte el nombre configurado para no fijar "Colombia Contrata"
+              en el código. */}
           <span className="text-xl font-bold">
-            <span className="text-brand-navy dark:text-white">Colombia</span>{" "}
-            <span className="text-brand-blue">Contrata</span>
+            <span className="text-brand-navy dark:text-white">
+              {nombrePortal.split(" ")[0]}
+            </span>
+            {nombrePortal.split(" ").slice(1).length > 0 && (
+              <span className="text-brand-blue"> {nombrePortal.split(" ").slice(1).join(" ")}</span>
+            )}
           </span>
         </Link>
 
