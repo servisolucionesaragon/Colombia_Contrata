@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { enviarCorreo } from "@/lib/resend";
+import { plantillaRespuestaSolicitudDatos } from "@/lib/emailPlantillas";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -129,16 +130,36 @@ export async function POST(request: NextRequest) {
   // El correo al titular es la respuesta formal, así que se manda en
   // primer plano: si falla, el admin necesita enterarse y reintentar, no
   // quedarse creyendo que ya respondió.
-  if (notificar && cerrada) {
+  if (notificar && cerrada && textoRespuesta) {
     const etiqueta = ETIQUETA_TIPO[actualizada.tipo] ?? actualizada.tipo;
+
+    // Los canales de contacto salen de /admin → Identidad del portal, para
+    // que el correo no quede con un dato fijo que después nadie actualiza.
+    const { data: portal } = await db
+      .from("configuracion_portal")
+      .select("correo_contacto, whatsapp_numero, whatsapp_mensaje, whatsapp_activo")
+      .eq("id", 1)
+      .maybeSingle();
+
+    const numeroWhatsapp = portal?.whatsapp_activo ? portal?.whatsapp_numero?.trim() : null;
+    const whatsappUrl = numeroWhatsapp
+      ? `https://wa.me/${numeroWhatsapp.replace(/[^0-9]/g, "")}${
+          portal?.whatsapp_mensaje
+            ? `?text=${encodeURIComponent(portal.whatsapp_mensaje)}`
+            : ""
+        }`
+      : null;
+
     const envio = await enviarCorreo(db, {
       to: actualizada.correo,
       subject: `Respuesta a tu solicitud: ${etiqueta}`,
-      html: `<p>Hola${actualizada.nombre ? ` ${actualizada.nombre}` : ""},</p>
-<p>Damos respuesta a tu solicitud de <strong>${etiqueta}</strong> radicada en Colombia Contrata.</p>
-<p>${textoRespuesta}</p>
-<p>Si no estás de acuerdo con esta respuesta, puedes presentar una queja ante la Superintendencia de Industria y Comercio (SIC).</p>
-<p>Colombia Contrata</p>`,
+      html: plantillaRespuestaSolicitudDatos({
+        nombre: actualizada.nombre,
+        tipoEtiqueta: etiqueta,
+        respuesta: textoRespuesta,
+        correoContacto: portal?.correo_contacto?.trim() || "contacto@colombiacontrata.com",
+        whatsappUrl,
+      }),
     });
 
     if (!envio.ok) {

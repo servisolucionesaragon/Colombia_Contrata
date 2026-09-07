@@ -250,3 +250,143 @@ export function plantillaDocumentosListos({ nombre }: { nombre: string | null })
 </body>
 </html>`;
 }
+
+// Respuesta formal a una solicitud de habeas data (Ley 1581 de 2012),
+// enviada desde /admin → Solicitudes de datos al cerrar el trámite.
+// Mismo diseño que las demás plantillas.
+//
+// A pedido del usuario NO menciona la queja ante la SIC: en su lugar
+// ofrece los canales propios (correo de contacto y WhatsApp), que es
+// además el orden correcto — la ley pide agotar primero el trámite con
+// el responsable antes de acudir a la Superintendencia.
+export function plantillaRespuestaSolicitudDatos({
+  nombre,
+  tipoEtiqueta,
+  respuesta,
+  correoContacto,
+  whatsappUrl,
+}: {
+  nombre: string | null;
+  tipoEtiqueta: string;
+  respuesta: string;
+  correoContacto: string;
+  whatsappUrl: string | null;
+}) {
+  const saludo = nombre ? `Hola <strong style="color:#0D1B3D;">${nombre}</strong>,` : "Hola,";
+
+  const botonWhatsapp = whatsappUrl
+    ? `<td align="center" style="padding:0 6px;">
+                    <a href="${whatsappUrl}" style="display:inline-block; background-color:#25D366; color:#FFFFFF; text-decoration:none; font-size:15px; font-weight:bold; padding:13px 28px; border-radius:8px;">
+                      Escribirnos por WhatsApp
+                    </a>
+                  </td>`
+    : "";
+
+  return `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Respuesta a tu solicitud | Colombia Contrata</title>
+  <style>
+    @media only screen and (max-width: 600px) {
+      .container { width: 100% !important; }
+      .content { padding: 30px 22px !important; }
+      .logo { width: 230px !important; }
+      .title { font-size: 25px !important; }
+    }
+  </style>
+</head>
+<body style="margin:0; padding:0; background-color:#F5F7FA; font-family:Arial, Helvetica, sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#F5F7FA; padding:40px 15px;">
+    <tr>
+      <td align="center">
+
+        <table class="container" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px; max-width:600px; background-color:#FFFFFF; border-radius:16px; overflow:hidden; border:1px solid #E5E7EB;">
+
+          <tr>
+            <td style="height:7px; background-color:#0033A0; font-size:0; line-height:0;">&nbsp;</td>
+          </tr>
+
+          <tr>
+            <td align="center" style="padding:35px 25px 25px 25px; background-color:#FFFFFF;">
+              <img class="logo" src="${LOGO_URL}" width="260" alt="Colombia Contrata" style="display:block; width:260px; max-width:100%; height:auto; border:0;">
+            </td>
+          </tr>
+
+          <tr>
+            <td align="center" style="padding:0 35px 25px 35px;">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td width="33%" style="height:4px; background-color:#FCD116; font-size:0; line-height:0;">&nbsp;</td>
+                  <td width="34%" style="height:4px; background-color:#0033A0; font-size:0; line-height:0;">&nbsp;</td>
+                  <td width="33%" style="height:4px; background-color:#CE1126; font-size:0; line-height:0;">&nbsp;</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <tr>
+            <td class="content" style="padding:10px 50px 40px 50px;">
+
+              <h1 class="title" style="margin:0 0 20px 0; color:#0D1B3D; font-size:28px; line-height:1.3; font-weight:700; text-align:center;">
+                Respuesta a tu solicitud
+              </h1>
+
+              <p style="margin:0 0 18px 0; color:#374151; font-size:16px; line-height:1.7;">
+                ${saludo}
+              </p>
+
+              <p style="margin:0 0 22px 0; color:#6B7280; font-size:15px; line-height:1.7;">
+                Damos respuesta a tu solicitud de <strong style="color:#0D1B3D;">${tipoEtiqueta}</strong> radicada en Colombia Contrata.
+              </p>
+
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 26px 0;">
+                <tr>
+                  <td style="background-color:#F5F7FA; border-left:4px solid #0033A0; border-radius:8px; padding:18px 20px;">
+                    <p style="margin:0; color:#374151; font-size:15px; line-height:1.7; white-space:pre-line;">${respuesta}</p>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="margin:0 0 22px 0; color:#6B7280; font-size:15px; line-height:1.7;">
+                Si tienes dudas sobre esta respuesta, escríbenos a
+                <a href="mailto:${correoContacto}" style="color:#0033A0; text-decoration:none; font-weight:bold;">${correoContacto}</a>${whatsappUrl ? " o por WhatsApp" : ""} y con gusto te ayudamos.
+              </p>
+
+              <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td align="center" style="padding:0 6px;">
+                    <a href="mailto:${correoContacto}" style="display:inline-block; background-color:#0033A0; color:#FFFFFF; text-decoration:none; font-size:15px; font-weight:bold; padding:13px 28px; border-radius:8px;">
+                      Escribir a contacto
+                    </a>
+                  </td>
+                  ${botonWhatsapp}
+                </tr>
+              </table>
+
+            </td>
+          </tr>
+
+          <tr>
+            <td align="center" style="padding:25px 30px; background-color:#0D1B3D;">
+              <p style="margin:0 0 8px 0; color:#FFFFFF; font-size:14px; font-weight:bold;">
+                Colombia Contrata
+              </p>
+              <p style="margin:0; color:#CBD5E1; font-size:12px; line-height:1.5;">
+                Gestión documental para la contratación
+              </p>
+              <p style="margin:12px 0 0 0; color:#64748B; font-size:11px;">
+                © 2026 Colombia Contrata
+              </p>
+            </td>
+          </tr>
+
+        </table>
+
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
