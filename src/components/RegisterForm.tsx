@@ -38,7 +38,7 @@ export default function RegisterForm() {
     setSubmitting(true);
     setErrorMessage(null);
 
-    const { error } = await supabase.auth.signUp({
+    const { data: registro, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -61,6 +61,27 @@ export default function RegisterForm() {
       setErrorMessage(traducirError(error.message));
       return;
     }
+
+    // La constancia con la IP se guarda del lado del servidor: aquí no hay
+    // forma de conocerla, y `user_metadata` no sirve como prueba porque el
+    // propio usuario puede modificarlo. Si falla, no se le bloquea el
+    // registro — la cuenta ya quedó creada y el consentimiento sigue
+    // registrado en user_metadata, solo sin IP.
+    if (registro.user) {
+      try {
+        await fetch("/api/consentimiento", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userId: registro.user.id,
+            politicaVersion: POLICY_VERSION,
+          }),
+        });
+      } catch {
+        /* la constancia con IP es best-effort */
+      }
+    }
+
     setSubmitted(true);
   };
 
