@@ -13,11 +13,11 @@ export const revalidate = 60;
 const THEME_INIT_SCRIPT = `
 (function () {
   try {
+    // El tema por defecto es claro, aunque el sistema operativo del
+    // visitante esté en oscuro: solo se activa el oscuro si la persona lo
+    // eligió con el interruptor del encabezado.
     var stored = localStorage.getItem("theme");
-    var isDark = stored
-      ? stored === "dark"
-      : window.matchMedia("(prefers-color-scheme: dark)").matches;
-    document.documentElement.classList.toggle("dark", isDark);
+    document.documentElement.classList.toggle("dark", stored === "dark");
   } catch (e) {}
 })();
 `;

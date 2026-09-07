@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import GeneraPdfBadge from "@/components/GeneraPdfBadge";
 
-type Documento = { id: string; documento: string };
+type Documento = { id: string; documento: string; genera_pdf: boolean };
 
 export default function PreciosDocumentosPricing() {
   const [documentos, setDocumentos] = useState<Documento[]>([]);
@@ -12,7 +13,7 @@ export default function PreciosDocumentosPricing() {
   useEffect(() => {
     supabase
       .from("precios_documentos")
-      .select("id, documento")
+      .select("id, documento, genera_pdf")
       .eq("activo", true)
       .order("documento", { ascending: true })
       .then(({ data }) => {
@@ -31,7 +32,17 @@ export default function PreciosDocumentosPricing() {
     );
   }
 
+  const algunoGeneraPdf = documentos.some((doc) => doc.genera_pdf);
+
   return (
+    <>
+    {/* La leyenda solo aparece si hay algo marcado: sin ella el ícono
+        quedaría sin explicación, y con ella pero sin íconos sobraría. */}
+    {algunoGeneraPdf && (
+      <p className="mb-4 flex items-center justify-center gap-x-1 text-xs text-gray-500 dark:text-gray-400">
+        <GeneraPdfBadge /> genera un documento descargable
+      </p>
+    )}
     <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
       {documentos.map((doc) => (
         <div
@@ -52,11 +63,13 @@ export default function PreciosDocumentosPricing() {
               <path d="M20 6 9 17l-5-5" />
             </svg>
           </span>
-          <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
+          <span className="flex items-center gap-x-1.5 text-sm font-medium text-gray-800 dark:text-gray-200">
             {doc.documento}
+            {doc.genera_pdf && <GeneraPdfBadge />}
           </span>
         </div>
       ))}
     </div>
+    </>
   );
 }
