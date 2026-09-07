@@ -284,6 +284,61 @@ create policy "Users can update own profile"
 
 `ProfileForm.tsx` mapea cada campo del formulario 1:1 a una columna (vía el atributo `name` de cada input) y hace `supabase.from("profiles").upsert(...)` al guardar.
 
+### `solicitudes_datos` y `consentimientos` (Habeas Data, 2026-09-06)
+
+Las dos existen para cumplir la Ley 1581 de 2012 y tienen reglas de acceso opuestas a propósito.
+
+**`solicitudes_datos`** — peticiones que radica el titular desde `/perfil` (supresión, revocación, acceso, rectificación, actualización). El titular ve y crea **solo las suyas**; el admin las gestiona con la Service Role Key.
+
+```sql
+create table solicitudes_datos (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id) on delete set null,
+  correo text not null,
+  nombre text,
+  tipo text not null check (tipo in ('supresion','revocacion','acceso','rectificacion','actualizacion','otro')),
+  detalle text,
+  estado text not null default 'recibida' check (estado in ('recibida','en_tramite','resuelta','rechazada')),
+  respuesta text,
+  created_at timestamptz not null default now(),
+  resuelta_at timestamptz
+);
+
+alter table solicitudes_datos enable row level security;
+
+create policy "titular ve sus solicitudes" on solicitudes_datos
+  for select using (auth.uid() = user_id);
+
+create policy "titular crea sus solicitudes" on solicitudes_datos
+  for insert with check (auth.uid() = user_id);
+```
+
+⚠️ `user_id` es `on delete set null` (no `cascade`) **a propósito**: si la persona borra su cuenta, la constancia de que radicó una solicitud debe sobrevivir, sin quedar atada a un usuario que ya no existe.
+
+**`consentimientos`** — constancia de la autorización de Habeas Data, con la IP desde la que se otorgó. **RLS activo sin ninguna policy**: nadie la lee ni la escribe salvo el servidor con la Service Role Key. No se usa `user_metadata` para esto porque el propio usuario puede modificarlo con `supabase.auth.updateUser`, así que no serviría como prueba.
+
+```sql
+create table consentimientos (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  correo text,
+  ip text,
+  user_agent text,
+  politica_version text not null,
+  acepta_terminos boolean not null default false,
+  acepta_privacidad boolean not null default false,
+  acepta_datos_sensibles boolean not null default false,
+  created_at timestamptz not null default now()
+);
+
+create unique index consentimientos_user_version
+  on consentimientos (user_id, politica_version);
+
+alter table consentimientos enable row level security;
+```
+
+El índice único absorbe los reintentos del navegador: una constancia por usuario y versión de política.
+
 ### `planes_empresa`, `precios_documentos`, `configuracion_portal`, `configuracion_persona` y `configuracion_landing`
 
 Estas tablas tienen **lectura pública** (`using (true)`, salvo `planes_empresa` que además filtra planes privados — ver abajo) y **escritura solo para administradores** (`(auth.jwt() -> 'app_metadata' ->> 'role') = 'admin'`):
@@ -468,7 +523,7 @@ create table public.configuracion_landing (
   paso2_titulo text not null default 'Autoriza y paga',
   paso2_descripcion text not null default 'Autoriza el tratamiento de tus datos y realiza el pago de forma segura.',
   paso3_titulo text not null default 'Recibe tus documentos',
-  paso3_descripcion text not null default 'Te notificamos por correo cuando estén listos. Descárgalos en un solo comprimido, disponible por 10 días.',
+  paso3_descripcion text not null default 'Te notificamos por correo cuando estén listos. Descárgalos en un solo comprimido, disponible por 30 días.',
   documentos_activo boolean not null default true,
   documentos_titulo text not null default 'Documentos disponibles',
   documentos_subtitulo text not null default 'Los certificados más solicitados para procesos de contratación pública.',
@@ -1412,29 +1467,30 @@ Un bloque de pendientes que el usuario despachó de una vez, tras pedir el inven
 - [x] Construir `/solicitar` (checklist de documentos para personas) — ver [Solicitud de documentos y pago con Wompi](#solicitud-de-documentos-y-pago-con-wompi). Falta `/empresas`.
 - [x] **Validar Wompi Sandbox de punta a punta** (2026-09-04): firma de integridad, checkout y webhook (con su checksum) confirmados contra una cuenta Wompi real — ver [Solicitud de documentos y pago con Wompi](#solicitud-de-documentos-y-pago-con-wompi). Encontrado y corregido en el camino: la URL de Eventos de Wompi debe usar `www.colombiacontrata.com`, no el dominio raíz (redirige 308 y Wompi no lo sigue).
 - [x] **Producción de Wompi ACTIVADA** (2026-09-06) — ver [Salida a producción](#salida-a-producción-wompi-en-vivo-2026-09-06). El sitio ya puede cobrar dinero real. Verificado por SQL: `ambiente_activo = "produccion"`, llave `pub_prod_...`, secretos de integridad y eventos guardados; y confirmado con el usuario que la URL de Eventos de Producción quedó con `www.`. **Falta**: una compra real de punta a punta en Producción (ver esa misma sección).
-- [ ] Terminar de conectar `nombre_portal` y `eslogan` de `configuracion_portal` al resto del front — `nombre_portal` ya se usa en el copyright del footer, pero el `<title>` de las páginas, el texto "Colombia Contrata" del Header/Footer y el `eslogan` siguen fijos en el código (logo, favicon, color primario, correo de contacto y texto legal del footer ya están conectados — ver sección de tablas).
+- [x] **`nombre_portal` y `eslogan` conectados al front** (2026-09-06) — alimentan el `<title>`, la meta descripción, Open Graph, Twitter Card, el JSON-LD, el manifiesto de la PWA y la marca del Header y del Footer. Ver [Cierre de deuda técnica](#cierre-de-deuda-técnica-antes-de-producción-2026-09-06).
 - [x] **`CRON_SECRET` configurada y limpieza verificada** (2026-09-06) — el usuario la creó en Vercel (Production) y redesplegó. Confirmado que el endpoint pasó de `500` a `401` sin credenciales (la variable llega al código y el secreto se exige), que Vercel tiene el cron registrado y activo (`0 7 * * *`, ventana flexible de 1 hora en el plan Hobby), y que una ejecución manual desde Settings → Cron Jobs devolvió `200`. **La ejecución no borró nada, que es justo lo correcto**: la verificación más antigua tenía 21 días — confirmado por SQL que las 3 consultas con resultado conservan su detalle y ninguna quedó purgada. ⚠️ Al configurarla hubo un tropiezo que vale recordar: el redespliegue se lanzó unos segundos **antes** de guardar la variable, así que el primer intento seguía dando `500`; las variables solo entran en despliegues posteriores a su creación.
-- [ ] Registrar la IP en la trazabilidad de consentimiento de Habeas Data (requiere un endpoint de servidor/Route Handler, ya que `supabase.auth.signUp` corre en el cliente).
+- [x] **IP en la trazabilidad de consentimiento** (2026-09-06) — `POST /api/consentimiento` la lee de `x-forwarded-for` y la guarda en la tabla `consentimientos`, no en `user_metadata` (que el usuario puede editar). Ver [Cierre de deuda técnica](#cierre-de-deuda-técnica-antes-de-producción-2026-09-06).
 - [x] Compra de planes de empresa (`/empresas/planes`, pago único mensual o anual) — ver [Planes de empresa: compra con pago mensual o anual](#planes-de-empresa-compra-con-pago-mensual-o-anual-2026-08-16). Probado de punta a punta con una cuenta de empresa real el 2026-08-17. Falta: **cobro recurrente automático** (hoy es pago manual cada período, decisión explícita del usuario para no tener que tokenizar tarjetas).
 - [x] **Corregir el periodo mensual/anual perdido al pasar del landing a `/empresas/planes`** (2026-09-05) — el botón "Elegir plan" no le decía a `/empresas/planes` qué periodo se había elegido en el landing, así que la página de compra siempre abría en "Mensual"; se corrigió pasando `?periodo=` por query string. Ver [Cambio de proveedor a Vericol](#cambio-de-proveedor-a-vericol--catálogo-de-documentos-con-fuentes-reales-2026-09-05) para el hallazgo colateral (dato, no bug): el plan "Expert" tiene el mismo `precio_anual` que "Advanced" — pendiente que el usuario lo corrija desde `/admin` → Planes de empresa (estimado ~$25.000.000 según el patrón de descuento de los demás planes).
 - [x] Consumo real de créditos vía consultas individuales/masivas (`/empresas/consultas`, `/empresas/consultas/masiva`, `/autorizaciones`) — ver [Consultas de candidatos](#consultas-de-candidatos-individual-y-masiva--consumo-de-créditos-2026-08-17). Probado de punta a punta el 2026-08-17.
 - [ ] Crear cuentas de persona/empresa desde `/admin` (el usuario decidió dejar esto fuera de alcance por ahora — solo se construyó "asignar administradores", que ya está listo).
 - [x] Integración con la API del proveedor de fuentes (Vericol, antes "Solverio Verify") para **consultas de empresa y solicitudes de persona** — ver [Integración real con el proveedor de fuentes](#integración-real-con-el-proveedor-de-fuentes-solverio-verify-2026-08-17) y la generación de documentos de persona documentada en [Solicitud de documentos y pago con Wompi](#solicitud-de-documentos-y-pago-con-wompi). Ambos flujos ya generan PDF reales, descargables con URL firmada o `.zip`. Falta: confirmar el mapeo exacto de `nivelRiesgo` con más consultas reales.
-- [ ] Expiración/borrado automático a los 10 días de los documentos generados (hoy las URLs de descarga expiran a los 5 minutos por seguridad, pero el PDF en sí queda guardado en Storage indefinidamente — no hay un job que lo borre pasado ese plazo).
+- [x] **Borrado automático de documentos** (2026-09-06) — el plazo quedó en **30 días** (no 10) por decisión del usuario, con cron diario en Vercel que borra los PDF de Storage y el JSON de hallazgos, y cuenta regresiva visible para el titular. Ver [Retención de documentos](#retención-de-documentos-borrado-automático-a-los-30-días-2026-09-06).
 - [x] Conectar `/historial` a las tablas `solicitudes`, `pagos_empresa` y `consultas` reales — ver [Conectar `/historial` a datos reales](#conectar-historial-a-datos-reales-2026-08-18). Verificado por el usuario en producción con cuentas reales de persona y empresa.
 - [x] Reenviar/eliminar invitaciones pendientes, filtros y búsqueda en `/empresas/consultas` y `/historial`, y pantallas más anchas — ver [Reenviar/eliminar invitaciones, filtros, y pantallas más anchas](#reenviareliminar-invitaciones-filtros-y-pantallas-más-anchas-2026-08-18). Verificado por el usuario en producción.
 - [x] Notificación en la plataforma a la empresa cuando el candidato autoriza/rechaza, con el nombre del candidato en negrita — ver [Notificación en la plataforma a la empresa](#notificación-en-la-plataforma-a-la-empresa-2026-08-23). Confirmado funcionando de punta a punta con candidatos reales (se vieron notificaciones genuinas ya generadas, sin haber tenido que probarlo a propósito).
 - [x] Checkbox "Todos" en los checklists de documentos (persona y empresa) — ver [Checkbox "Todos" en los checklists de documentos](#checkbox-todos-en-los-checklists-de-documentos-2026-08-23). Verificado en producción.
 - [x] Registro DMARC agregado para reducir que el correo caiga en spam — ver [Correo cayendo en spam — DMARC faltante](#correo-cayendo-en-spam--dmarc-faltante-2026-08-23). Verificado contra DNS públicos. No es una garantía total; monitorear si el usuario sigue reportando correos en spam.
 - [x] Enviar por correo la invitación de `/empresas/consultas` al candidato, con botones de Autorizar/Rechazar de un clic — ver [Notificación por correo al invitar a un candidato](#notificación-por-correo-al-invitar-a-un-candidato-2026-08-17). Falta verificar en producción con un correo real (formato, enlaces, y que dispare Solverio de punta a punta).
-- [ ] Revisión legal de `/terminos` y `/privacidad` + completar datos legales de la empresa.
+- [ ] **Revisión legal de `/terminos` y `/privacidad` por un abogado** — los datos de la empresa (SERVISOLUCIONES ARAGON, NIT 1038103291-9) y la fecha de vigencia ya los completó el usuario el 2026-09-06; falta solo que un profesional revise el contenido. **Es el único bloqueador legal que queda para producción.**
 - [ ] Traducir y activar el resto de plantillas de "Security" en Supabase si se llegan a necesitar (MFA, cambio de contraseña, cambio de teléfono — "Change Email Address" ya está lista).
 - [x] Verificar el sitio en Google Search Console y enviar el sitemap (`https://colombiacontrata.com/sitemap.xml`) — hecho por el usuario el 2026-08-17, el mismo día que se construyó el soporte técnico (ver [PWA y SEO](#pwa-instalable-en-móviltablet-y-seo-2026-08-17)).
 - [ ] Verificar en producción, a través de la UI real de `/autorizaciones` (con una segunda cuenta de candidato), que el flujo `after()` de `/api/consultas/autorizar` efectivamente completa la verificación en segundo plano — se probó la llamada a Solverio directo por `curl`, pero no todavía disparada desde el endpoint desplegado. **Nota (2026-08-17)**: la primera prueba desde `/admin` → Consulta manual se quedó sin respuesta — se confirmó que Vercel tiene **Fluid Compute activado** en el proyecto (por defecto), lo que sube el límite real del plan Hobby de 60 a 300 segundos; se subió `maxDuration` de 60 a 180 en ambos endpoints y se corrigió un bug real en `ConsultaManualAdmin.tsx` (un corte de red sin JSON válido dejaba el botón trabado en "Consultando..." para siempre, sin mostrar error, por un `res.json()` sin try/catch).
 - [ ] Manejar candidatos con tipo de documento **Pasaporte (PA)** — Solverio no tiene código para ese tipo, hoy la verificación automática simplemente no se intenta y queda como `resultado_error`.
 - [ ] Activar/desactivar fuentes individuales desde `/admin` → Fuentes (pedido explícito del usuario) — hoy ese módulo solo tiene el endpoint base y la API key.
 - [x] Ícono que marca qué documentos del checklist generan PDF descargable (persona y empresa) — ver [Cambio de proveedor a Vericol](#cambio-de-proveedor-a-vericol--catálogo-de-documentos-con-fuentes-reales-2026-09-05). Basado en una sola consulta real (9 de 26 fuentes); ajustar `genera_pdf` desde `/admin` si se descubren más.
-- [ ] **Diferenciar permisos entre Analista y Auxiliar** dentro de la cuenta empresa (ver [Roles dentro de la cuenta empresa](#roles-dentro-de-la-cuenta-empresa-2026-08-17)) — hoy tienen exactamente los mismos permisos (crear/ver consultas, sin acceso a planes/pagos/equipo); `rol_empresa` ya distingue "analista" de "auxiliar" en la base de datos y en la UI, pero ningún permiso depende todavía de esa diferencia. Pendiente por definir con el usuario — ideas sobre la mesa: Auxiliar sin carga masiva (solo individual), o Auxiliar solo viendo las consultas que él mismo invitó en vez del historial completo de la empresa.
+- [ ] **Cobro recurrente de planes de empresa — PENDIENTE POR DEFINIR** (confirmado por el usuario el 2026-09-06). Hoy es pago manual cada período, decisión suya de agosto. Wompi **no trae suscripciones**: habría que tokenizar la tarjeta como "fuente de pago", cobrar por API desde un cron, y resolver reintentos, tarjetas vencidas, período de gracia, suspensión de créditos y cancelación. ⚠️ **Antes de construir nada, confirmar con Wompi que la cuenta del comercio tenga habilitadas fuentes de pago / pagos recurrentes** — sin eso el trabajo es inútil.
+- [ ] **Diferenciar permisos entre Analista y Auxiliar** dentro de la cuenta empresa (ver [Roles dentro de la cuenta empresa](#roles-dentro-de-la-cuenta-empresa-2026-08-17)) — hoy tienen exactamente los mismos permisos (crear/ver consultas, sin acceso a planes/pagos/equipo); `rol_empresa` ya distingue "analista" de "auxiliar" en la base de datos y en la UI, pero ningún permiso depende todavía de esa diferencia. **Confirmado como "pendiente por definir" por el usuario el 2026-09-06** — no reabrir sin que él lo pida. Ideas sobre la mesa: Auxiliar sin carga masiva (solo individual), o Auxiliar solo viendo las consultas que él mismo invitó en vez del historial completo de la empresa.
 - [ ] **Plantilla descargable de tratamiento de datos (Habeas Data)** — idea de HunterX (2026-08-17), que pone un enlace "Descargar modelo tratamiento de datos" en el flujo de crear una consulta; nosotros hoy solo tenemos el checkbox de autorización en `/empresas/consultas` y `/empresas/consultas/masiva`. Cambio chico (subir un PDF/documento a Storage + un enlace en esas dos páginas), sin dependencias externas. El usuario pidió dejarlo pendiente por ahora, no priorizado.
 - [x] Interfaz amigable de documentos + descarga en `.zip`, **exclusiva de la empresa** — ver [Interfaz de documentos + descarga en ZIP](#interfaz-de-documentos--descarga-en-zip-2026-08-17). Verificado en producción con una consulta real. El candidato nunca ve estos documentos ni sabe qué fuentes se consultaron (corregido el mismo día, ver el aviso ⚠️ en esa sección).
 - [x] Empresa elige documentos requeridos al invitar (individual y carga masiva) — ver [Empresa: elegir documentos requeridos al invitar](#empresa-elegir-documentos-requeridos-al-invitar-2026-08-17). Es un registro interno de la empresa, no filtra la llamada a Solverio (esa integración siempre pide la verificación completa) y **el candidato no ve esta lista** (corregido el mismo día).
