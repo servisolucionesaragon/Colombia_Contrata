@@ -60,7 +60,7 @@ Basada en `Manual_Identidad_Visual_Colombia_Contrata` (carpeta `Colombia Contrat
 | `/registro` | Alta de cuenta (correo + contraseña + toggle Persona natural / Empresa + consentimiento Habeas Data) | **Conectado a Supabase Auth real** — crea la cuenta y envía correo de verificación |
 | `/login` | Inicio de sesión (correo + contraseña) | **Conectado a Supabase Auth real** vía `supabase.auth.signInWithPassword`; tras iniciar sesión redirige a `/dashboard` (ver abajo) |
 | `/dashboard` | Página de resumen tras iniciar sesión, distinta para persona/empresa (créditos o solicitudes, consultas pendientes/autorizadas, actividad reciente) | **Conectado de verdad** — lee `pagos_empresa`/`consultas`/`solicitudes` según el tipo de cuenta (ver [Dashboard](#dashboard-2026-08-17)) |
-| `/perfil` | Datos ampliados post-confirmación (persona: nombre/documento/fechas/género/ubicación; empresa: razón social/NIT/representante/sector/ubicación) + sección "Seguridad de la cuenta" (cambiar contraseña y correo) | **Conectado de verdad** — lee y guarda (`upsert`) en la tabla `profiles` de Supabase, precarga los datos si ya existían; cambio de contraseña/correo vía `supabase.auth.updateUser` |
+| `/perfil` | Datos ampliados post-confirmación (persona: nombre/documento/fechas/género/ubicación; empresa: razón social/NIT/representante/sector/ubicación) + sección "Seguridad de la cuenta": cambiar contraseña y correo, **radicar solicitudes de habeas data** y **eliminar la propia cuenta** | **Conectado de verdad** — lee y guarda (`upsert`) en la tabla `profiles` de Supabase, precarga los datos si ya existían; cambio de contraseña/correo vía `supabase.auth.updateUser`. Ver [Derechos del titular](#derechos-del-titular-y-eliminación-de-cuenta-2026-09-06) |
 | `/solicitar` | Checklist de documentos para personas naturales + pago | **Conectado de verdad** — crea una fila en `solicitudes` y redirige al checkout de Wompi (ver [Solicitud de documentos y pago con Wompi](#solicitud-de-documentos-y-pago-con-wompi)); solo para cuentas `account_type = "persona"` con perfil completo |
 | `/solicitar/confirmacion` | Página de retorno tras el pago en Wompi | Lee el estado de la `solicitud` por su referencia y lo muestra (pagado/pendiente/fallido) |
 | `/empresas/planes` | Comprar un plan de empresa (mensual o anual) | **Conectado de verdad** — crea una fila en `pagos_empresa` y redirige al checkout de Wompi; solo para cuentas `account_type = "empresa"` con perfil completo (ver [Planes de empresa: compra con pago mensual o anual](#planes-de-empresa-compra-con-pago-mensual-o-anual-2026-08-16)) |
@@ -153,6 +153,9 @@ src/
     LoginForm.tsx           # login real vía Supabase Auth (signInWithPassword)
     ProfileForm.tsx        # lee y guarda (upsert) en la tabla profiles según persona/empresa
     AccountSecurityForm.tsx # cambio de contraseña/correo vía supabase.auth.updateUser, en /perfil
+    EliminarCuentaForm.tsx  # borrado de la propia cuenta, con confirmación en dos pasos (en /perfil)
+    SolicitudDatosForm.tsx  # radicar derechos de habeas data (Ley 1581) desde /perfil
+    AvisoCuentaEliminada.tsx # confirmación en / después de borrar la cuenta
     HistorialContent.tsx    # contenido de /historial (solicitudes/pagos_empresa/consultas reales según tipo de cuenta)
     DashboardContent.tsx    # contenido de /dashboard, distinto para persona/empresa (créditos o solicitudes, consultas, actividad reciente)
     ConsultasTabs.tsx        # pestañas "Individual"/"Carga masiva" que enlazan /empresas/consultas y /empresas/consultas/masiva
@@ -172,6 +175,7 @@ src/
     AdminGate.tsx           # bloquea /admin a menos que la sesión tenga app_metadata.role === "admin"
     TableroAdmin.tsx         # tablero de /admin: KPIs y gráficas hechas a mano (SVG/HTML, sin librerías)
     ActividadUsuarioManager.tsx # módulo de soporte: toda la actividad de una cuenta en una pantalla
+    SolicitudesDatosManager.tsx # admin: atender las solicitudes de habeas data, con plazo en días hábiles
     AdminTabs.tsx            # menú lateral agrupado del panel admin (Identidad / grupo Página principal / grupo Planes y documentos / grupo Usuarios y pagos / Administradores); en móvil colapsa detrás de un botón tipo hamburguesa
     AdminSettingsForm.tsx  # identidad del portal — lee/guarda en configuracion_portal, sube logo/favicon a Storage
     LandingConfigManager.tsx # admin: textos y mostrar/ocultar secciones de la página principal (configuracion_landing)
@@ -668,6 +672,7 @@ alter table public.configuracion_wompi enable row level security;
 - Grupo **Usuarios y pagos**:
   - **Usuarios** (`UsuariosManager.tsx`) — lista de cuentas (persona/empresa), activar/desactivar login, reenviar la verificación de correo y eliminar cuentas. Ver [Panel de admin: Usuarios y pagos](#panel-de-admin-usuarios-y-pagos-2026-08-16) y [Verificación de correo y borrado de cuentas](#verificación-de-correo-y-borrado-de-cuentas-2026-09-06).
   - **Actividad por usuario** (`ActividadUsuarioManager.tsx`) — módulo de soporte: todo lo que hizo una cuenta en una sola pantalla. Ver [Módulo de soporte](#módulo-de-soporte-actividad-por-usuario-2026-09-06).
+  - **Solicitudes de datos** (`SolicitudesDatosManager.tsx`) — peticiones de habeas data radicadas por los titulares, con plazo legal en días hábiles e **insignia de pendientes en el menú lateral**. Ver [Derechos del titular](#derechos-del-titular-y-eliminación-de-cuenta-2026-09-06).
   - **Pagos** (`PagosManager.tsx`) — solicitudes de personas + pagos de empresa combinados, filtrables, marcar como pagado a mano.
 - **Pagos (Wompi)** (`WompiConfigManager.tsx`) — llave pública y secretos de integridad/eventos de Wompi (`configuracion_wompi`). Ver [Solicitud de documentos y pago con Wompi](#solicitud-de-documentos-y-pago-con-wompi).
 - **Administradores** (`AdminRolesManager.tsx`) — dar/quitar acceso de administrador escribiendo el correo de una cuenta ya registrada.
