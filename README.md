@@ -1462,6 +1462,14 @@ Un bloque de pendientes que el usuario despachó de una vez, tras pedir el inven
 - **La marca "genera PDF" también en la página principal** — el ícono ya estaba en los tres checklists y en el admin, pero no en "Documentos disponibles" de la landing, que es donde más gente lo ve. Se agregó junto a cada documento, con la misma leyenda de una línea. La leyenda **solo aparece si hay al menos un documento marcado**, para no dejar una explicación de un ícono que no existe. Verificado en producción: 9 de los 26 documentos muestran el ícono.
 - **La marca "genera PDF" se actualiza sola** (`src/lib/fuentesConPdf.ts`) — antes salía de una lista escrita a mano a partir de una sola consulta real. Ahora, cada vez que una verificación trae el PDF de una fuente, esa fuente queda marcada en `precios_documentos`. ⚠️ **Solo marca `true`, nunca vuelve a `false`**: recibir un PDF prueba que la fuente puede darlo, pero no recibirlo **no** prueba lo contrario — una fuente suele omitir el soporte cuando no encuentra registros de esa persona, y desmarcarla por eso sería un error. Se llama desde los dos flujos (`consultaDecision.ts` y `solicitudVerificacion.ts`) y es best-effort.
 
+## Departamentos y municipios del perfil (2026-09-13)
+
+El usuario reportó que al elegir el departamento en `/perfil` no salían todas las ciudades (ejemplo: Córdoba sin Ayapel). La causa era que `src/lib/colombia.ts` estaba escrito a mano con solo las ciudades **principales** de cada departamento, entre 1 y 15 por departamento. Ahora trae los **1.122 municipios oficiales** de la DIVIPOLA del DANE (datos.gov.co, conjunto `gdxc-w37w`), con la capital de primera y el resto en orden alfabético.
+
+- Los **nombres de departamento no cambiaron** (por ejemplo "Bogotá D.C." y "San Andrés y Providencia"), así los perfiles ya guardados siguen encontrando su departamento.
+- Algunos municipios quedan con su **nombre oficial**, que puede diferir del de antes: "Cartagena de Indias", "San José de Cúcuta", "Santa Cruz de Mompox". Para no dejar en blanco a quien ya tenía guardado el nombre corto, `CitySelect` en `ProfileForm.tsx` **agrega como opción la ciudad guardada** cuando no está en la lista.
+- El archivo se generó con un script de Python en el scratchpad (no forma parte del proyecto). Si hay que regenerarlo, descargar de nuevo el conjunto del DANE y respetar el mapeo de nombres de departamento.
+
 ## Videos de marketing con HeyGen (2026-09-12 y 2026-09-13)
 
 Material de redes sociales, **fuera del código del sitio** (no hay nada de esto en `src/`). Todo lo relacionado vive en `Z:\SSA\Proyectos SSA\Colombia Contrata\Videos\`.
