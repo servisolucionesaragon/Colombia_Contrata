@@ -576,7 +576,13 @@ function CitySelect({
   departamento: string;
   initialValue: string;
 }) {
-  const ciudades = CIUDADES_POR_DEPARTAMENTO[departamento] ?? [];
+  const lista = CIUDADES_POR_DEPARTAMENTO[departamento] ?? [];
+  // Un perfil guardado con un nombre de ciudad que ya no está en la lista
+  // (p. ej. escrito distinto antes de usar DIVIPOLA) se sigue mostrando.
+  const ciudades =
+    initialValue && departamento && !lista.includes(initialValue)
+      ? [initialValue, ...lista]
+      : lista;
   return (
     // key fuerza el reinicio de la selección cuando cambia el departamento
     <select
