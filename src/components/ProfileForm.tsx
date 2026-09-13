@@ -334,6 +334,7 @@ function PersonaFields({ initial }: { initial: ProfileRow | null }) {
               id="ciudad"
               name="ciudad"
               departamento={departamento}
+              initialDepartamento={initial?.departamento ?? ""}
               initialValue={initial?.ciudad ?? ""}
             />
           </Field>
@@ -502,6 +503,7 @@ function EmpresaFields({ initial }: { initial: ProfileRow | null }) {
               id="ciudadEmpresa"
               name="ciudad_empresa"
               departamento={departamento}
+              initialDepartamento={initial?.departamento_empresa ?? ""}
               initialValue={initial?.ciudad_empresa ?? ""}
             />
           </Field>
@@ -569,18 +571,23 @@ function CitySelect({
   id,
   name,
   departamento,
+  initialDepartamento,
   initialValue,
 }: {
   id: string;
   name: string;
   departamento: string;
+  initialDepartamento: string;
   initialValue: string;
 }) {
   const lista = CIUDADES_POR_DEPARTAMENTO[departamento] ?? [];
   // Un perfil guardado con un nombre de ciudad que ya no está en la lista
-  // (p. ej. escrito distinto antes de usar DIVIPOLA) se sigue mostrando.
+  // (p. ej. escrito distinto antes de usar DIVIPOLA) se sigue mostrando,
+  // pero solo dentro de su propio departamento.
   const ciudades =
-    initialValue && departamento && !lista.includes(initialValue)
+    initialValue &&
+    departamento === initialDepartamento &&
+    !lista.includes(initialValue)
       ? [initialValue, ...lista]
       : lista;
   return (
