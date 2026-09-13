@@ -1462,6 +1462,28 @@ Un bloque de pendientes que el usuario despachó de una vez, tras pedir el inven
 - **La marca "genera PDF" también en la página principal** — el ícono ya estaba en los tres checklists y en el admin, pero no en "Documentos disponibles" de la landing, que es donde más gente lo ve. Se agregó junto a cada documento, con la misma leyenda de una línea. La leyenda **solo aparece si hay al menos un documento marcado**, para no dejar una explicación de un ícono que no existe. Verificado en producción: 9 de los 26 documentos muestran el ícono.
 - **La marca "genera PDF" se actualiza sola** (`src/lib/fuentesConPdf.ts`) — antes salía de una lista escrita a mano a partir de una sola consulta real. Ahora, cada vez que una verificación trae el PDF de una fuente, esa fuente queda marcada en `precios_documentos`. ⚠️ **Solo marca `true`, nunca vuelve a `false`**: recibir un PDF prueba que la fuente puede darlo, pero no recibirlo **no** prueba lo contrario — una fuente suele omitir el soporte cuando no encuentra registros de esa persona, y desmarcarla por eso sería un error. Se llama desde los dos flujos (`consultaDecision.ts` y `solicitudVerificacion.ts`) y es best-effort.
 
+## Videos de marketing con HeyGen (2026-09-12 y 2026-09-13)
+
+Material de redes sociales, **fuera del código del sitio** (no hay nada de esto en `src/`). Todo lo relacionado vive en `Z:\SSA\Proyectos SSA\Colombia Contrata\Videos\`.
+
+**Guiones**: `Colombia_Contrata_Guiones_Serie2_Como_Funciona.docx` — 8 videos (qué es, crear cuenta, elegir documentos, pagar, ver/descargar, por qué elegirnos, empresas, candidatos). Cada frase se verificó contra el código antes de escribirla, con una lista de "no decir" (tiempos garantizados, precios, pasaporte, que el candidato ve sus resultados). REDAM se menciona **sin prometerlo** ("¿Te piden estos documentos?"), porque no es una fuente de Vericol.
+
+**Producción en HeyGen** (cuenta `colombiacontrata01@gmail.com`, plan Creator, créditos que se renuevan el día 23):
+- Avatar **Callum** (estilo 5, vertical 9:16), voces alternadas por video: Yorbis1, Samir 3, Samir 4 y Samir 2.
+- Conexión por el **MCP oficial de HeyGen** (OAuth, sin API key). La CLI de HeyGen no funciona en Windows.
+- **Eslogan oficial**: "Menos tiempo buscando. Más tiempo para lo que importa." Va siempre narrado **justo antes** de invitar a visitar la web.
+- Estructura de cada video: **portada** con el nombre del video (2 s, pensada para elegirla como miniatura) → avatar → tarjeta con los pasos → avatar → **eslogan** → **cierre** "Visítanos en colombiacontrata punto com".
+
+**Dos versiones de cada video**:
+1. **MP4 finales para redes** (`Videos\Video_N_*\Video_N_<nombre>_REDES.mp4` + `portada_miniatura.png`), montados en local con ffmpeg: portada, eslogan, música de fondo que baja sola cuando habla la voz, whoosh en los cambios de escena y notificación en el cierre, todo normalizado a −14 LUFS. Scripts y recursos en `Videos\_Recursos\`.
+2. **Borradores editables dentro de HeyGen** (Proyectos → Mis proyectos) con la misma estructura y la pista "Joyful gentle background music, upbeat and cheerful". La API de HeyGen **no permite agregar música**, así que esto se hizo a mano en el editor web. Siguen **sin generar**. **Pendiente**: generar primero el Video 2 como prueba para escuchar el volumen de la música (~6 créditos cada uno). El 2026-09-13 no se pudo lanzar porque el borrador estaba abierto en otra ventana.
+
+Detalles del editor de HeyGen que costaron tiempo (para no repetirlos):
+- **No arrastrar escenas** en el timeline: caen en otra posición y encogen la música. Usar el menú "⋯" de la miniatura (Nueva escena / Duplicar / Eliminar).
+- Una escena **sin guion no acepta voz**. Para narrarla hay que recrearla.
+- **Duración de una escena muda**: en el guion escribir "/" → "Añadir pausa" → clic en la pausa → escribir los segundos → clic fuera para que se guarde.
+- Un borrador **solo se edita en una ventana a la vez**: si está abierto en otro navegador aparece "The draft is being edited".
+
 ## Roadmap / pendientes
 
 - [x] Construir `/solicitar` (checklist de documentos para personas) — ver [Solicitud de documentos y pago con Wompi](#solicitud-de-documentos-y-pago-con-wompi). Falta `/empresas`.

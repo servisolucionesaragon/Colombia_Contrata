@@ -230,7 +230,18 @@ Tipo: TXT | Nombre: _dmarc | Contenido: v=DMARC1; p=none; rua=mailto:colombiacon
 
 **Pendiente que quedó abierto y es una decisión de negocio, no técnica**: el usuario preguntó por volver **recurrente el cobro de planes** y luego lo dejó explícitamente como **PENDIENTE POR DEFINIR** (2026-09-06). Hoy es manual por decisión suya de agosto (para no tokenizar tarjetas). Wompi no trae suscripciones: hay que tokenizar la tarjeta como "fuente de pago" y cobrar por API desde un cron, más manejar reintentos, tarjetas vencidas, período de gracia, suspensión de créditos y cancelación. **Antes de construir nada hay que confirmar con Wompi que la cuenta del comercio tenga habilitados pagos recurrentes / fuentes de pago** — sin eso el trabajo es inútil.
 
+## Videos de marketing (HeyGen) — 2026-09-12/13
+Trabajo fuera del código, en `Z:\SSA\Proyectos SSA\Colombia Contrata\Videos\` (ver README → "Videos de marketing con HeyGen"). Decisiones del usuario que no hay que re-litigar:
+- Avatar Callum (estilo 5, vertical), voces alternadas por video.
+- **Eslogan oficial**: "Menos tiempo buscando. Más tiempo para lo que importa.", siempre narrado antes de invitar a la web.
+- Portada con el nombre del video al inicio (2 s) para usarla de miniatura; los videos son para redes y deben enganchar.
+- Siempre musicalizados.
+- REDAM se menciona sin prometerlo.
+
+Existen los MP4 finales montados en local (`_REDES.mp4`) **y** los borradores editables en HeyGen con la misma estructura y música; los borradores siguen sin generar. **Pendiente**: generar el Video 2 de prueba para oír la música antes de los otros 7; el 2026-09-13 no se pudo porque el borrador estaba abierto en otra ventana. Generar gasta créditos (~6 por video): confirmar con el usuario antes. El usuario también edita esos borradores: si aparecen cambios ajenos, preguntar antes de tocarlos. Detalles técnicos y IDs en la memoria `project_videos_heygen`.
+
 ## Preferencias de colaboración
+- **Responder siempre en español**, incluidos los avisos de progreso en tareas largas: el 2026-09-13 se colaron mensajes en inglés y el usuario no los entendió.
 - El usuario no tiene conocimiento técnico profundo (ej. pidió explicación simple de qué es Vercel) — explicar conceptos de forma accesible, sin asumir jerga previa.
 - Prefiere avanzar construyendo el sitio mientras resuelve piezas externas (como el API del proveedor de documentos) en paralelo.
 - El usuario ya decidió comprometerse con backend real para los flujos principales (registro, login, perfil, admin) — ya no hace falta preguntar "interfaz primero vs. backend real" para estos. Sigue siendo válido preguntar para features nuevos que toquen infraestructura externa (pagos, API del proveedor de documentos, storage).
