@@ -1476,7 +1476,7 @@ Material de redes sociales, **fuera del código del sitio** (no hay nada de esto
 
 **Dos versiones de cada video**:
 1. **MP4 finales para redes** (`Videos\Video_N_*\Video_N_<nombre>_REDES.mp4` + `portada_miniatura.png`), montados en local con ffmpeg: portada, eslogan, música de fondo que baja sola cuando habla la voz, whoosh en los cambios de escena y notificación en el cierre, todo normalizado a −14 LUFS. Scripts y recursos en `Videos\_Recursos\`.
-2. **Borradores editables dentro de HeyGen** (Proyectos → Mis proyectos) con la misma estructura y la pista "Joyful gentle background music, upbeat and cheerful". La API de HeyGen **no permite agregar música**, así que esto se hizo a mano en el editor web. Siguen **sin generar**. **Pendiente**: generar primero el Video 2 como prueba para escuchar el volumen de la música (~6 créditos cada uno). El 2026-09-13 no se pudo lanzar porque el borrador estaba abierto en otra ventana.
+2. **Borradores editables dentro de HeyGen** (Proyectos → Mis proyectos) con la misma estructura y la pista "Joyful gentle background music, upbeat and cheerful". La API de HeyGen **no permite agregar música**, así que esto se hizo a mano en el editor web. El 2026-09-13 se generó el **Video 2 como prueba** (1080p, MP4, sin marca de agua; costó 6 créditos, saldo 263) para escuchar el volumen de la música antes de generar los otros 7. **Pendiente**: que el usuario lo oiga y decida si se generan los demás.
 
 Detalles del editor de HeyGen que costaron tiempo (para no repetirlos):
 - **No arrastrar escenas** en el timeline: caen en otra posición y encogen la música. Usar el menú "⋯" de la miniatura (Nueva escena / Duplicar / Eliminar).

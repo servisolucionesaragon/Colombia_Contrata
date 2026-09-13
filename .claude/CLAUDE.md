@@ -238,7 +238,7 @@ Trabajo fuera del código, en `Z:\SSA\Proyectos SSA\Colombia Contrata\Videos\` (
 - Siempre musicalizados.
 - REDAM se menciona sin prometerlo.
 
-Existen los MP4 finales montados en local (`_REDES.mp4`) **y** los borradores editables en HeyGen con la misma estructura y música; los borradores siguen sin generar. **Pendiente**: generar el Video 2 de prueba para oír la música antes de los otros 7; el 2026-09-13 no se pudo porque el borrador estaba abierto en otra ventana. Generar gasta créditos (~6 por video): confirmar con el usuario antes. El usuario también edita esos borradores: si aparecen cambios ajenos, preguntar antes de tocarlos. Detalles técnicos y IDs en la memoria `project_videos_heygen`.
+Existen los MP4 finales montados en local (`_REDES.mp4`) **y** los borradores editables en HeyGen con la misma estructura y música; el Video 2 se generó de prueba el 2026-09-13 (6 créditos) y los otros 7 siguen como borrador. **Pendiente**: que el usuario oiga la música del Video 2 y decida si se generan los demás. Generar gasta créditos (~6 por video): confirmar con el usuario antes. El usuario también edita esos borradores: si aparecen cambios ajenos, preguntar antes de tocarlos. Detalles técnicos y IDs en la memoria `project_videos_heygen`.
 
 ## Preferencias de colaboración
 - **Responder siempre en español**, incluidos los avisos de progreso en tareas largas: el 2026-09-13 se colaron mensajes en inglés y el usuario no los entendió.
