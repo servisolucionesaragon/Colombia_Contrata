@@ -24,6 +24,33 @@ type Solicitud = {
   nivel_riesgo: NivelRiesgo | null;
 };
 
+// El botón "Ver resultados" se usa igual en la tabla de escritorio y en
+// las tarjetas de móvil, así que vive en un solo lugar.
+function ResultadoSolicitud({ solicitud }: { solicitud: Solicitud }) {
+  if (solicitud.estado !== "pagado") {
+    return <span className="text-gray-300 dark:text-gray-600">—</span>;
+  }
+  if (
+    !solicitud.resultado_pdfs &&
+    !solicitud.resultado_error &&
+    !solicitud.resultado_obtenido_at
+  ) {
+    return <span className="text-xs text-gray-400 dark:text-gray-500">Verificando...</span>;
+  }
+  return (
+    <DocumentosBoton
+      id={solicitud.id}
+      tipo="solicitudes"
+      titulo="Tus documentos"
+      pdfs={solicitud.resultado_pdfs}
+      resultadoError={solicitud.resultado_error}
+      resultadoObtenidoAt={solicitud.resultado_obtenido_at}
+      resultadoJson={solicitud.resultado_json}
+      nivelRiesgo={solicitud.nivel_riesgo}
+    />
+  );
+}
+
 type ConsultaRecibida = {
   id: string;
   empresaNombre: string;
@@ -381,53 +408,63 @@ export default function HistorialContent() {
             {solicitudesFiltradas.length === 0 ? (
               <VacioMensaje texto="Ninguna solicitud coincide con los filtros." />
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500 border-b border-gray-200 dark:border-gray-700">
-                      <th className="py-2 pr-4">Fecha</th>
-                      <th className="py-2 pr-4">Documentos</th>
-                      <th className="py-2 pr-4">Monto</th>
-                      <th className="py-2 pr-4">Estado</th>
-                      <th className="py-2">Resultado</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {solicitudesFiltradas.map((s) => (
-                      <tr key={s.id} className="border-b border-gray-100 dark:border-gray-800 last:border-0">
-                        <td className="py-3 pr-4 text-gray-600 dark:text-gray-400">
-                          {new Date(s.created_at).toLocaleDateString("es-CO")}
-                        </td>
-                        <td className="py-3 pr-4 text-gray-900 dark:text-gray-100">
-                          {(s.documentos ?? []).map((d) => d.documento).join(", ") || "—"}
-                        </td>
-                        <td className="py-3 pr-4 text-gray-600 dark:text-gray-400">{formatCOP(s.monto)}</td>
-                        <td className="py-3 pr-4">
-                          <EstadoPagoBadge estado={s.estado} />
-                        </td>
-                        <td className="py-3">
-                          {s.estado !== "pagado" ? (
-                            <span className="text-gray-300 dark:text-gray-600">—</span>
-                          ) : !s.resultado_pdfs && !s.resultado_error && !s.resultado_obtenido_at ? (
-                            <span className="text-xs text-gray-400 dark:text-gray-500">Verificando...</span>
-                          ) : (
-                            <DocumentosBoton
-                              id={s.id}
-                              tipo="solicitudes"
-                              titulo="Tus documentos"
-                              pdfs={s.resultado_pdfs}
-                              resultadoError={s.resultado_error}
-                              resultadoObtenidoAt={s.resultado_obtenido_at}
-                              resultadoJson={s.resultado_json}
-                              nivelRiesgo={s.nivel_riesgo}
-                            />
-                          )}
-                        </td>
+              <>
+                {/* Móvil: tarjetas con "Ver resultados" de primero, para no
+                    tener que desplazar la tabla hacia la derecha. */}
+                <ul className="sm:hidden space-y-3">
+                  {solicitudesFiltradas.map((s) => (
+                    <li
+                      key={s.id}
+                      className="rounded-xl border border-gray-200 dark:border-gray-700 p-4 space-y-2"
+                    >
+                      <ResultadoSolicitud solicitud={s} />
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-500 dark:text-gray-400">
+                        <span>{new Date(s.created_at).toLocaleDateString("es-CO")}</span>
+                        <span aria-hidden="true">·</span>
+                        <EstadoPagoBadge estado={s.estado} />
+                        <span aria-hidden="true">·</span>
+                        <span>{formatCOP(s.monto)}</span>
+                      </div>
+                      <p className="text-sm text-gray-900 dark:text-gray-100">
+                        {(s.documentos ?? []).map((d) => d.documento).join(", ") || "—"}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+
+                <div className="hidden sm:block overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500 border-b border-gray-200 dark:border-gray-700">
+                        <th className="py-2 pr-4">Fecha</th>
+                        <th className="py-2 pr-4">Documentos</th>
+                        <th className="py-2 pr-4">Monto</th>
+                        <th className="py-2 pr-4">Estado</th>
+                        <th className="py-2">Resultado</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {solicitudesFiltradas.map((s) => (
+                        <tr key={s.id} className="border-b border-gray-100 dark:border-gray-800 last:border-0">
+                          <td className="py-3 pr-4 text-gray-600 dark:text-gray-400">
+                            {new Date(s.created_at).toLocaleDateString("es-CO")}
+                          </td>
+                          <td className="py-3 pr-4 text-gray-900 dark:text-gray-100">
+                            {(s.documentos ?? []).map((d) => d.documento).join(", ") || "—"}
+                          </td>
+                          <td className="py-3 pr-4 text-gray-600 dark:text-gray-400">{formatCOP(s.monto)}</td>
+                          <td className="py-3 pr-4">
+                            <EstadoPagoBadge estado={s.estado} />
+                          </td>
+                          <td className="py-3">
+                            <ResultadoSolicitud solicitud={s} />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
             )}
           </>
         )}

@@ -1462,6 +1462,16 @@ Un bloque de pendientes que el usuario despachó de una vez, tras pedir el inven
 - **La marca "genera PDF" también en la página principal** — el ícono ya estaba en los tres checklists y en el admin, pero no en "Documentos disponibles" de la landing, que es donde más gente lo ve. Se agregó junto a cada documento, con la misma leyenda de una línea. La leyenda **solo aparece si hay al menos un documento marcado**, para no dejar una explicación de un ícono que no existe. Verificado en producción: 9 de los 26 documentos muestran el ícono.
 - **La marca "genera PDF" se actualiza sola** (`src/lib/fuentesConPdf.ts`) — antes salía de una lista escrita a mano a partir de una sola consulta real. Ahora, cada vez que una verificación trae el PDF de una fuente, esa fuente queda marcada en `precios_documentos`. ⚠️ **Solo marca `true`, nunca vuelve a `false`**: recibir un PDF prueba que la fuente puede darlo, pero no recibirlo **no** prueba lo contrario — una fuente suele omitir el soporte cuando no encuentra registros de esa persona, y desmarcarla por eso sería un error. Se llama desde los dos flujos (`consultaDecision.ts` y `solicitudVerificacion.ts`) y es best-effort.
 
+## Historial en móvil: tarjetas en vez de tabla (2026-09-20)
+
+El usuario reportó que en el celular, para ver sus documentos en `/historial`, tocaba desplazar la tabla hacia la derecha porque "Ver resultados" era la última columna.
+
+La tabla de "Solicitudes de documentos" (persona) ahora es **`hidden sm:block`**, y debajo de `sm` se renderiza una lista de tarjetas con **el botón de resultados de primero**, seguido de fecha · estado · monto y la lista de documentos. Así no hay scroll horizontal en móvil.
+
+El botón se extrajo al componente `ResultadoSolicitud` dentro del mismo archivo, para que la tabla y las tarjetas no dupliquen la lógica de los tres estados (no pagado → "—", pagado sin resultado todavía → "Verificando...", con resultado → `DocumentosBoton`).
+
+Las demás tablas no se tocaron: las de empresa ya se ensancharon en agosto (`max-w-7xl`) y la de "Consultas recibidas" del lado persona solo tiene 3 columnas.
+
 ## Atajo de administrador: solicitar documentos sin pagar (2026-09-20)
 
 Regla pedida por el usuario: *"como usuario persona con rol de admin, no llevarme a la pasarela de pagos cuando dé clic en Solicitar mis documentos"*.
