@@ -1462,6 +1462,19 @@ Un bloque de pendientes que el usuario despachó de una vez, tras pedir el inven
 - **La marca "genera PDF" también en la página principal** — el ícono ya estaba en los tres checklists y en el admin, pero no en "Documentos disponibles" de la landing, que es donde más gente lo ve. Se agregó junto a cada documento, con la misma leyenda de una línea. La leyenda **solo aparece si hay al menos un documento marcado**, para no dejar una explicación de un ícono que no existe. Verificado en producción: 9 de los 26 documentos muestran el ícono.
 - **La marca "genera PDF" se actualiza sola** (`src/lib/fuentesConPdf.ts`) — antes salía de una lista escrita a mano a partir de una sola consulta real. Ahora, cada vez que una verificación trae el PDF de una fuente, esa fuente queda marcada en `precios_documentos`. ⚠️ **Solo marca `true`, nunca vuelve a `false`**: recibir un PDF prueba que la fuente puede darlo, pero no recibirlo **no** prueba lo contrario — una fuente suele omitir el soporte cuando no encuentra registros de esa persona, y desmarcarla por eso sería un error. Se llama desde los dos flujos (`consultaDecision.ts` y `solicitudVerificacion.ts`) y es best-effort.
 
+## Atajo de administrador: solicitar documentos sin pagar (2026-09-20)
+
+Regla pedida por el usuario: *"como usuario persona con rol de admin, no llevarme a la pasarela de pagos cuando dé clic en Solicitar mis documentos"*.
+
+En `POST /api/solicitudes/crear`, si la cuenta que llama tiene `app_metadata.role === "admin"` (el mismo rol que abre `/admin`):
+
+- La solicitud se guarda directamente con `estado = "pagado"` y **`monto = 0`**, con su `wompi_referencia` normal (`SOL-...`) para que `/solicitar/confirmacion` y `/historial` la encuentren igual que cualquier otra.
+- La verificación de fuentes se dispara ahí mismo con `after()`, llamando a **la misma** `procesarPagoAprobadoSolicitud()` que usa el webhook de Wompi — no se duplicó la lógica de consulta ni el correo de "documentos listos". Por eso el endpoint necesita `maxDuration = 180`.
+- El endpoint responde `{ sinPago: true }` y `SolicitarContent.tsx` redirige a `/solicitar/confirmacion?reference=...` en vez de al checkout.
+- El precio (`configuracion_persona.precio_desde`) deja de ser obligatorio **solo** en este caso; para una cuenta normal se sigue exigiendo antes de crear nada.
+
+Es el equivalente para personas de `esEmpresaAdmin()` en `src/lib/creditos.ts` (una empresa admin autoriza consultas sin gastar créditos). ⚠️ El atajo **no es gratis de verdad**: Vericol no tiene ambiente de pruebas, así que cada solicitud así gasta créditos reales de esa cuenta.
+
 ## Departamentos y municipios del perfil (2026-09-13)
 
 El usuario reportó que al elegir el departamento en `/perfil` no salían todas las ciudades (ejemplo: Córdoba sin Ayapel). La causa era que `src/lib/colombia.ts` estaba escrito a mano con solo las ciudades **principales** de cada departamento, entre 1 y 15 por departamento. Ahora trae los **1.122 municipios oficiales** de la DIVIPOLA del DANE (datos.gov.co, conjunto `gdxc-w37w`), con la capital de primera y el resto en orden alfabético.

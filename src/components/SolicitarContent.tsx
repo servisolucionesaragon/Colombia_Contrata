@@ -103,6 +103,13 @@ export default function SolicitarContent() {
       return;
     }
 
+    // Cuenta de administrador: la solicitud ya quedó pagada y en proceso,
+    // no hay que pasar por la pasarela.
+    if (result.sinPago) {
+      window.location.href = `/solicitar/confirmacion?reference=${result.reference}`;
+      return;
+    }
+
     if (!result.pagoDisponible) {
       setStatus("pago-no-disponible");
       return;
